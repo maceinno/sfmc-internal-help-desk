@@ -1,0 +1,293 @@
+"use client"
+
+import * as React from "react"
+import { useRouter } from "next/navigation"
+import {
+  ChevronLeft,
+  Printer,
+  GitMerge,
+  CornerDownRight,
+  Loader2,
+} from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { StatusBadge } from "@/components/tickets/status-badge"
+import { PriorityBadge } from "@/components/tickets/priority-badge"
+import { MessageThread } from "@/components/ticket-detail/message-thread"
+import { ReplyComposer } from "@/components/ticket-detail/reply-composer"
+import { TicketSidebarPanel } from "@/components/ticket-detail/ticket-sidebar-panel"
+import { AttachmentList } from "@/components/ticket-detail/attachment-list"
+import { MergeModal } from "@/components/ticket-detail/merge-modal"
+import { useTicket, useUpdateTicket } from "@/hooks/use-tickets"
+import { useCurrentUser } from "@/hooks/use-current-user"
+import { useCannedResponses, useTeams } from "@/hooks/use-admin-config"
+import { canViewInternalNotes } from "@/lib/permissions/policies"
+import type { Ticket, Message } from "@/types"
+
+export default function TicketDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = React.use(params)
+  const router = useRouter()
+
+  const { data: ticket, isLoading: isTicketLoading } = useTicket(id)
+  const { profile: currentUser, isLoading: isUserLoading } = useCurrentUser()
+  const { data: cannedResponses } = useCannedResponses()
+  const { data: teams } = useTeams()
+  const updateTicket = useUpdateTicket()
+
+  const [showMergeModal, setShowMergeModal] = React.useState(false)
+
+  const isLoading = isTicketLoading || isUserLoading
+
+  // Users placeholder -- in a real implementation you'd fetch all users
+  // For now we derive a minimal list from ticket data
+  const users = React.useMemo(() => {
+    if (!currentUser) return []
+    return [currentUser]
+  }, [currentUser])
+
+  const handleUpdateField = React.useCallback(
+    (field: string, value: unknown) => {
+      if (!ticket) return
+      updateTicket.mutate({
+        id: ticket.id,
+        [field]: value,
+      } as Parameters<typeof updateTicket.mutate>[0])
+    },
+    [ticket, updateTicket]
+  )
+
+  const handleReplySubmit = React.useCallback(
+    (message: {
+      content: string
+      isInternal: boolean
+      taggedAgents?: string[]
+      attachments?: File[]
+    }) => {
+      if (!ticket || !currentUser) return
+      // In a full implementation this would call a dedicated addMessage mutation.
+      // For now, we update the ticket optimistically via the existing update hook.
+      // This is a placeholder -- the real implementation would use a messages API.
+      console.log("Reply submitted:", message)
+    },
+    [ticket, currentUser]
+  )
+
+  const handleMergeConfirm = React.useCallback(
+    (targetTicket: Ticket, direction: "into" | "from") => {
+      if (!ticket || !currentUser) return
+      // Merge logic would go here
+      console.log("Merge confirmed:", { targetTicket, direction })
+      setShowMergeModal(false)
+    },
+    [ticket, currentUser]
+  )
+
+  const handlePrint = React.useCallback(() => {
+    window.print()
+  }, [])
+
+  if (isLoading) {
+    return (
+      <div className="flex h-96 items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">Loading ticket...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!ticket) {
+    return (
+      <div className="flex h-96 items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-lg font-semibold text-gray-900">
+            Ticket not found
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            The ticket you're looking for doesn't exist or you don't have access.
+          </p>
+          <Button
+            variant="outline"
+            className="mt-4"
+            onClick={() => router.back()}
+          >
+            <ChevronLeft className="mr-1 h-4 w-4" />
+            Go Back
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (!currentUser) {
+    return null
+  }
+
+  const isAgentOrAdmin =
+    currentUser.role === "agent" || currentUser.role === "admin"
+  const showInternalNotes = canViewInternalNotes(currentUser)
+
+  // Filter messages: employees don't see internal notes
+  const visibleMessages = showInternalNotes
+    ? ticket.messages
+    : ticket.messages.filter((m) => !m.isInternal)
+
+  return (
+    <div className="flex h-[calc(100vh-6rem)] flex-col animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* Header */}
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => router.back()}
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl font-bold text-gray-900">
+                #{ticket.id}
+              </h1>
+              <StatusBadge status={ticket.status} />
+              <PriorityBadge priority={ticket.priority} />
+            </div>
+            <h2 className="mt-0.5 text-base text-gray-600">{ticket.title}</h2>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Follow-up button */}
+          {ticket.status === "solved" && !ticket.parentTicketId && (
+            <Button variant="outline" size="sm">
+              <CornerDownRight className="mr-2 h-4 w-4" />
+              Create Follow-Up
+            </Button>
+          )}
+
+          {/* Merge button */}
+          {isAgentOrAdmin &&
+            !ticket.mergedIntoId &&
+            ticket.status !== "solved" && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowMergeModal(true)}
+                className="text-purple-600 hover:text-purple-700"
+              >
+                <GitMerge className="mr-2 h-4 w-4" />
+                Merge
+              </Button>
+            )}
+
+          {/* Print button */}
+          <Button variant="outline" size="sm" onClick={handlePrint}>
+            <Printer className="mr-2 h-4 w-4" />
+            Print
+          </Button>
+        </div>
+      </div>
+
+      {/* Merged Banner */}
+      {ticket.mergedIntoId && (
+        <div className="mb-2 flex items-center gap-2 rounded-lg border border-purple-200 bg-purple-50 px-4 py-3">
+          <GitMerge className="h-4 w-4 text-purple-600" />
+          <span className="text-sm text-purple-800">
+            This ticket was merged into{" "}
+            <button
+              type="button"
+              onClick={() =>
+                router.push(`/tickets/${ticket.mergedIntoId}`)
+              }
+              className="font-semibold text-purple-700 hover:underline"
+            >
+              #{ticket.mergedIntoId}
+            </button>
+          </span>
+        </div>
+      )}
+
+      {ticket.mergedTicketIds && ticket.mergedTicketIds.length > 0 && (
+        <div className="mb-2 flex items-center gap-2 rounded-lg border border-purple-200 bg-purple-50 px-4 py-3">
+          <GitMerge className="h-4 w-4 text-purple-600" />
+          <span className="text-sm text-purple-800">
+            {ticket.mergedTicketIds.length} ticket
+            {ticket.mergedTicketIds.length !== 1 ? "s" : ""} merged into
+            this ticket:{" "}
+            {ticket.mergedTicketIds.map((mergedId, idx) => (
+              <span key={mergedId}>
+                <button
+                  type="button"
+                  onClick={() => router.push(`/tickets/${mergedId}`)}
+                  className="font-semibold text-purple-700 hover:underline"
+                >
+                  #{mergedId}
+                </button>
+                {idx < ticket.mergedTicketIds!.length - 1 ? ", " : ""}
+              </span>
+            ))}
+          </span>
+        </div>
+      )}
+
+      {/* Main Layout */}
+      <div className="flex flex-1 flex-col gap-6 overflow-hidden lg:flex-row">
+        {/* Left: Conversation + Reply */}
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+          <MessageThread
+            messages={visibleMessages}
+            users={users}
+            currentUserId={currentUser.id}
+            ticketDescription={ticket.description}
+            ticketCreatedBy={ticket.createdBy}
+            ticketCreatedAt={ticket.createdAt}
+            attachments={ticket.attachments}
+          />
+
+          {/* Attachments (shown between thread and composer) */}
+          {ticket.attachments && ticket.attachments.length > 0 && (
+            <div className="border-t border-gray-100 px-6 py-4">
+              <AttachmentList
+                attachments={ticket.attachments}
+                users={users}
+              />
+            </div>
+          )}
+
+          <ReplyComposer
+            ticketId={ticket.id}
+            ticketCreatedBy={ticket.createdBy}
+            ticketCc={ticket.cc}
+            ticketCollaborators={ticket.collaborators}
+            users={users}
+            currentUser={currentUser}
+            cannedResponses={cannedResponses ?? []}
+            onSubmit={handleReplySubmit}
+          />
+        </div>
+
+        {/* Right: Sidebar */}
+        <TicketSidebarPanel
+          ticket={ticket}
+          currentUser={currentUser}
+          users={users}
+          onUpdateField={handleUpdateField}
+          teams={teams?.map((t) => ({ id: t.id, name: t.name })) ?? []}
+        />
+      </div>
+
+      {/* Merge Modal */}
+      <MergeModal
+        open={showMergeModal}
+        onOpenChange={setShowMergeModal}
+        currentTicket={ticket}
+        allTickets={[]}
+        onConfirm={handleMergeConfirm}
+      />
+    </div>
+  )
+}
