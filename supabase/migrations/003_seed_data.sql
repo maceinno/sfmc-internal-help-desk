@@ -24,24 +24,24 @@ ON CONFLICT (id) DO NOTHING;
 -- BRANCHES
 -- ============================================================================
 
-INSERT INTO branches (id, name, location) VALUES
-  ('branch-downtown', 'Downtown Branch', 'San Francisco, CA'),
-  ('branch-midtown',  'Midtown Office',  'San Francisco, CA'),
-  ('branch-east',     'East Bay Branch',  'Oakland, CA'),
-  ('branch-hq',       'Corporate HQ',    'San Francisco, CA')
-ON CONFLICT (id) DO NOTHING;
+INSERT INTO branches (name, location) VALUES
+  ('Downtown Branch', 'San Francisco, CA'),
+  ('Midtown Office',  'San Francisco, CA'),
+  ('East Bay Branch',  'Oakland, CA'),
+  ('Corporate HQ',    'San Francisco, CA')
+ON CONFLICT DO NOTHING;
 
 
 -- ============================================================================
 -- REGIONS
 -- ============================================================================
 
-INSERT INTO regions (id, name, location) VALUES
-  ('region-aldridge',  'Aldridge',  'Aldridge Region'),
-  ('region-donnelly',  'Donnelly',  'Donnelly Region'),
-  ('region-corporate', 'Corporate', 'Corporate Region'),
-  ('region-gw',        'GW',        'GW Region')
-ON CONFLICT (id) DO NOTHING;
+INSERT INTO regions (name, location) VALUES
+  ('Aldridge',  'Aldridge Region'),
+  ('Donnelly',  'Donnelly Region'),
+  ('Corporate', 'Corporate Region'),
+  ('GW',        'GW Region')
+ON CONFLICT DO NOTHING;
 
 
 -- ============================================================================
@@ -49,35 +49,35 @@ ON CONFLICT (id) DO NOTHING;
 -- ============================================================================
 
 -- Closing Support
-INSERT INTO department_categories (ticket_type, category_name, subcategories) VALUES
+INSERT INTO department_categories (ticket_type, category_name, sub_categories) VALUES
   ('Closing Support', 'Closing Exceptions', NULL),
   ('Closing Support', 'Escrow Adjustments', NULL),
   ('Closing Support', 'General Question',   NULL),
-  ('Closing Support', 'ICD Release',        '["Early Release", "Early Balance"]'::jsonb),
+  ('Closing Support', 'ICD Release',        ARRAY['Early Release', 'Early Balance']),
   ('Closing Support', 'Move Closing Date',  NULL),
   ('Closing Support', 'POA Approval',       NULL),
   ('Closing Support', 'Post Closing',       NULL);
 
 -- IT Support
-INSERT INTO department_categories (ticket_type, category_name, subcategories) VALUES
+INSERT INTO department_categories (ticket_type, category_name, sub_categories) VALUES
   ('IT Support', 'DynaSend Signature',     NULL),
-  ('IT Support', 'Email Distribution List', '["Create", "Delete", "Add Member", "Remove Member", "Issue"]'::jsonb),
+  ('IT Support', 'Email Distribution List', ARRAY['Create', 'Delete', 'Add Member', 'Remove Member', 'Issue']),
   ('IT Support', 'Forward Email',          NULL),
-  ('IT Support', 'Hardware Issue',         '["Laptop", "Keyboard/Mouse", "Webcam", "Docking Station", "Monitor"]'::jsonb),
-  ('IT Support', 'Hardware Request',       '["Laptop", "Keyboard/Mouse", "Webcam", "Docking Station", "Monitor"]'::jsonb),
+  ('IT Support', 'Hardware Issue',         ARRAY['Laptop', 'Keyboard/Mouse', 'Webcam', 'Docking Station', 'Monitor']),
+  ('IT Support', 'Hardware Request',       ARRAY['Laptop', 'Keyboard/Mouse', 'Webcam', 'Docking Station', 'Monitor']),
   ('IT Support', 'Install Software',       NULL),
-  ('IT Support', 'Add Access',            '["Bank VOD", "CANDID", "Certified Credit", "CreditXpert", "DataVerify (DRIVE)", "Desktop Underwriter (FNMA)", "DocMagic", "eFAX", "FHA Connection", "Halcyon", "Intranet", "MeridianLink Mortgage", "Microsoft", "Nitro", "USDA", "VA", "ValuTrac", "Zoom"]'::jsonb),
+  ('IT Support', 'Add Access',            ARRAY['Bank VOD', 'CANDID', 'Certified Credit', 'CreditXpert', 'DataVerify (DRIVE)', 'Desktop Underwriter (FNMA)', 'DocMagic', 'eFAX', 'FHA Connection', 'Halcyon', 'Intranet', 'MeridianLink Mortgage', 'Microsoft', 'Nitro', 'USDA', 'VA', 'ValuTrac', 'Zoom']),
   ('IT Support', 'New Hire',              NULL),
-  ('IT Support', 'Password Reset',        '["Bank VOD", "CANDID", "Certified Credit", "CreditXpert", "DataVerify (DRIVE)", "Desktop Underwriter (FNMA)", "DocMagic", "eFAX", "FHA Connection", "Halcyon", "Intranet", "MeridianLink Mortgage", "Microsoft", "Nitro", "USDA", "VA", "ValuTrac", "Zoom"]'::jsonb),
-  ('IT Support', 'Remove Access',         '["Bank VOD", "CANDID", "Certified Credit", "CreditXpert", "DataVerify (DRIVE)", "Desktop Underwriter (FNMA)", "DocMagic", "eFAX", "FHA Connection", "Halcyon", "Intranet", "MeridianLink Mortgage", "Microsoft", "Nitro", "USDA", "VA", "ValuTrac", "Zoom"]'::jsonb),
-  ('IT Support', 'Modify Access',         '["Bank VOD", "CANDID", "Certified Credit", "CreditXpert", "DataVerify (DRIVE)", "Desktop Underwriter (FNMA)", "DocMagic", "eFAX", "FHA Connection", "Halcyon", "Intranet", "MeridianLink Mortgage", "Microsoft", "Nitro", "USDA", "VA", "ValuTrac", "Zoom"]'::jsonb),
+  ('IT Support', 'Password Reset',        ARRAY['Bank VOD', 'CANDID', 'Certified Credit', 'CreditXpert', 'DataVerify (DRIVE)', 'Desktop Underwriter (FNMA)', 'DocMagic', 'eFAX', 'FHA Connection', 'Halcyon', 'Intranet', 'MeridianLink Mortgage', 'Microsoft', 'Nitro', 'USDA', 'VA', 'ValuTrac', 'Zoom']),
+  ('IT Support', 'Remove Access',         ARRAY['Bank VOD', 'CANDID', 'Certified Credit', 'CreditXpert', 'DataVerify (DRIVE)', 'Desktop Underwriter (FNMA)', 'DocMagic', 'eFAX', 'FHA Connection', 'Halcyon', 'Intranet', 'MeridianLink Mortgage', 'Microsoft', 'Nitro', 'USDA', 'VA', 'ValuTrac', 'Zoom']),
+  ('IT Support', 'Modify Access',         ARRAY['Bank VOD', 'CANDID', 'Certified Credit', 'CreditXpert', 'DataVerify (DRIVE)', 'Desktop Underwriter (FNMA)', 'DocMagic', 'eFAX', 'FHA Connection', 'Halcyon', 'Intranet', 'MeridianLink Mortgage', 'Microsoft', 'Nitro', 'USDA', 'VA', 'ValuTrac', 'Zoom']),
   ('IT Support', 'Shared Mailbox',        NULL),
   ('IT Support', 'Termination',           NULL),
   ('IT Support', 'Transfer / Title Change', NULL),
   ('IT Support', 'Unblock Website',       NULL);
 
 -- Lending Support
-INSERT INTO department_categories (ticket_type, category_name, subcategories) VALUES
+INSERT INTO department_categories (ticket_type, category_name, sub_categories) VALUES
   ('Lending Support', 'Condition Dispute',            NULL),
   ('Lending Support', 'Condo Review',                 NULL),
   ('Lending Support', 'Exception Request',            NULL),
@@ -85,13 +85,13 @@ INSERT INTO department_categories (ticket_type, category_name, subcategories) VA
   ('Lending Support', 'Income Opinion',               NULL),
   ('Lending Support', 'Loan Status Change',           NULL),
   ('Lending Support', 'Opinion General',              NULL),
-  ('Lending Support', 'Post Closing Audit',           '["Prior to Purchase", "Post Purchase"]'::jsonb),
+  ('Lending Support', 'Post Closing Audit',           ARRAY['Prior to Purchase', 'Post Purchase']),
   ('Lending Support', 'Pre-Approval Certified Buyer', NULL),
   ('Lending Support', 'PTS Condition Review',         NULL),
   ('Lending Support', 'Trained Validation',           NULL);
 
 -- Marketing Support
-INSERT INTO department_categories (ticket_type, category_name, subcategories) VALUES
+INSERT INTO department_categories (ticket_type, category_name, sub_categories) VALUES
   ('Marketing Support', 'Communications',   NULL),
   ('Marketing Support', 'CRM',              NULL),
   ('Marketing Support', 'Graphic Design',   NULL),
@@ -100,28 +100,28 @@ INSERT INTO department_categories (ticket_type, category_name, subcategories) VA
   ('Marketing Support', 'Other',            NULL);
 
 -- Payoff Request
-INSERT INTO department_categories (ticket_type, category_name, subcategories) VALUES
+INSERT INTO department_categories (ticket_type, category_name, sub_categories) VALUES
   ('Payoff Request', 'Mortgage Billing Statement', NULL),
   ('Payoff Request', 'Payment History',            NULL),
-  ('Payoff Request', 'SFMC Payoff',                '["Net Escrow", "Traditional"]'::jsonb);
+  ('Payoff Request', 'SFMC Payoff',                ARRAY['Net Escrow', 'Traditional']);
 
 -- Product Desk (Non-Agency Products)
-INSERT INTO department_categories (ticket_type, category_name, subcategories) VALUES
+INSERT INTO department_categories (ticket_type, category_name, sub_categories) VALUES
   ('Product Desk (Non-Agency Products)', 'Bank Statement', NULL),
   ('Product Desk (Non-Agency Products)', 'DSCR',           NULL),
   ('Product Desk (Non-Agency Products)', 'Not Certain',    NULL),
   ('Product Desk (Non-Agency Products)', 'Other Product',  NULL);
 
 -- Secondary Support
-INSERT INTO department_categories (ticket_type, category_name, subcategories) VALUES
+INSERT INTO department_categories (ticket_type, category_name, sub_categories) VALUES
   ('Secondary Support', 'Bond Lock Request',            NULL),
   ('Secondary Support', 'Extension',                    NULL),
   ('Secondary Support', 'Lender Credit',                NULL),
-  ('Secondary Support', 'Loan Structure Revision',      '["Before CTC", "After CTC"]'::jsonb),
+  ('Secondary Support', 'Loan Structure Revision',      ARRAY['Before CTC', 'After CTC']),
   ('Secondary Support', 'PML/Quick Pricer',             NULL),
   ('Secondary Support', 'Post Closing Issue',           NULL),
   ('Secondary Support', 'Pricing Exception',            NULL),
-  ('Secondary Support', 'Specialty Program Lock Request','["Buydown", "Reverse", "Wholesale"]'::jsonb),
+  ('Secondary Support', 'Specialty Program Lock Request',ARRAY['Buydown', 'Reverse', 'Wholesale']),
   ('Secondary Support', 'Specialty Term Adjustment',    NULL);
 
 
@@ -564,7 +564,7 @@ ON CONFLICT (id) DO NOTHING;
 -- VIEW CONFIGS  (static views + generated per-department views)
 -- ============================================================================
 
-INSERT INTO view_configs (id, name, enabled, view_group, filter_config, sort_order) VALUES
+INSERT INTO view_configs (id, name, enabled, group_name, filter_config, sort_order) VALUES
 
   -- ── My Queue ──────────────────────────────────────────────────
   ('my-new',
@@ -797,7 +797,7 @@ ON CONFLICT (id) DO NOTHING;
 -- ROUTING RULES  (8 rules)
 -- ============================================================================
 
-INSERT INTO routing_rules (id, name, enabled, ticket_type, category, assign_to_team, priority) VALUES
+INSERT INTO routing_rules (id, name, enabled, ticket_type, category, assign_to_team, priority_order) VALUES
   ('rr-it',
    'IT Support to IT Support Team',
    true, 'IT Support', 'any', 'team-it', 1),
@@ -837,23 +837,23 @@ ON CONFLICT (id) DO NOTHING;
 -- CUSTOM FIELDS  (8 fields)
 -- ============================================================================
 
-INSERT INTO custom_fields (id, name, label, type, required, options, placeholder, help_text, visible_to_roles, visible_to_departments, sort_order, enabled) VALUES
+INSERT INTO custom_fields (id, name, label, field_type, required, options, placeholder, help_text, visible_to_roles, visible_to_departments, sort_order, enabled) VALUES
   ('custom-loan-number',
    'loan_number', 'Loan Number', 'text', true,
    NULL,
    'e.g., LN-2024-12345',
    'Enter the loan file number from your system',
-   '["agent", "admin"]'::jsonb,
-   '[]'::jsonb,
+   ARRAY['agent', 'admin'],
+   NULL,
    0, true),
 
   ('custom-loan-type',
    'loan_type', 'Loan Type', 'select', true,
-   '["Conventional", "FHA", "VA", "USDA", "Jumbo", "Non-QM", "Reverse Mortgage"]'::jsonb,
+   ARRAY['Conventional', 'FHA', 'VA', 'USDA', 'Jumbo', 'Non-QM', 'Reverse Mortgage'],
    NULL,
    'Select the type of loan being processed',
-   '["agent", "admin"]'::jsonb,
-   '["Lending Support", "Closing Support"]'::jsonb,
+   ARRAY['agent', 'admin'],
+   ARRAY['Lending Support', 'Closing Support'],
    1, true),
 
   ('custom-loan-amount',
@@ -861,8 +861,8 @@ INSERT INTO custom_fields (id, name, label, type, required, options, placeholder
    NULL,
    '350000',
    'Enter the loan amount in dollars (without commas or symbols)',
-   '["agent", "admin"]'::jsonb,
-   '[]'::jsonb,
+   ARRAY['agent', 'admin'],
+   NULL,
    2, true),
 
   ('custom-close-date',
@@ -870,8 +870,8 @@ INSERT INTO custom_fields (id, name, label, type, required, options, placeholder
    NULL,
    NULL,
    'When is this loan scheduled to close?',
-   '["agent", "admin"]'::jsonb,
-   '["Closing Support"]'::jsonb,
+   ARRAY['agent', 'admin'],
+   ARRAY['Closing Support'],
    3, true),
 
   ('custom-rush',
@@ -879,8 +879,8 @@ INSERT INTO custom_fields (id, name, label, type, required, options, placeholder
    NULL,
    NULL,
    'Check if this ticket requires expedited handling',
-   '["agent", "admin"]'::jsonb,
-   '[]'::jsonb,
+   ARRAY['agent', 'admin'],
+   NULL,
    4, true),
 
   ('custom-borrower-name',
@@ -888,8 +888,8 @@ INSERT INTO custom_fields (id, name, label, type, required, options, placeholder
    NULL,
    'John Smith',
    'Primary borrower name on the loan',
-   '["agent", "admin"]'::jsonb,
-   '[]'::jsonb,
+   ARRAY['agent', 'admin'],
+   NULL,
    5, true),
 
   ('custom-property-address',
@@ -897,17 +897,17 @@ INSERT INTO custom_fields (id, name, label, type, required, options, placeholder
    NULL,
    '123 Main St, City, State ZIP',
    'Full property address for the loan',
-   '["agent", "admin"]'::jsonb,
-   '[]'::jsonb,
+   ARRAY['agent', 'admin'],
+   NULL,
    6, true),
 
   ('custom-branch',
    'branch_location', 'Branch Location', 'select', false,
-   '["Corporate HQ", "North Branch", "South Branch", "East Branch", "West Branch", "Remote"]'::jsonb,
+   ARRAY['Corporate HQ', 'North Branch', 'South Branch', 'East Branch', 'West Branch', 'Remote'],
    NULL,
    'Which branch is handling this loan?',
-   '["agent", "admin"]'::jsonb,
-   '["Lending Support", "Marketing Support"]'::jsonb,
+   ARRAY['agent', 'admin'],
+   ARRAY['Lending Support', 'Marketing Support'],
    7, true)
 
 ON CONFLICT (id) DO NOTHING;
@@ -917,37 +917,8 @@ ON CONFLICT (id) DO NOTHING;
 -- BRANDING CONFIG
 -- ============================================================================
 
-INSERT INTO branding_config (id, config) VALUES
-  ('default', '{
-    "logoUrl": "/Screenshot_2026-02-25_at_2.02.20_PM.png",
-    "logoAlt": "SFMC Home Lending",
-    "companyName": "SFMC Home Lending",
-    "portalSubtitle": "Internal Support Portal",
-    "primaryColor": "#2563eb",
-    "accentColor": "#7c3aed",
-    "logoBackground": "white",
-    "logoBackgroundColor": "#1e293b"
-  }'::jsonb)
-ON CONFLICT (id) DO NOTHING;
-
-
--- ============================================================================
--- TICKET TYPE FIELD CONFIGS
--- (per-ticket-type UI settings: whether to show priority, default priority)
--- Stored as a single JSON config row for simplicity.
--- ============================================================================
-
-INSERT INTO ticket_type_field_configs (id, config) VALUES
-  ('default', '{
-    "Closing Support":                    {"showPriority": true,  "defaultPriority": "medium"},
-    "IT Support":                         {"showPriority": true,  "defaultPriority": "medium"},
-    "Lending Support":                    {"showPriority": true,  "defaultPriority": "medium"},
-    "Marketing Support":                  {"showPriority": false, "defaultPriority": "medium"},
-    "Payoff Request":                     {"showPriority": true,  "defaultPriority": "medium"},
-    "Product Desk (Non-Agency Products)": {"showPriority": true,  "defaultPriority": "medium"},
-    "Secondary Support":                  {"showPriority": false, "defaultPriority": "medium"},
-    "Compliance Support":                 {"showPriority": true,  "defaultPriority": "medium"}
-  }'::jsonb)
+INSERT INTO branding_config (id, company_name, portal_subtitle, primary_color, accent_color, logo_background, logo_background_color)
+VALUES (1, 'SFMC Home Lending', 'Internal Support Portal', '#2563eb', '#7c3aed', 'white', '#1e293b')
 ON CONFLICT (id) DO NOTHING;
 
 
