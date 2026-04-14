@@ -27,13 +27,13 @@ interface Column {
 }
 
 const COLUMNS: Column[] = [
-  { key: 'id', label: 'ID', sortable: true, sortKey: 'createdAt' },
+  { key: 'id', label: 'ID', sortable: true, sortKey: 'created_at' },
   { key: 'title', label: 'Title', sortable: false },
   { key: 'status', label: 'Status', sortable: true, sortKey: 'status' },
   { key: 'priority', label: 'Priority', sortable: true, sortKey: 'priority' },
   { key: 'category', label: 'Category', sortable: false },
-  { key: 'assignedTo', label: 'Assignee', sortable: false },
-  { key: 'createdAt', label: 'Created', sortable: true, sortKey: 'createdAt' },
+  { key: 'assigned_to', label: 'Assignee', sortable: false },
+  { key: 'created_at', label: 'Created', sortable: true, sortKey: 'created_at' },
   { key: 'sla', label: 'SLA', sortable: false },
 ]
 
@@ -131,7 +131,7 @@ export function TicketTable({
       </TableHeader>
       <TableBody>
         {tickets.map((ticket) => {
-          const assigneeName = getUserName(users, ticket.assignedTo)
+          const assigneeName = getUserName(users, ticket.assigned_to)
           return (
             <TableRow
               key={ticket.id}
@@ -156,7 +156,7 @@ export function TicketTable({
                 </span>
               </TableCell>
               <TableCell className="text-sm text-gray-500">
-                {ticket.assignedTo ? (
+                {ticket.assigned_to ? (
                   <div className="flex items-center gap-2">
                     <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-xs font-medium text-blue-600">
                       {assigneeName.charAt(0)}
@@ -170,7 +170,7 @@ export function TicketTable({
                 )}
               </TableCell>
               <TableCell className="text-sm text-gray-500">
-                {new Date(ticket.createdAt).toLocaleDateString()}
+                {new Date(ticket.created_at).toLocaleDateString()}
               </TableCell>
               <TableCell>
                 <SlaIndicator ticket={ticket} />

@@ -51,28 +51,29 @@ export function getActiveMetric(ticket: Ticket): {
   metric: 'firstReply' | 'nextReply';
   anchorTime: string;
 } {
-  const agentReplies = ticket.messages.filter(
-    (m) => !m.isInternal && m.authorId !== ticket.createdBy,
+  const messages = ticket.messages ?? [];
+  const agentReplies = messages.filter(
+    (m) => !m.is_internal && m.author_id !== ticket.created_by,
   );
 
   if (agentReplies.length === 0) {
-    return { metric: 'firstReply', anchorTime: ticket.createdAt };
+    return { metric: 'firstReply', anchorTime: ticket.created_at };
   }
 
   const lastAgentReply = agentReplies[agentReplies.length - 1];
-  const endUserFollowUps = ticket.messages.filter(
+  const endUserFollowUps = messages.filter(
     (m) =>
-      !m.isInternal &&
-      m.authorId === ticket.createdBy &&
-      new Date(m.timestamp).getTime() >
-        new Date(lastAgentReply.timestamp).getTime(),
+      !m.is_internal &&
+      m.author_id === ticket.created_by &&
+      new Date(m.created_at).getTime() >
+        new Date(lastAgentReply.created_at).getTime(),
   );
 
   if (endUserFollowUps.length > 0) {
-    return { metric: 'nextReply', anchorTime: endUserFollowUps[0].timestamp };
+    return { metric: 'nextReply', anchorTime: endUserFollowUps[0].created_at };
   }
 
-  return { metric: 'nextReply', anchorTime: lastAgentReply.timestamp };
+  return { metric: 'nextReply', anchorTime: lastAgentReply.created_at };
 }
 
 // ── Schedule lookup ──────────────────────────────────────────
@@ -81,10 +82,10 @@ function findScheduleForTicket(
   ticket: Ticket,
   schedules: DepartmentSchedule[],
 ): DepartmentSchedule | null {
-  if (!ticket.ticketType) return null;
+  if (!ticket.ticket_type) return null;
   return (
     schedules.find(
-      (s) => s.enabled && s.departmentName === ticket.ticketType,
+      (s) => s.enabled && s.department_name === ticket.ticket_type,
     ) || null
   );
 }
@@ -113,7 +114,7 @@ export function getSlaStatus(
 
   if (!policy) {
     // Fallback to legacy priority-based SLA (no business hours)
-    const createdAt = new Date(ticket.createdAt).getTime();
+    const createdAt = new Date(ticket.created_at).getTime();
     const slaHours = SLA_CONFIG[ticket.priority].hours;
     const slaDeadlineMs = createdAt + slaHours * 60 * 60 * 1000;
     const now = Date.now();

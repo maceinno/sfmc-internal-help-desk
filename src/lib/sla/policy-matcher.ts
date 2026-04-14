@@ -14,22 +14,22 @@ export function findMatchingPolicy(
 ): SlaPolicy | null {
   const enabledPolicies = policies
     .filter((p) => p.enabled)
-    .sort((a, b) => a.order - b.order);
+    .sort((a, b) => a.sort_order - b.sort_order);
 
   for (const policy of enabledPolicies) {
     const { conditions } = policy;
 
     if (conditions.ticketTypes !== 'any') {
       if (
-        !ticket.ticketType ||
-        !conditions.ticketTypes.includes(ticket.ticketType)
+        !ticket.ticket_type ||
+        !(conditions.ticketTypes as string[]).includes(ticket.ticket_type)
       ) {
         continue;
       }
     }
 
     if (conditions.categories !== 'any') {
-      if (!conditions.categories.includes(ticket.category)) {
+      if (!(conditions.categories as string[]).includes(ticket.category)) {
         continue;
       }
     }
@@ -42,8 +42,8 @@ export function findMatchingPolicy(
 
     if (conditions.subCategories && conditions.subCategories !== 'any') {
       if (
-        !ticket.subCategory ||
-        !conditions.subCategories.includes(ticket.subCategory)
+        !ticket.sub_category ||
+        !conditions.subCategories.includes(ticket.sub_category)
       ) {
         continue;
       }

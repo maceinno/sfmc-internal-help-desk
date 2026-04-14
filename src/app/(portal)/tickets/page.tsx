@@ -82,8 +82,8 @@ function buildViewGroups(
     .map((groupName) => ({
       name: groupName,
       views: enabled
-        .filter((v) => v.group === groupName)
-        .sort((a, b) => a.order - b.order)
+        .filter((v) => v.group_name === groupName)
+        .sort((a, b) => a.sort_order - b.sort_order)
         .map((v) => ({ id: v.id, name: v.name })),
     }))
     .filter((g) => g.views.length > 0)
@@ -112,7 +112,7 @@ function applyViewFilter(
   const config = configs.find((c) => c.id === viewId)
   if (!config) return tickets
 
-  const fc = config.filterConfig
+  const fc = config.filter_config
 
   return tickets.filter((t) => {
     // For "unsolved" views, exclude solved tickets
@@ -128,13 +128,13 @@ function applyViewFilter(
     // Assignee filter
     switch (fc.assigneeFilter) {
       case 'me':
-        if (t.assignedTo !== currentUserId) return false
+        if (t.assigned_to !== currentUserId) return false
         break
       case 'unassigned':
-        if (t.assignedTo) return false
+        if (t.assigned_to) return false
         break
       case 'assigned':
-        if (!t.assignedTo) return false
+        if (!t.assigned_to) return false
         break
     }
 

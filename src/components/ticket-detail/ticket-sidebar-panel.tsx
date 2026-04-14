@@ -100,7 +100,7 @@ export function TicketSidebarPanel({
     [users]
   )
 
-  const creator = getUser(ticket.createdBy)
+  const creator = getUser(ticket.created_by)
 
   // CC list resolved to users
   const ccUsers = React.useMemo(() => {
@@ -155,13 +155,13 @@ export function TicketSidebarPanel({
   )
 
   const renderCustomFields = () => {
-    if (!ticket.customFields || ticket.customFields.length === 0) return null
+    if (!ticket.custom_fields || ticket.custom_fields.length === 0) return null
 
     const visibleFields = customFields.filter(
       (cf) =>
         cf.enabled &&
-        cf.visibleToRoles.includes(currentUser.role) &&
-        ticket.customFields?.some((v) => v.fieldId === cf.id)
+        cf.visible_to_roles.includes(currentUser.role) &&
+        ticket.custom_fields?.some((v) => v.field_id === cf.id)
     )
 
     if (visibleFields.length === 0) return null
@@ -174,8 +174,8 @@ export function TicketSidebarPanel({
             Custom Fields
           </h4>
           {visibleFields.map((field) => {
-            const fieldValue = ticket.customFields?.find(
-              (v) => v.fieldId === field.id
+            const fieldValue = ticket.custom_fields?.find(
+              (v) => v.field_id === field.id
             )
             const displayValue =
               fieldValue?.value != null ? String(fieldValue.value) : "--"
@@ -319,7 +319,7 @@ export function TicketSidebarPanel({
               </label>
               <UserAutocomplete
                 users={users.filter((u) => u.role !== "employee")}
-                selectedIds={ticket.assignedTo ? [ticket.assignedTo] : []}
+                selectedIds={ticket.assigned_to ? [ticket.assigned_to] : []}
                 onSelect={handleAssigneeSelect}
                 onRemove={() => onUpdateField("assignedTo", null)}
                 placeholder="Unassigned"
@@ -332,8 +332,8 @@ export function TicketSidebarPanel({
               </label>
               <div className="flex items-center rounded-lg border border-gray-200 bg-gray-50 p-2.5 text-sm font-medium text-gray-900">
                 <UserIcon className="mr-2 h-4 w-4 text-muted-foreground" />
-                {ticket.assignedTo
-                  ? getUser(ticket.assignedTo)?.name ?? "Unknown"
+                {ticket.assigned_to
+                  ? getUser(ticket.assigned_to)?.name ?? "Unknown"
                   : "Unassigned"}
               </div>
             </div>
@@ -346,7 +346,7 @@ export function TicketSidebarPanel({
                 Team
               </label>
               <Select
-                value={ticket.assignedTeam ?? ""}
+                value={ticket.assigned_team ?? ""}
                 onValueChange={(val) =>
                   onUpdateField("assignedTeam", val || null)
                 }
@@ -367,11 +367,11 @@ export function TicketSidebarPanel({
           )}
 
           {/* Read-only fields for employees */}
-          {!isAgentOrAdmin && ticket.subCategory && (
-            renderReadOnly("Sub-Category", ticket.subCategory)
+          {!isAgentOrAdmin && ticket.sub_category && (
+            renderReadOnly("Sub-Category", ticket.sub_category)
           )}
-          {!isAgentOrAdmin && ticket.ticketType && (
-            renderReadOnly("Department", ticket.ticketType)
+          {!isAgentOrAdmin && ticket.ticket_type && (
+            renderReadOnly("Department", ticket.ticket_type)
           )}
         </div>
 
@@ -408,8 +408,8 @@ export function TicketSidebarPanel({
                   className="flex items-center gap-3 rounded-lg p-2"
                 >
                   <Avatar size="sm">
-                    {user?.avatar && (
-                      <AvatarImage src={user.avatar} alt="" />
+                    {user?.avatar_url && (
+                      <AvatarImage src={user.avatar_url} alt="" />
                     )}
                     <AvatarFallback>
                       {getInitials(user?.name ?? email)}
@@ -459,8 +459,8 @@ export function TicketSidebarPanel({
                   className="flex items-center gap-3 rounded-lg p-2"
                 >
                   <Avatar size="sm">
-                    {user.avatar && (
-                      <AvatarImage src={user.avatar} alt="" />
+                    {user.avatar_url && (
+                      <AvatarImage src={user.avatar_url} alt="" />
                     )}
                     <AvatarFallback>
                       {getInitials(user.name)}
@@ -519,11 +519,11 @@ export function TicketSidebarPanel({
               {creator?.name ?? "Unknown"}
             </span>
           </div>
-          {ticket.ticketType && (
+          {ticket.ticket_type && (
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Type</span>
               <span className="font-medium text-gray-900">
-                {ticket.ticketType}
+                {ticket.ticket_type}
               </span>
             </div>
           )}
@@ -533,7 +533,7 @@ export function TicketSidebarPanel({
               Created
             </span>
             <span className="text-gray-900">
-              {new Date(ticket.createdAt).toLocaleDateString()}
+              {new Date(ticket.created_at).toLocaleDateString()}
             </span>
           </div>
           <div className="flex items-center justify-between">
@@ -542,7 +542,7 @@ export function TicketSidebarPanel({
               Updated
             </span>
             <span className="text-gray-900">
-              {new Date(ticket.updatedAt).toLocaleDateString()}
+              {new Date(ticket.updated_at).toLocaleDateString()}
             </span>
           </div>
         </div>

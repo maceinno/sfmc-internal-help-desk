@@ -39,16 +39,16 @@ function ticketMatchesBranch(
   ticket: Ticket,
   allUsers: User[],
 ): boolean {
-  if (!user.hasBranchAccess || !user.managedBranchId) return false
+  if (!user.has_branch_access || !user.managed_branch_id) return false
 
-  const creator = allUsers.find((u) => u.id === ticket.createdBy)
-  const assignee = ticket.assignedTo
-    ? allUsers.find((u) => u.id === ticket.assignedTo)
+  const creator = allUsers.find((u) => u.id === ticket.created_by)
+  const assignee = ticket.assigned_to
+    ? allUsers.find((u) => u.id === ticket.assigned_to)
     : null
 
   return (
-    (!!creator && creator.branchId === user.managedBranchId) ||
-    (!!assignee && assignee.branchId === user.managedBranchId)
+    (!!creator && creator.branch_id === user.managed_branch_id) ||
+    (!!assignee && assignee.branch_id === user.managed_branch_id)
   )
 }
 
@@ -61,16 +61,16 @@ function ticketMatchesRegion(
   ticket: Ticket,
   allUsers: User[],
 ): boolean {
-  if (!user.hasRegionalAccess || !user.managedRegionId) return false
+  if (!user.has_regional_access || !user.managed_region_id) return false
 
-  const creator = allUsers.find((u) => u.id === ticket.createdBy)
-  const assignee = ticket.assignedTo
-    ? allUsers.find((u) => u.id === ticket.assignedTo)
+  const creator = allUsers.find((u) => u.id === ticket.created_by)
+  const assignee = ticket.assigned_to
+    ? allUsers.find((u) => u.id === ticket.assigned_to)
     : null
 
   return (
-    (!!creator && creator.regionId === user.managedRegionId) ||
-    (!!assignee && assignee.regionId === user.managedRegionId)
+    (!!creator && creator.region_id === user.managed_region_id) ||
+    (!!assignee && assignee.region_id === user.managed_region_id)
   )
 }
 
@@ -103,18 +103,18 @@ export function canViewTicket(
   if (user.role === ADMIN) return true
 
   if (user.role === AGENT) {
-    const userTeams = user.teamIds ?? []
-    const teamMatch = ticket.assignedTeam
-      ? userTeams.includes(ticket.assignedTeam)
+    const userTeams = user.team_ids ?? []
+    const teamMatch = ticket.assigned_team
+      ? userTeams.includes(ticket.assigned_team)
       : false
-    const isAssignee = ticket.assignedTo === user.id
-    const isCreator = ticket.createdBy === user.id
+    const isAssignee = ticket.assigned_to === user.id
+    const isCreator = ticket.created_by === user.id
     const isCCd = ticket.cc?.includes(user.id) ?? false
 
     if (teamMatch || isAssignee || isCreator || isCCd) return true
 
     // Branch / region access
-    if (user.hasRegionalAccess || user.hasBranchAccess) {
+    if (user.has_regional_access || user.has_branch_access) {
       return (
         ticketMatchesRegion(user, ticket, allUsers) ||
         ticketMatchesBranch(user, ticket, allUsers)
@@ -125,10 +125,10 @@ export function canViewTicket(
   }
 
   // Employee
-  if (ticket.createdBy === user.id) return true
+  if (ticket.created_by === user.id) return true
   if (ticket.cc?.includes(user.id)) return true
 
-  if (user.hasRegionalAccess || user.hasBranchAccess) {
+  if (user.has_regional_access || user.has_branch_access) {
     return (
       ticketMatchesRegion(user, ticket, allUsers) ||
       ticketMatchesBranch(user, ticket, allUsers)
@@ -149,9 +149,9 @@ export function canViewTicket(
 export function canEditTicket(user: User, ticket: Ticket): boolean {
   if (user.role === ADMIN) return true
   if (user.role === AGENT) {
-    return ticket.assignedTo === user.id || ticket.createdBy === user.id
+    return ticket.assigned_to === user.id || ticket.created_by === user.id
   }
-  return ticket.createdBy === user.id
+  return ticket.created_by === user.id
 }
 
 /**
@@ -172,14 +172,14 @@ export function canAccessAdmin(user: User): boolean {
  * Check if a user can view branch-filtered tickets (has branch manager access).
  */
 export function canViewBranchTickets(user: User): boolean {
-  return !!user.hasBranchAccess && !!user.managedBranchId
+  return !!user.has_branch_access && !!user.managed_branch_id
 }
 
 /**
  * Check if a user can view region-filtered tickets (has regional manager access).
  */
 export function canViewRegionTickets(user: User): boolean {
-  return !!user.hasRegionalAccess && !!user.managedRegionId
+  return !!user.has_regional_access && !!user.managed_region_id
 }
 
 /**
@@ -259,7 +259,7 @@ export function filterBranchTickets(
   tickets: Ticket[],
   allUsers: User[],
 ): Ticket[] {
-  if (!user.hasBranchAccess || !user.managedBranchId) return []
+  if (!user.has_branch_access || !user.managed_branch_id) return []
   return tickets.filter((t) => ticketMatchesBranch(user, t, allUsers))
 }
 
@@ -272,6 +272,6 @@ export function filterRegionTickets(
   tickets: Ticket[],
   allUsers: User[],
 ): Ticket[] {
-  if (!user.hasRegionalAccess || !user.managedRegionId) return []
+  if (!user.has_regional_access || !user.managed_region_id) return []
   return tickets.filter((t) => ticketMatchesRegion(user, t, allUsers))
 }

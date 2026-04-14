@@ -93,7 +93,7 @@ function useUsers() {
       if (!token) throw new Error('No auth token')
       const supabase = createClerkSupabaseClient(token)
       const { data, error } = await supabase
-        .from('users')
+        .from('profiles')
         .select('*')
         .order('name', { ascending: true })
       if (error) throw error
@@ -166,7 +166,7 @@ export default function UsersPage() {
       }
 
       const { error } = await supabase
-        .from('users')
+        .from('profiles')
         .update(payload)
         .eq('id', data.id)
       if (error) throw error
@@ -191,15 +191,15 @@ export default function UsersPage() {
       role: u.role,
       department: u.department ?? '',
       departments: u.departments ?? [],
-      teamIds: u.teamIds ?? [],
-      branchId: u.branchId ?? '',
-      regionId: u.regionId ?? '',
-      isOutOfOffice: u.isOutOfOffice ?? false,
-      ticketTypesHandled: u.ticketTypesHandled ?? [],
-      hasBranchAccess: u.hasBranchAccess ?? false,
-      managedBranchId: u.managedBranchId ?? '',
-      hasRegionalAccess: u.hasRegionalAccess ?? false,
-      managedRegionId: u.managedRegionId ?? '',
+      teamIds: u.team_ids ?? [],
+      branchId: u.branch_id ?? '',
+      regionId: u.region_id ?? '',
+      isOutOfOffice: u.is_out_of_office ?? false,
+      ticketTypesHandled: u.ticket_types_handled ?? [],
+      hasBranchAccess: u.has_branch_access ?? false,
+      managedBranchId: u.managed_branch_id ?? '',
+      hasRegionalAccess: u.has_regional_access ?? false,
+      managedRegionId: u.managed_region_id ?? '',
     })
     setDialogOpen(true)
   }
@@ -362,8 +362,8 @@ export default function UsersPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
-                        {(u.teamIds ?? []).length > 0 ? (
-                          (u.teamIds ?? []).map((tid) => (
+                        {(u.team_ids ?? []).length > 0 ? (
+                          (u.team_ids ?? []).map((tid) => (
                             <Badge
                               key={tid}
                               variant="outline"
@@ -378,13 +378,13 @@ export default function UsersPage() {
                       </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {u.branchId ? getBranchName(u.branchId) : '--'}
+                      {u.branch_id ? getBranchName(u.branch_id) : '--'}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {u.regionId ? getRegionName(u.regionId) : '--'}
+                      {u.region_id ? getRegionName(u.region_id) : '--'}
                     </TableCell>
                     <TableCell className="text-center">
-                      {u.isOutOfOffice ? (
+                      {u.is_out_of_office ? (
                         <Badge variant="destructive" className="text-[10px]">
                           OOO
                         </Badge>

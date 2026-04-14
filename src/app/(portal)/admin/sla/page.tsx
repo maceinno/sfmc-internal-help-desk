@@ -106,7 +106,7 @@ export default function SlaAdminPage() {
   const hasChanges = localPolicies !== null
 
   const sortedPolicies = useMemo(
-    () => [...policies].sort((a, b) => a.order - b.order),
+    () => [...policies].sort((a, b) => a.sort_order - b.sort_order),
     [policies]
   )
 
@@ -148,15 +148,15 @@ export default function SlaAdminPage() {
 
   const moveSla = (id: string, direction: 'up' | 'down') => {
     updatePolicies((prev) => {
-      const sorted = [...prev].sort((a, b) => a.order - b.order)
+      const sorted = [...prev].sort((a, b) => a.sort_order - b.sort_order)
       const idx = sorted.findIndex((p) => p.id === id)
       const swapIdx = direction === 'up' ? idx - 1 : idx + 1
       if (swapIdx < 0 || swapIdx >= sorted.length) return prev
       const current = sorted[idx]
       const swap = sorted[swapIdx]
       return prev.map((p) => {
-        if (p.id === current.id) return { ...p, order: swap.order }
-        if (p.id === swap.id) return { ...p, order: current.order }
+        if (p.id === current.id) return { ...p, order: swap.sort_order }
+        if (p.id === swap.id) return { ...p, order: current.sort_order }
         return p
       })
     })
@@ -176,8 +176,8 @@ export default function SlaAdminPage() {
       enabled: true,
       conditions: { ...newSlaConditions },
       metrics: { ...newSlaMetrics },
-      order: currentPolicies.length,
-      isDefault: false,
+      sort_order: currentPolicies.length,
+      is_default: false,
     }
     updatePolicies((prev) => [...prev, newPolicy])
     setNewSlaName('')
@@ -209,8 +209,8 @@ export default function SlaAdminPage() {
           enabled: p.enabled,
           conditions: p.conditions,
           metrics: p.metrics,
-          display_order: p.order,
-          is_default: p.isDefault ?? false,
+          display_order: p.sort_order,
+          is_default: p.is_default ?? false,
         }))
       )
       if (error) throw error
@@ -328,7 +328,7 @@ export default function SlaAdminPage() {
                           >
                             {policy.name}
                           </span>
-                          {policy.isDefault && (
+                          {policy.is_default && (
                             <Badge
                               variant="outline"
                               className="text-[10px] px-1.5 py-0"
@@ -405,7 +405,7 @@ export default function SlaAdminPage() {
                       >
                         <Settings className="w-3.5 h-3.5" />
                       </Button>
-                      {!policy.isDefault && (
+                      {!policy.is_default && (
                         <Button
                           variant="ghost"
                           size="icon-xs"

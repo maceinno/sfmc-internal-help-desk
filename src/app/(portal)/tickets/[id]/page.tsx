@@ -133,8 +133,8 @@ export default function TicketDetailPage({
 
   // Filter messages: employees don't see internal notes
   const visibleMessages = showInternalNotes
-    ? ticket.messages
-    : ticket.messages.filter((m) => !m.isInternal)
+    ? (ticket.messages ?? [])
+    : (ticket.messages ?? []).filter((m) => !m.is_internal)
 
   return (
     <div className="flex h-[calc(100vh-6rem)] flex-col animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -162,7 +162,7 @@ export default function TicketDetailPage({
 
         <div className="flex flex-wrap items-center gap-2">
           {/* Follow-up button */}
-          {ticket.status === "solved" && !ticket.parentTicketId && (
+          {ticket.status === "solved" && !ticket.parent_ticket_id && (
             <Button variant="outline" size="sm">
               <CornerDownRight className="mr-2 h-4 w-4" />
               Create Follow-Up
@@ -171,7 +171,7 @@ export default function TicketDetailPage({
 
           {/* Merge button */}
           {isAgentOrAdmin &&
-            !ticket.mergedIntoId &&
+            !ticket.merged_into_id &&
             ticket.status !== "solved" && (
               <Button
                 variant="outline"
@@ -193,7 +193,7 @@ export default function TicketDetailPage({
       </div>
 
       {/* Merged Banner */}
-      {ticket.mergedIntoId && (
+      {ticket.merged_into_id && (
         <div className="mb-2 flex items-center gap-2 rounded-lg border border-purple-200 bg-purple-50 px-4 py-3">
           <GitMerge className="h-4 w-4 text-purple-600" />
           <span className="text-sm text-purple-800">
@@ -201,24 +201,24 @@ export default function TicketDetailPage({
             <button
               type="button"
               onClick={() =>
-                router.push(`/tickets/${ticket.mergedIntoId}`)
+                router.push(`/tickets/${ticket.merged_into_id}`)
               }
               className="font-semibold text-purple-700 hover:underline"
             >
-              #{ticket.mergedIntoId}
+              #{ticket.merged_into_id}
             </button>
           </span>
         </div>
       )}
 
-      {ticket.mergedTicketIds && ticket.mergedTicketIds.length > 0 && (
+      {ticket.merged_ticket_ids && ticket.merged_ticket_ids.length > 0 && (
         <div className="mb-2 flex items-center gap-2 rounded-lg border border-purple-200 bg-purple-50 px-4 py-3">
           <GitMerge className="h-4 w-4 text-purple-600" />
           <span className="text-sm text-purple-800">
-            {ticket.mergedTicketIds.length} ticket
-            {ticket.mergedTicketIds.length !== 1 ? "s" : ""} merged into
+            {ticket.merged_ticket_ids.length} ticket
+            {ticket.merged_ticket_ids.length !== 1 ? "s" : ""} merged into
             this ticket:{" "}
-            {ticket.mergedTicketIds.map((mergedId, idx) => (
+            {ticket.merged_ticket_ids.map((mergedId, idx) => (
               <span key={mergedId}>
                 <button
                   type="button"
@@ -227,7 +227,7 @@ export default function TicketDetailPage({
                 >
                   #{mergedId}
                 </button>
-                {idx < ticket.mergedTicketIds!.length - 1 ? ", " : ""}
+                {idx < ticket.merged_ticket_ids!.length - 1 ? ", " : ""}
               </span>
             ))}
           </span>
@@ -243,8 +243,8 @@ export default function TicketDetailPage({
             users={users}
             currentUserId={currentUser.id}
             ticketDescription={ticket.description}
-            ticketCreatedBy={ticket.createdBy}
-            ticketCreatedAt={ticket.createdAt}
+            ticketCreatedBy={ticket.created_by}
+            ticketCreatedAt={ticket.created_at}
             attachments={ticket.attachments}
           />
 
@@ -260,7 +260,7 @@ export default function TicketDetailPage({
 
           <ReplyComposer
             ticketId={ticket.id}
-            ticketCreatedBy={ticket.createdBy}
+            ticketCreatedBy={ticket.created_by}
             ticketCc={ticket.cc}
             ticketCollaborators={ticket.collaborators}
             users={users}

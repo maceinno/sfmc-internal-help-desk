@@ -33,26 +33,26 @@ export function applyRoutingRules(
   // Filter to enabled rules and sort by priority ascending (lower = higher priority)
   const activeRules = routingRules
     .filter((r) => r.enabled)
-    .sort((a, b) => a.priority - b.priority)
+    .sort((a, b) => a.priority_order - b.priority_order)
 
   for (const rule of activeRules) {
     const typeMatch =
-      rule.ticketType === 'any' || rule.ticketType === ticketType
+      rule.ticket_type === 'any' || rule.ticket_type === ticketType
     const categoryMatch =
       rule.category === 'any' || rule.category === category
 
     if (typeMatch && categoryMatch) {
-      if (rule.assignToUserId) {
-        return { assignedTo: rule.assignToUserId }
+      if (rule.assign_to_user) {
+        return { assignedTo: rule.assign_to_user }
       }
 
-      if (rule.assignToTeam) {
+      if (rule.assign_to_team) {
         // Find agents in this team who are not out of office
         const teamMembers = users.filter(
           (u) =>
-            (u.teamIds ?? []).includes(rule.assignToTeam!) &&
+            (u.team_ids ?? []).includes(rule.assign_to_team!) &&
             u.role !== 'employee' &&
-            !u.isOutOfOffice,
+            !u.is_out_of_office,
         )
 
         if (teamMembers.length > 0) {
@@ -60,12 +60,12 @@ export function applyRoutingRules(
             teamMembers[Math.floor(Math.random() * teamMembers.length)]
           return {
             assignedTo: randomAgent.id,
-            assignedTeam: rule.assignToTeam,
+            assignedTeam: rule.assign_to_team,
           }
         }
 
         // No available agents, but still set the team
-        return { assignedTeam: rule.assignToTeam }
+        return { assignedTeam: rule.assign_to_team }
       }
     }
   }

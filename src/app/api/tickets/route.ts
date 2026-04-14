@@ -97,11 +97,11 @@ export async function POST(request: Request) {
     id: r.id,
     name: r.name,
     enabled: r.enabled,
-    ticketType: r.ticket_type ?? 'any',
+    ticket_type: r.ticket_type ?? 'any',
     category: r.category ?? 'any',
-    assignToUserId: r.assign_to_user ?? undefined,
-    assignToTeam: r.assign_to_team ?? undefined,
-    priority: r.priority_order,
+    assign_to_user: r.assign_to_user ?? undefined,
+    assign_to_team: r.assign_to_team ?? undefined,
+    priority_order: r.priority_order,
   }))
 
   const users: User[] = (profilesRaw ?? []).map((p) => ({
@@ -109,18 +109,18 @@ export async function POST(request: Request) {
     name: p.name,
     email: p.email,
     role: p.role,
-    avatar: p.avatar_url ?? '',
+    avatar_url: p.avatar_url ?? '',
     department: p.department ?? undefined,
     departments: p.departments ?? undefined,
-    teamIds: p.team_ids ?? undefined,
-    branchId: p.branch_id ?? undefined,
-    regionId: p.region_id ?? undefined,
-    isOutOfOffice: p.is_out_of_office ?? false,
-    ticketTypesHandled: p.ticket_types_handled ?? undefined,
-    hasRegionalAccess: p.has_regional_access ?? false,
-    managedRegionId: p.managed_region_id ?? undefined,
-    hasBranchAccess: p.has_branch_access ?? false,
-    managedBranchId: p.managed_branch_id ?? undefined,
+    team_ids: p.team_ids ?? undefined,
+    branch_id: p.branch_id ?? undefined,
+    region_id: p.region_id ?? undefined,
+    is_out_of_office: p.is_out_of_office ?? false,
+    ticket_types_handled: p.ticket_types_handled ?? undefined,
+    has_regional_access: p.has_regional_access ?? false,
+    managed_region_id: p.managed_region_id ?? undefined,
+    has_branch_access: p.has_branch_access ?? false,
+    managed_branch_id: p.managed_branch_id ?? undefined,
   }))
 
   const routingResult = applyRoutingRules(
@@ -180,7 +180,7 @@ export async function POST(request: Request) {
   if (body.customFields && body.customFields.length > 0) {
     const cfRows = body.customFields.map((cf) => ({
       ticket_id: ticket.id,
-      field_id: cf.fieldId,
+      field_id: cf.field_id,
       value: cf.value,
     }))
 

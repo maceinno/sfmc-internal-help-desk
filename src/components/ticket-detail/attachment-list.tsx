@@ -67,10 +67,10 @@ function groupAttachments(attachments: Attachment[]) {
   const ungrouped: Attachment[] = []
 
   for (const att of attachments) {
-    if (att.versionGroup) {
-      const group = grouped.get(att.versionGroup) || []
+    if (att.version_group) {
+      const group = grouped.get(att.version_group) || []
       group.push(att)
-      grouped.set(att.versionGroup, group)
+      grouped.set(att.version_group, group)
     } else {
       ungrouped.push(att)
     }
@@ -131,7 +131,7 @@ export function AttachmentList({
   if (attachments.length === 0) return null
 
   const imageAttachments = attachments.filter(
-    (att) => att.fileType.startsWith("image/") && att.url
+    (att) => att.file_type.startsWith("image/") && att.url
   )
 
   return (
@@ -152,19 +152,19 @@ export function AttachmentList({
               <button
                 key={att.id}
                 type="button"
-                onClick={() => handleImageClick(att.url!, att.fileName)}
+                onClick={() => handleImageClick(att.url!, att.file_name)}
                 className="group relative overflow-hidden rounded-lg border border-gray-200 transition-all hover:border-blue-400 hover:shadow-md"
               >
                 <img
                   src={att.url}
-                  alt={att.fileName}
+                  alt={att.file_name}
                   className="h-28 w-40 object-cover"
                 />
                 <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/30">
                   <Search className="h-5 w-5 text-white opacity-0 transition-opacity group-hover:opacity-100" />
                 </div>
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-1.5">
-                  <p className="truncate text-xs text-white">{att.fileName}</p>
+                  <p className="truncate text-xs text-white">{att.file_name}</p>
                 </div>
               </button>
             ))}
@@ -177,13 +177,13 @@ export function AttachmentList({
             {Array.from(versionGroups.entries()).map(
               ([groupName, files]) => {
                 const isExpanded = expandedVersionGroups.has(groupName)
-                const finalFile = files.find((f) => f.isFinal)
+                const finalFile = files.find((f) => f.is_final)
                 const latestFile = files[0]
                 const displayFile = finalFile || latestFile
                 const olderFiles = files.filter(
                   (f) => f.id !== displayFile.id
                 )
-                const Icon = getFileIcon(displayFile.fileType)
+                const Icon = getFileIcon(displayFile.file_type)
 
                 return (
                   <div key={groupName}>
@@ -192,7 +192,7 @@ export function AttachmentList({
                         <div className="flex min-w-0 items-center gap-3">
                           <div
                             className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                              displayFile.isFinal
+                              displayFile.is_final
                                 ? "bg-green-50 text-green-600"
                                 : "bg-blue-50 text-blue-600"
                             }`}
@@ -202,9 +202,9 @@ export function AttachmentList({
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
                               <p className="truncate text-sm font-medium text-gray-900">
-                                {displayFile.fileName}
+                                {displayFile.file_name}
                               </p>
-                              {displayFile.isFinal ? (
+                              {displayFile.is_final ? (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
                                   <CheckCircle className="h-3 w-3" />
                                   Final
@@ -216,7 +216,7 @@ export function AttachmentList({
                               )}
                             </div>
                             <p className="text-xs text-muted-foreground">
-                              {formatFileSize(displayFile.fileSize)}
+                              {formatFileSize(displayFile.file_size)}
                             </p>
                           </div>
                         </div>
@@ -224,7 +224,7 @@ export function AttachmentList({
                           <button
                             type="button"
                             className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-blue-50 hover:text-blue-600"
-                            title={`Download ${displayFile.fileName}`}
+                            title={`Download ${displayFile.file_name}`}
                           >
                             <Download className="h-4 w-4" />
                           </button>
@@ -261,8 +261,8 @@ export function AttachmentList({
                     {/* Older versions */}
                     {isExpanded &&
                       olderFiles.map((att) => {
-                        const uploader = getUser(att.uploadedBy)
-                        const OlderIcon = getFileIcon(att.fileType)
+                        const uploader = getUser(att.uploaded_by)
+                        const OlderIcon = getFileIcon(att.file_type)
                         return (
                           <div
                             key={att.id}
@@ -275,23 +275,23 @@ export function AttachmentList({
                               <div className="min-w-0">
                                 <div className="flex items-center gap-2">
                                   <p className="truncate text-sm text-gray-600">
-                                    {att.fileName}
+                                    {att.file_name}
                                   </p>
                                   <span className="text-xs text-muted-foreground">
                                     v{att.version || 1}
                                   </span>
                                 </div>
                                 <p className="text-xs text-muted-foreground">
-                                  {formatFileSize(att.fileSize)}
+                                  {formatFileSize(att.file_size)}
                                   {uploader && (
                                     <span> &bull; {uploader.name}</span>
                                   )}
-                                  {att.uploadedAt && (
+                                  {att.created_at && (
                                     <span>
                                       {" "}
                                       &bull;{" "}
                                       {new Date(
-                                        att.uploadedAt
+                                        att.created_at
                                       ).toLocaleDateString()}
                                     </span>
                                   )}
@@ -301,7 +301,7 @@ export function AttachmentList({
                             <button
                               type="button"
                               className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-blue-50 hover:text-blue-600"
-                              title={`Download ${att.fileName}`}
+                              title={`Download ${att.file_name}`}
                             >
                               <Download className="h-3.5 w-3.5" />
                             </button>
@@ -321,10 +321,10 @@ export function AttachmentList({
             className={`divide-y divide-gray-100 ${versionGroups.size > 0 ? "border-t border-gray-200" : ""}`}
           >
             {ungroupedAttachments.map((att) => {
-              const uploader = getUser(att.uploadedBy)
+              const uploader = getUser(att.uploaded_by)
               const isImage =
-                att.fileType.startsWith("image/") && att.url
-              const Icon = getFileIcon(att.fileType)
+                att.file_type.startsWith("image/") && att.url
+              const Icon = getFileIcon(att.file_type)
 
               return (
                 <div
@@ -336,13 +336,13 @@ export function AttachmentList({
                       <button
                         type="button"
                         onClick={() =>
-                          handleImageClick(att.url!, att.fileName)
+                          handleImageClick(att.url!, att.file_name)
                         }
                         className="h-9 w-9 shrink-0 overflow-hidden rounded-lg border border-gray-200 transition-colors hover:border-blue-400"
                       >
                         <img
                           src={att.url}
-                          alt={att.fileName}
+                          alt={att.file_name}
                           className="h-full w-full object-cover"
                         />
                       </button>
@@ -353,7 +353,7 @@ export function AttachmentList({
                     )}
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-gray-900">
-                        {att.fileName}
+                        {att.file_name}
                         {isImage && (
                           <span className="ml-1.5 text-xs font-normal text-blue-500">
                             (click to preview)
@@ -361,18 +361,18 @@ export function AttachmentList({
                         )}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {formatFileSize(att.fileSize)}
+                        {formatFileSize(att.file_size)}
                         {uploader && (
                           <span>
                             {" "}
                             &bull; Uploaded by {uploader.name}
                           </span>
                         )}
-                        {att.uploadedAt && (
+                        {att.created_at && (
                           <span>
                             {" "}
                             &bull;{" "}
-                            {new Date(att.uploadedAt).toLocaleDateString()}
+                            {new Date(att.created_at).toLocaleDateString()}
                           </span>
                         )}
                       </p>
@@ -381,7 +381,7 @@ export function AttachmentList({
                   <button
                     type="button"
                     className="ml-3 shrink-0 rounded-lg p-2 text-muted-foreground transition-colors hover:bg-blue-50 hover:text-blue-600"
-                    title={`Download ${att.fileName}`}
+                    title={`Download ${att.file_name}`}
                   >
                     <Download className="h-4 w-4" />
                   </button>

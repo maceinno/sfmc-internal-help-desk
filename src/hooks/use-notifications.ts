@@ -28,7 +28,7 @@ export function useNotifications() {
         .from('notifications')
         .select('*')
         .eq('to_user_id', user!.id)
-        .order('timestamp', { ascending: false })
+        .order('created_at', { ascending: false })
 
       if (error) throw error
       return data as AppNotification[]

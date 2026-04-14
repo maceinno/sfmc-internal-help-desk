@@ -66,8 +66,8 @@ export function Sidebar() {
         { href: '/tickets/new', label: 'Create Ticket', icon: PlusCircle },
         { href: '/my-tickets', label: 'My Tickets', icon: Ticket },
         { href: '/cc-tickets', label: "CC'd Tickets", icon: AtSign },
-        ...(profile?.hasBranchAccess ? [{ href: '/branch', label: 'My Branch', icon: Building2 }] : []),
-        ...(profile?.hasRegionalAccess ? [{ href: '/region', label: 'My Region', icon: MapPin }] : []),
+        ...(profile?.has_branch_access ? [{ href: '/branch', label: 'My Branch', icon: Building2 }] : []),
+        ...(profile?.has_regional_access ? [{ href: '/region', label: 'My Region', icon: MapPin }] : []),
       ]
     : [
         { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },

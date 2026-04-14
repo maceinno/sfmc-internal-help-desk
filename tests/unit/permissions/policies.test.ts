@@ -24,18 +24,18 @@ import {
 const makeUser = (overrides: Partial<User> & Pick<User, 'id' | 'role'>): User => ({
   name: 'Test User',
   email: 'test@example.com',
-  avatar: '',
+  avatar_url: '',
   ...overrides,
 })
 
-const makeTicket = (overrides: Partial<Ticket> & Pick<Ticket, 'id' | 'createdBy'>): Ticket => ({
+const makeTicket = (overrides: Partial<Ticket> & Pick<Ticket, 'id' | 'created_by'>): Ticket => ({
   title: 'Test Ticket',
   description: 'A test ticket',
   status: 'open',
   priority: 'medium',
   category: 'General',
-  createdAt: '2026-01-01T00:00:00Z',
-  updatedAt: '2026-01-01T00:00:00Z',
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-01T00:00:00Z',
   messages: [],
   ...overrides,
 })
@@ -47,57 +47,57 @@ const adminUser = makeUser({ id: 'admin-1', role: 'admin' })
 const agent1 = makeUser({
   id: 'agent-1',
   role: 'agent',
-  teamIds: ['team-closing'],
+  team_ids: ['team-closing'],
 })
 
 const agent2 = makeUser({
   id: 'agent-2',
   role: 'agent',
-  teamIds: ['team-it'],
+  team_ids: ['team-it'],
 })
 
 const agentBranchManager = makeUser({
   id: 'agent-bm',
   role: 'agent',
-  teamIds: ['team-closing'],
-  hasBranchAccess: true,
-  managedBranchId: 'branch-west',
+  team_ids: ['team-closing'],
+  has_branch_access: true,
+  managed_branch_id: 'branch-west',
 })
 
 const agentRegionalManager = makeUser({
   id: 'agent-rm',
   role: 'agent',
-  teamIds: ['team-closing'],
-  hasRegionalAccess: true,
-  managedRegionId: 'region-south',
+  team_ids: ['team-closing'],
+  has_regional_access: true,
+  managed_region_id: 'region-south',
 })
 
 const employee1 = makeUser({
   id: 'emp-1',
   role: 'employee',
-  branchId: 'branch-west',
-  regionId: 'region-south',
+  branch_id: 'branch-west',
+  region_id: 'region-south',
 })
 
 const employee2 = makeUser({
   id: 'emp-2',
   role: 'employee',
-  branchId: 'branch-east',
-  regionId: 'region-north',
+  branch_id: 'branch-east',
+  region_id: 'region-north',
 })
 
 const employeeBranchMgr = makeUser({
   id: 'emp-bm',
   role: 'employee',
-  hasBranchAccess: true,
-  managedBranchId: 'branch-west',
+  has_branch_access: true,
+  managed_branch_id: 'branch-west',
 })
 
 const employeeRegionalMgr = makeUser({
   id: 'emp-rm',
   role: 'employee',
-  hasRegionalAccess: true,
-  managedRegionId: 'region-south',
+  has_regional_access: true,
+  managed_region_id: 'region-south',
 })
 
 const allUsers: User[] = [
@@ -116,27 +116,27 @@ const allUsers: User[] = [
 
 const ticketByEmp1 = makeTicket({
   id: 'T-1001',
-  createdBy: 'emp-1',
-  assignedTo: 'agent-1',
-  assignedTeam: 'team-closing',
+  created_by: 'emp-1',
+  assigned_to: 'agent-1',
+  assigned_team: 'team-closing',
 })
 
 const ticketByEmp2 = makeTicket({
   id: 'T-1002',
-  createdBy: 'emp-2',
-  assignedTo: 'agent-2',
-  assignedTeam: 'team-it',
+  created_by: 'emp-2',
+  assigned_to: 'agent-2',
+  assigned_team: 'team-it',
 })
 
 const unassignedTicket = makeTicket({
   id: 'T-1003',
-  createdBy: 'emp-1',
+  created_by: 'emp-1',
 })
 
 const ccTicket = makeTicket({
   id: 'T-1004',
-  createdBy: 'emp-2',
-  assignedTeam: 'team-it',
+  created_by: 'emp-2',
+  assigned_team: 'team-it',
   cc: ['emp-1', 'agent-1'],
 })
 
@@ -165,8 +165,8 @@ describe('canViewTicket', () => {
   it('agent can view ticket they created', () => {
     const agentCreatedTicket = makeTicket({
       id: 'T-9999',
-      createdBy: 'agent-2',
-      assignedTeam: 'team-closing',
+      created_by: 'agent-2',
+      assigned_team: 'team-closing',
     })
     expect(canViewTicket(agent2, agentCreatedTicket, allUsers)).toBe(true)
   })
@@ -232,7 +232,7 @@ describe('canEditTicket', () => {
   })
 
   it('agent can edit ticket they created', () => {
-    const agentTicket = makeTicket({ id: 'T-8000', createdBy: 'agent-1' })
+    const agentTicket = makeTicket({ id: 'T-8000', created_by: 'agent-1' })
     expect(canEditTicket(agent1, agentTicket)).toBe(true)
   })
 

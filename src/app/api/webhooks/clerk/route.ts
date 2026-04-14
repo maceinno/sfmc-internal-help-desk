@@ -110,7 +110,7 @@ function buildProfilePayload(data: UserJSON) {
     id: data.id,
     email: getPrimaryEmail(data),
     name: getFullName(data),
-    avatar: data.image_url ?? null,
+    avatar_url: data.image_url ?? null,
     role: (meta.role as string) ?? "employee",
     department: (meta.department as string) ?? null,
     departments: (meta.departments as string[]) ?? null,

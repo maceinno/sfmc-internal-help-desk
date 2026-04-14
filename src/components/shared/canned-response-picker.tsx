@@ -170,9 +170,9 @@ export function CannedResponsePicker({
                             <span className="text-sm font-medium text-foreground group-hover:text-primary">
                               {response.name}
                             </span>
-                            {response.usageCount !== undefined && (
+                            {response.usage_count !== undefined && (
                               <span className="shrink-0 text-[10px] text-muted-foreground">
-                                Used {response.usageCount}x
+                                Used {response.usage_count}x
                               </span>
                             )}
                           </div>

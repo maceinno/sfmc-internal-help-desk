@@ -78,14 +78,14 @@ function emptyField(): Partial<CustomField> {
   return {
     name: '',
     label: '',
-    type: 'text',
+    field_type: 'text',
     required: false,
     options: [],
-    helpText: '',
+    help_text: '',
     placeholder: '',
-    defaultValue: '',
-    visibleToRoles: ['agent'],
-    visibleToDepartments: [],
+    default_value: '',
+    visible_to_roles: ['agent'],
+    visible_to_departments: [],
     enabled: true,
   }
 }
@@ -113,16 +113,16 @@ export default function CustomFieldsPage() {
       const payload = {
         name: field.name,
         label: field.label,
-        type: field.type,
+        type: field.field_type,
         required: field.required,
         options: field.options ?? [],
-        help_text: field.helpText,
+        help_text: field.help_text,
         placeholder: field.placeholder,
-        default_value: field.defaultValue,
-        visible_to_roles: field.visibleToRoles,
-        visible_to_departments: field.visibleToDepartments,
+        default_value: field.default_value,
+        visible_to_roles: field.visible_to_roles,
+        visible_to_departments: field.visible_to_departments,
         enabled: field.enabled,
-        order: field.order ?? 0,
+        order: field.sort_order ?? 0,
       }
 
       if (field.id) {
@@ -172,7 +172,7 @@ export default function CustomFieldsPage() {
       const supabase = createClerkSupabaseClient(token)
       const { error } = await supabase
         .from('custom_fields')
-        .update({ order: newOrder })
+        .update({ sort_order: newOrder })
         .eq('id', id)
       if (error) throw error
     },
@@ -186,7 +186,7 @@ export default function CustomFieldsPage() {
   const openCreate = useCallback(() => {
     setEditField({
       ...emptyField(),
-      order: (fields?.length ?? 0),
+      sort_order: (fields?.length ?? 0),
     })
     setIsCreating(true)
     setNewOptionInput('')
@@ -247,7 +247,7 @@ export default function CustomFieldsPage() {
   const handleMove = useCallback(
     async (field: CustomField, direction: 'up' | 'down') => {
       if (!fields) return
-      const sorted = [...fields].sort((a, b) => a.order - b.order)
+      const sorted = [...fields].sort((a, b) => a.sort_order - b.sort_order)
       const currentIdx = sorted.findIndex((f) => f.id === field.id)
       const swapIdx =
         direction === 'up' ? currentIdx - 1 : currentIdx + 1
@@ -257,11 +257,11 @@ export default function CustomFieldsPage() {
       try {
         await reorderField.mutateAsync({
           id: field.id,
-          newOrder: other.order,
+          newOrder: other.sort_order,
         })
         await reorderField.mutateAsync({
           id: other.id,
-          newOrder: field.order,
+          newOrder: field.sort_order,
         })
       } catch {
         toast.error('Failed to reorder')
@@ -297,10 +297,10 @@ export default function CustomFieldsPage() {
   const toggleRole = useCallback(
     (role: (typeof ROLES)[number]) => {
       if (!editField) return
-      const roles = editField.visibleToRoles ?? []
+      const roles = editField.visible_to_roles ?? []
       setEditField({
         ...editField,
-        visibleToRoles: roles.includes(role)
+        visible_to_roles: roles.includes(role)
           ? roles.filter((r) => r !== role)
           : [...roles, role],
       })
@@ -311,10 +311,10 @@ export default function CustomFieldsPage() {
   const toggleDept = useCallback(
     (dept: string) => {
       if (!editField) return
-      const depts = editField.visibleToDepartments ?? []
+      const depts = editField.visible_to_departments ?? []
       setEditField({
         ...editField,
-        visibleToDepartments: depts.includes(dept)
+        visible_to_departments: depts.includes(dept)
           ? depts.filter((d) => d !== dept)
           : [...depts, dept],
       })
@@ -333,7 +333,7 @@ export default function CustomFieldsPage() {
   }
 
   const sorted = fields
-    ? [...fields].sort((a, b) => a.order - b.order)
+    ? [...fields].sort((a, b) => a.sort_order - b.sort_order)
     : []
 
   // ── Render ────────────────────────────────────────────────
@@ -379,7 +379,7 @@ export default function CustomFieldsPage() {
                 <div>
                   <CardTitle>{field.label}</CardTitle>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {field.name} &middot; {field.type}
+                    {field.name} &middot; {field.field_type}
                     {field.required && (
                       <Badge
                         variant="destructive"
@@ -457,7 +457,7 @@ export default function CustomFieldsPage() {
             <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
               <span>
                 Roles:{' '}
-                {field.visibleToRoles.map((r) => (
+                {field.visible_to_roles.map((r) => (
                   <Badge
                     key={r}
                     variant="outline"
@@ -469,9 +469,9 @@ export default function CustomFieldsPage() {
               </span>
               <span>
                 Departments:{' '}
-                {field.visibleToDepartments &&
-                field.visibleToDepartments.length > 0
-                  ? field.visibleToDepartments.map((d) => (
+                {field.visible_to_departments &&
+                field.visible_to_departments.length > 0
+                  ? field.visible_to_departments.map((d) => (
                       <Badge
                         key={d}
                         variant="outline"
@@ -547,11 +547,11 @@ export default function CustomFieldsPage() {
               <div>
                 <Label>Field Type</Label>
                 <Select
-                  value={editField.type ?? 'text'}
+                  value={editField.field_type ?? 'text'}
                   onValueChange={(val) =>
                     setEditField({
                       ...editField,
-                      type: val as CustomFieldType,
+                      field_type: val as CustomFieldType,
                     })
                   }
                 >
@@ -569,8 +569,8 @@ export default function CustomFieldsPage() {
               </div>
 
               {/* Options (select/multiselect) */}
-              {(editField.type === 'select' ||
-                editField.type === 'multiselect') && (
+              {(editField.field_type === 'select' ||
+                editField.field_type === 'multiselect') && (
                 <div>
                   <Label>Options</Label>
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -621,14 +621,14 @@ export default function CustomFieldsPage() {
                 <Label>Default Value</Label>
                 <Input
                   value={
-                    typeof editField.defaultValue === 'string'
-                      ? editField.defaultValue
+                    typeof editField.default_value === 'string'
+                      ? editField.default_value
                       : ''
                   }
                   onChange={(e) =>
                     setEditField({
                       ...editField,
-                      defaultValue: e.target.value,
+                      default_value: e.target.value,
                     })
                   }
                   placeholder="Leave empty for no default"
@@ -655,11 +655,11 @@ export default function CustomFieldsPage() {
                 <div>
                   <Label>Help Text</Label>
                   <Input
-                    value={editField.helpText ?? ''}
+                    value={editField.help_text ?? ''}
                     onChange={(e) =>
                       setEditField({
                         ...editField,
-                        helpText: e.target.value,
+                        help_text: e.target.value,
                       })
                     }
                     placeholder="Guidance text..."
@@ -680,7 +680,7 @@ export default function CustomFieldsPage() {
                       <input
                         type="checkbox"
                         checked={(
-                          editField.visibleToRoles ?? []
+                          editField.visible_to_roles ?? []
                         ).includes(role)}
                         onChange={() => toggleRole(role)}
                         className="size-4 rounded border-input"
@@ -708,7 +708,7 @@ export default function CustomFieldsPage() {
                       <input
                         type="checkbox"
                         checked={(
-                          editField.visibleToDepartments ?? []
+                          editField.visible_to_departments ?? []
                         ).includes(dept)}
                         onChange={() => toggleDept(dept)}
                         className="size-4 rounded border-input"

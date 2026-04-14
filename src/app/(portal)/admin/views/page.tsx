@@ -149,7 +149,7 @@ export default function ViewsAdminPage() {
       groups.set(g, [])
     }
     for (const v of configs) {
-      const groupName = v.group ?? 'Other'
+      const groupName = v.group_name ?? 'Other'
       const arr = groups.get(groupName)
       if (arr) {
         arr.push(v)
@@ -159,7 +159,7 @@ export default function ViewsAdminPage() {
     }
     // Sort each group by order
     for (const [, arr] of groups) {
-      arr.sort((a, b) => a.order - b.order)
+      arr.sort((a, b) => a.sort_order - b.sort_order)
     }
     return Array.from(groups.entries())
       .filter(([, views]) => views.length > 0)
@@ -187,9 +187,9 @@ export default function ViewsAdminPage() {
     )
   }
 
-  const updateViewFilter = (id: string, filterConfig: ViewFilterConfig) => {
+  const updateViewFilter = (id: string, filter_config: ViewFilterConfig) => {
     updateConfigs((prev) =>
-      prev.map((v) => (v.id === id ? { ...v, filterConfig } : v))
+      prev.map((v) => (v.id === id ? { ...v, filter_config } : v))
     )
   }
 
@@ -198,15 +198,15 @@ export default function ViewsAdminPage() {
       const view = prev.find((v) => v.id === id)
       if (!view) return prev
       const groupViews = prev
-        .filter((v) => v.group === view.group)
-        .sort((a, b) => a.order - b.order)
+        .filter((v) => v.group_name === view.group_name)
+        .sort((a, b) => a.sort_order - b.sort_order)
       const idx = groupViews.findIndex((v) => v.id === id)
       const swapIdx = direction === 'up' ? idx - 1 : idx + 1
       if (swapIdx < 0 || swapIdx >= groupViews.length) return prev
       const swapView = groupViews[swapIdx]
       return prev.map((v) => {
-        if (v.id === id) return { ...v, order: swapView.order }
-        if (v.id === swapView.id) return { ...v, order: view.order }
+        if (v.id === id) return { ...v, order: swapView.sort_order }
+        if (v.id === swapView.id) return { ...v, order: view.sort_order }
         return v
       })
     })
@@ -220,15 +220,15 @@ export default function ViewsAdminPage() {
   const addView = () => {
     if (!newViewName.trim()) return
     const currentConfigs = localConfigs ?? viewConfigs
-    const groupViews = currentConfigs.filter((v) => v.group === newViewGroup)
+    const groupViews = currentConfigs.filter((v) => v.group_name === newViewGroup)
     const newConfig: ViewConfig = {
       id: `custom-${Date.now()}`,
       name: newViewName.trim(),
       enabled: true,
-      group: newViewGroup,
-      filterConfig: { ...newViewFilter },
-      order: groupViews.length,
-      isCustom: true,
+      group_name: newViewGroup,
+      filter_config: { ...newViewFilter },
+      sort_order: groupViews.length,
+      is_custom: true,
     }
     updateConfigs((prev) => [...prev, newConfig])
     setNewViewName('')
@@ -257,10 +257,10 @@ export default function ViewsAdminPage() {
             id: v.id,
             name: v.name,
             enabled: v.enabled,
-            group_name: v.group,
-            filter_config: v.filterConfig,
-            display_order: v.order,
-            is_custom: v.isCustom ?? false,
+            group_name: v.group_name,
+            filter_config: v.filter_config,
+            display_order: v.sort_order,
+            is_custom: v.is_custom ?? false,
           }))
         )
       if (error) throw error
@@ -376,7 +376,7 @@ export default function ViewsAdminPage() {
                           >
                             {view.name}
                           </span>
-                          {view.isCustom && (
+                          {view.is_custom && (
                             <Badge
                               variant="outline"
                               className="text-[10px] px-1.5 py-0"
@@ -386,7 +386,7 @@ export default function ViewsAdminPage() {
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground truncate mt-0.5">
-                          {getFilterSummary(view.filterConfig)}
+                          {getFilterSummary(view.filter_config)}
                         </p>
                       </div>
 
@@ -420,7 +420,7 @@ export default function ViewsAdminPage() {
                         >
                           <Settings className="w-3.5 h-3.5" />
                         </Button>
-                        {view.isCustom && (
+                        {view.is_custom && (
                           <Button
                             variant="ghost"
                             size="icon-xs"
@@ -454,10 +454,10 @@ export default function ViewsAdminPage() {
                               Status Filter
                             </Label>
                             <select
-                              value={view.filterConfig.statusFilter}
+                              value={view.filter_config.statusFilter}
                               onChange={(e) =>
                                 updateViewFilter(view.id, {
-                                  ...view.filterConfig,
+                                  ...view.filter_config,
                                   statusFilter: e.target.value as
                                     | TicketStatus
                                     | 'any',
@@ -477,10 +477,10 @@ export default function ViewsAdminPage() {
                               Assignee Filter
                             </Label>
                             <select
-                              value={view.filterConfig.assigneeFilter}
+                              value={view.filter_config.assigneeFilter}
                               onChange={(e) =>
                                 updateViewFilter(view.id, {
-                                  ...view.filterConfig,
+                                  ...view.filter_config,
                                   assigneeFilter: e.target
                                     .value as ViewFilterConfig['assigneeFilter'],
                                 })
@@ -499,10 +499,10 @@ export default function ViewsAdminPage() {
                               Category Filter
                             </Label>
                             <select
-                              value={view.filterConfig.categoryFilter}
+                              value={view.filter_config.categoryFilter}
                               onChange={(e) =>
                                 updateViewFilter(view.id, {
-                                  ...view.filterConfig,
+                                  ...view.filter_config,
                                   categoryFilter: e.target.value as
                                     | TicketCategory
                                     | 'any',
@@ -522,10 +522,10 @@ export default function ViewsAdminPage() {
                               SLA Filter
                             </Label>
                             <select
-                              value={view.filterConfig.slaFilter}
+                              value={view.filter_config.slaFilter}
                               onChange={(e) =>
                                 updateViewFilter(view.id, {
-                                  ...view.filterConfig,
+                                  ...view.filter_config,
                                   slaFilter: e.target
                                     .value as ViewFilterConfig['slaFilter'],
                                 })

@@ -75,8 +75,8 @@ const emptyForm: FormState = {
   content: '',
   category: '',
   actions: {},
-  isPersonal: false,
-  usageCount: 0,
+  is_personal: false,
+  usage_count: 0,
 }
 
 // ── Page Component ─────────────────────────────────────────────
@@ -118,8 +118,8 @@ export default function CannedResponsesPage() {
         content: data.content,
         category: data.category || null,
         actions: data.actions && Object.keys(data.actions).length > 0 ? data.actions : null,
-        is_personal: data.isPersonal ?? false,
-        usage_count: data.usageCount ?? 0,
+        is_personal: data.is_personal ?? false,
+        usage_count: data.usage_count ?? 0,
       }
 
       if (data.id) {
@@ -181,9 +181,9 @@ export default function CannedResponsesPage() {
       content: r.content,
       category: r.category ?? '',
       actions: r.actions ?? {},
-      isPersonal: r.isPersonal ?? false,
-      createdBy: r.createdBy,
-      usageCount: r.usageCount ?? 0,
+      is_personal: r.is_personal ?? false,
+      created_by: r.created_by,
+      usage_count: r.usage_count ?? 0,
     })
     setDialogOpen(true)
   }
@@ -287,7 +287,7 @@ export default function CannedResponsesPage() {
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         {r.name}
-                        {r.isPersonal && (
+                        {r.is_personal && (
                           <Badge variant="secondary" className="text-[10px]">
                             Personal
                           </Badge>
@@ -307,7 +307,7 @@ export default function CannedResponsesPage() {
                       </p>
                     </TableCell>
                     <TableCell className="text-center text-muted-foreground">
-                      {r.usageCount ?? 0}
+                      {r.usage_count ?? 0}
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
@@ -536,9 +536,9 @@ export default function CannedResponsesPage() {
                 </p>
               </div>
               <Switch
-                checked={form.isPersonal ?? false}
+                checked={form.is_personal ?? false}
                 onCheckedChange={(checked) =>
-                  setForm((f) => ({ ...f, isPersonal: checked }))
+                  setForm((f) => ({ ...f, is_personal: checked }))
                 }
               />
             </div>

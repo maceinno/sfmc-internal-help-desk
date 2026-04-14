@@ -16,10 +16,10 @@ export default function BranchPage() {
   const { data: branches = [], isLoading: branchesLoading } = useBranches()
 
   const branchName = useMemo(() => {
-    if (!profile?.managedBranchId || branches.length === 0) return null
-    const branch = branches.find((b) => b.id === profile.managedBranchId)
+    if (!profile?.managed_branch_id || branches.length === 0) return null
+    const branch = branches.find((b) => b.id === profile.managed_branch_id)
     return branch?.name ?? null
-  }, [profile?.managedBranchId, branches])
+  }, [profile?.managed_branch_id, branches])
 
   const branchTickets = useMemo(() => {
     if (!profile) return []
@@ -36,7 +36,7 @@ export default function BranchPage() {
     )
   }
 
-  if (!profile?.hasBranchAccess || !profile?.managedBranchId) {
+  if (!profile?.has_branch_access || !profile?.managed_branch_id) {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-3">

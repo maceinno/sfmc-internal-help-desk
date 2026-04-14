@@ -158,7 +158,7 @@ export default function DashboardPage() {
                         <PriorityBadge priority={ticket.priority} />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(ticket.createdAt).toLocaleDateString()}
+                        {new Date(ticket.created_at).toLocaleDateString()}
                       </td>
                     </tr>
                   )

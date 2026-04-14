@@ -45,7 +45,7 @@ export function MergeModal({
     return allTickets
       .filter((t) => {
         if (t.id === currentTicket.id) return false
-        if (t.mergedIntoId) return false
+        if (t.merged_into_id) return false
         return (
           t.id.toLowerCase().includes(query) ||
           t.title.toLowerCase().includes(query) ||
@@ -148,10 +148,10 @@ export function MergeModal({
                   {selectedTicket.title}
                 </p>
                 <p className="mt-1 text-xs text-purple-600">
-                  {selectedTicket.messages.length} message
-                  {selectedTicket.messages.length !== 1 ? "s" : ""} &bull;
+                  {(selectedTicket.messages ?? []).length} message
+                  {(selectedTicket.messages ?? []).length !== 1 ? "s" : ""} &bull;
                   Created{" "}
-                  {new Date(selectedTicket.createdAt).toLocaleDateString()}
+                  {new Date(selectedTicket.created_at).toLocaleDateString()}
                 </p>
               </div>
 

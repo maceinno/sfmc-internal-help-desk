@@ -46,7 +46,7 @@ export function getBusinessHoursForDay(
 ): BusinessHoursEntry | null {
   if (isHoliday(date, schedule.holidays)) return null;
   const dayName = DAY_MAP[date.getDay()];
-  const entry = schedule.businessHours.find((bh) => bh.day === dayName);
+  const entry = schedule.business_hours.find((bh: BusinessHoursEntry) => bh.day === dayName);
   return entry && entry.enabled ? entry : null;
 }
 

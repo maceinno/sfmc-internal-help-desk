@@ -24,7 +24,7 @@ export function useCurrentUser() {
 
       const supabase = createClerkSupabaseClient(token)
       const { data, error } = await supabase
-        .from('users')
+        .from('profiles')
         .select('*')
         .eq('id', user!.id)
         .single()

@@ -38,7 +38,7 @@ export function NotificationPanel() {
                 onClick={() => {
                   markRead.mutate(notif.id)
                   setPanelOpen(false)
-                  router.push(`/tickets/${notif.ticketId}`)
+                  router.push(`/tickets/${notif.ticket_id}`)
                 }}
                 className={`w-full text-left p-4 hover:bg-slate-700/50 transition-colors flex gap-3 ${
                   !notif.read ? 'bg-slate-700/20' : ''
@@ -62,9 +62,9 @@ export function NotificationPanel() {
                   <p className={`text-sm ${!notif.read ? 'text-white font-medium' : 'text-slate-300'}`}>
                     {notif.message}
                   </p>
-                  <p className="text-xs text-slate-500 mt-1 truncate">{notif.ticketTitle}</p>
+                  <p className="text-xs text-slate-500 mt-1 truncate">{notif.ticket_title}</p>
                   <p className="text-[10px] text-slate-500 mt-1">
-                    {new Date(notif.timestamp).toLocaleString()}
+                    {new Date(notif.created_at).toLocaleString()}
                   </p>
                 </div>
               </button>

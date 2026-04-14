@@ -235,8 +235,8 @@ export function ReplyComposer({
                       className="flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-gray-50"
                     >
                       <Avatar size="sm">
-                        {user.avatar && (
-                          <AvatarImage src={user.avatar} alt="" />
+                        {user.avatar_url && (
+                          <AvatarImage src={user.avatar_url} alt="" />
                         )}
                         <AvatarFallback>
                           {getInitials(user.name)}
@@ -275,8 +275,8 @@ export function ReplyComposer({
                 >
                   <AtSign className="h-3 w-3 text-blue-500" />
                   <Avatar size="sm" className="h-4 w-4">
-                    {user.avatar && (
-                      <AvatarImage src={user.avatar} alt="" />
+                    {user.avatar_url && (
+                      <AvatarImage src={user.avatar_url} alt="" />
                     )}
                     <AvatarFallback className="text-[8px]">
                       {getInitials(user.name)}

@@ -16,10 +16,10 @@ export default function RegionPage() {
   const { data: regions = [], isLoading: regionsLoading } = useRegions()
 
   const regionName = useMemo(() => {
-    if (!profile?.managedRegionId || regions.length === 0) return null
-    const region = regions.find((r) => r.id === profile.managedRegionId)
+    if (!profile?.managed_region_id || regions.length === 0) return null
+    const region = regions.find((r) => r.id === profile.managed_region_id)
     return region?.name ?? null
-  }, [profile?.managedRegionId, regions])
+  }, [profile?.managed_region_id, regions])
 
   const regionTickets = useMemo(() => {
     if (!profile) return []
@@ -36,7 +36,7 @@ export default function RegionPage() {
     )
   }
 
-  if (!profile?.hasRegionalAccess || !profile?.managedRegionId) {
+  if (!profile?.has_regional_access || !profile?.managed_region_id) {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-3">

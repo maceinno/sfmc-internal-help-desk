@@ -28,9 +28,9 @@ function makeTicket(overrides: Partial<Ticket> = {}): Ticket {
     status: 'open',
     priority: 'medium',
     category: 'General',
-    createdBy: 'user-1',
-    createdAt: '2025-06-01T09:00:00Z',
-    updatedAt: '2025-06-01T09:00:00Z',
+    created_by: 'user-1',
+    created_at: '2025-06-01T09:00:00Z',
+    updated_at: '2025-06-01T09:00:00Z',
     messages: [],
     ...overrides,
   };
@@ -50,7 +50,7 @@ function makePolicy(overrides: Partial<SlaPolicy> = {}): SlaPolicy {
       firstReplyHours: 4,
       nextReplyHours: 8,
     },
-    order: 1,
+    sort_sort_order: 1,
     ...overrides,
   };
 }
@@ -60,9 +60,9 @@ function makeSchedule(
 ): DepartmentSchedule {
   return {
     id: 'sched-1',
-    departmentName: 'IT Support',
+    department_name: 'IT Support',
     timezone: 'America/New_York',
-    businessHours: [
+    business_hours: [
       { day: 'monday', enabled: true, startTime: '08:00', endTime: '17:00' },
       { day: 'tuesday', enabled: true, startTime: '08:00', endTime: '17:00' },
       { day: 'wednesday', enabled: true, startTime: '08:00', endTime: '17:00' },
@@ -91,17 +91,17 @@ describe('findMatchingPolicy', () => {
         categories: ['IT Systems'],
         priorities: ['urgent', 'high'],
       },
-      order: 1,
+      sort_order: 1,
     });
 
     const generalPolicy = makePolicy({
       id: 'pol-gen',
       name: 'General Policy',
-      order: 2,
+      sort_order: 2,
     });
 
     const ticket = makeTicket({
-      ticketType: 'IT Support',
+      ticket_type: 'IT Support',
       category: 'IT Systems',
       priority: 'urgent',
     });
@@ -121,7 +121,7 @@ describe('findMatchingPolicy', () => {
     });
 
     const ticket = makeTicket({
-      ticketType: 'IT Support',
+      ticket_type: 'IT Support',
       category: 'IT Systems',
       priority: 'low',
     });
@@ -133,12 +133,12 @@ describe('findMatchingPolicy', () => {
     const disabledPolicy = makePolicy({
       id: 'pol-disabled',
       enabled: false,
-      order: 1,
+      sort_order: 1,
     });
     const enabledPolicy = makePolicy({
       id: 'pol-enabled',
       enabled: true,
-      order: 2,
+      sort_order: 2,
     });
 
     const ticket = makeTicket();
@@ -148,8 +148,8 @@ describe('findMatchingPolicy', () => {
   });
 
   it('evaluates policies in order and returns the first match', () => {
-    const firstPolicy = makePolicy({ id: 'pol-first', order: 1 });
-    const secondPolicy = makePolicy({ id: 'pol-second', order: 2 });
+    const firstPolicy = makePolicy({ id: 'pol-first', sort_order: 1 });
+    const secondPolicy = makePolicy({ id: 'pol-second', sort_order: 2 });
 
     const ticket = makeTicket();
     const result = findMatchingPolicy(ticket, [secondPolicy, firstPolicy]);
@@ -166,8 +166,8 @@ describe('findMatchingPolicy', () => {
       },
     });
 
-    const matchingTicket = makeTicket({ subCategory: 'Early Release' });
-    const nonMatchingTicket = makeTicket({ subCategory: 'Other' });
+    const matchingTicket = makeTicket({ sub_category: 'Early Release' });
+    const nonMatchingTicket = makeTicket({ sub_category: 'Other' });
     const noSubCatTicket = makeTicket();
 
     expect(findMatchingPolicy(matchingTicket, [policy])).not.toBeNull();
@@ -181,7 +181,7 @@ describe('findMatchingPolicy', () => {
 describe('getActiveMetric', () => {
   it('returns "firstReply" when no non-creator messages exist', () => {
     const ticket = makeTicket({
-      createdAt: '2025-06-01T09:00:00Z',
+      created_at: '2025-06-01T09:00:00Z',
       messages: [],
     });
 
@@ -195,10 +195,10 @@ describe('getActiveMetric', () => {
       messages: [
         {
           id: 'm-1',
-          authorId: 'agent-1',
+          author_id: 'agent-1',
           content: 'Internal note',
-          timestamp: '2025-06-01T10:00:00Z',
-          isInternal: true,
+          created_at: '2025-06-01T10:00:00Z',
+          is_internal: true,
         },
       ],
     });
@@ -209,14 +209,14 @@ describe('getActiveMetric', () => {
 
   it('returns "nextReply" after an agent replies publicly', () => {
     const ticket = makeTicket({
-      createdBy: 'user-1',
+      created_by: 'user-1',
       messages: [
         {
           id: 'm-1',
-          authorId: 'agent-1',
+          author_id: 'agent-1',
           content: 'Agent reply',
-          timestamp: '2025-06-01T10:00:00Z',
-          isInternal: false,
+          created_at: '2025-06-01T10:00:00Z',
+          is_internal: false,
         },
       ],
     });
@@ -227,21 +227,21 @@ describe('getActiveMetric', () => {
 
   it('anchors to end-user follow-up after last agent reply', () => {
     const ticket = makeTicket({
-      createdBy: 'user-1',
+      created_by: 'user-1',
       messages: [
         {
           id: 'm-1',
-          authorId: 'agent-1',
+          author_id: 'agent-1',
           content: 'Agent reply',
-          timestamp: '2025-06-01T10:00:00Z',
-          isInternal: false,
+          created_at: '2025-06-01T10:00:00Z',
+          is_internal: false,
         },
         {
           id: 'm-2',
-          authorId: 'user-1',
+          author_id: 'user-1',
           content: 'Follow-up question',
-          timestamp: '2025-06-01T11:00:00Z',
-          isInternal: false,
+          created_at: '2025-06-01T11:00:00Z',
+          is_internal: false,
         },
       ],
     });
@@ -325,7 +325,7 @@ describe('getSlaStatus', () => {
     const ticket = makeTicket({
       priority: 'high',
       createdAt,
-      ticketType: 'IT Support',
+      ticket_type: 'IT Support',
     });
 
     const policy = makePolicy({
@@ -372,7 +372,7 @@ describe('getSlaStatus', () => {
     const ticket = makeTicket({
       priority: 'high',
       createdAt,
-      ticketType: 'IT Support',
+      ticket_type: 'IT Support',
     });
 
     const policy = makePolicy({
@@ -418,12 +418,12 @@ describe('getOverdueTickets / getAtRiskTickets', () => {
     const overdueTicket = makeTicket({
       id: 'T-overdue',
       priority: 'urgent', // 2h SLA
-      createdAt: '2025-06-01T09:00:00Z',
+      created_at: '2025-06-01T09:00:00Z',
     });
     const okTicket = makeTicket({
       id: 'T-ok',
       priority: 'low', // 24h SLA
-      createdAt: '2025-06-01T09:00:00Z',
+      created_at: '2025-06-01T09:00:00Z',
     });
 
     const result = getOverdueTickets([overdueTicket, okTicket]);
@@ -439,12 +439,12 @@ describe('getOverdueTickets / getAtRiskTickets', () => {
     const atRiskTicket = makeTicket({
       id: 'T-risk',
       priority: 'medium', // 8h SLA, 87.5% used
-      createdAt: '2025-06-01T09:00:00Z',
+      created_at: '2025-06-01T09:00:00Z',
     });
     const safeTicket = makeTicket({
       id: 'T-safe',
       priority: 'low', // 24h SLA, 29% used
-      createdAt: '2025-06-01T09:00:00Z',
+      created_at: '2025-06-01T09:00:00Z',
     });
 
     const result = getAtRiskTickets([atRiskTicket, safeTicket]);

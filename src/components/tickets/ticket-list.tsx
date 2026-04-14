@@ -50,7 +50,7 @@ export function TicketList({ tickets, title, users }: TicketListProps) {
     useState<CategoryFilterValue>('all')
 
   // Sort state
-  const [sortField, setSortField] = useState<SortField>('updatedAt')
+  const [sortField, setSortField] = useState<SortField>('updated_at')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
 
   const handleSort = (field: SortField) => {

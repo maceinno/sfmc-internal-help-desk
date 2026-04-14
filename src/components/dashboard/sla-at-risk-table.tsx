@@ -87,7 +87,7 @@ export function SlaAtRiskTable({
                       <PriorityBadge priority={ticket.priority} />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {ticket.assignedTo ? 'Assigned' : 'Unassigned'}
+                      {ticket.assigned_to ? 'Assigned' : 'Unassigned'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <SlaIndicator
@@ -162,7 +162,7 @@ export function SlaAtRiskTable({
                       <PriorityBadge priority={ticket.priority} />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {ticket.assignedTo ? 'Assigned' : 'Unassigned'}
+                      {ticket.assigned_to ? 'Assigned' : 'Unassigned'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <SlaIndicator

@@ -86,7 +86,7 @@ function useAgentUsers() {
       if (!token) throw new Error('No auth token')
       const supabase = createClerkSupabaseClient(token)
       const { data, error } = await supabase
-        .from('users')
+        .from('profiles')
         .select('*')
         .in('role', ['agent', 'admin'])
         .order('name', { ascending: true })
@@ -112,7 +112,7 @@ export default function RoutingPage() {
 
   // Sorted rules
   const sorted = useMemo(
-    () => [...rules].sort((a, b) => a.priority - b.priority),
+    () => [...rules].sort((a, b) => a.priority_order - b.priority_order),
     [rules],
   )
 
@@ -241,11 +241,11 @@ export default function RoutingPage() {
       id: r.id,
       name: r.name,
       enabled: r.enabled,
-      ticketType: r.ticketType,
+      ticketType: r.ticket_type,
       category: r.category,
-      assignToUserId: r.assignToUserId ?? '',
-      assignToTeam: r.assignToTeam ?? '',
-      priority: r.priority,
+      assignToUserId: r.assign_to_user ?? '',
+      assignToTeam: r.assign_to_team ?? '',
+      priority: r.priority_order,
     })
     setDialogOpen(true)
   }
@@ -259,15 +259,15 @@ export default function RoutingPage() {
     if (index === 0) return
     const above = sorted[index - 1]
     // Swap priorities
-    reorderMutation.mutate({ id: rule.id, newPriority: above.priority })
-    reorderMutation.mutate({ id: above.id, newPriority: rule.priority })
+    reorderMutation.mutate({ id: rule.id, newPriority: above.priority_order })
+    reorderMutation.mutate({ id: above.id, newPriority: rule.priority_order })
   }
 
   function moveDown(rule: RoutingRule, index: number) {
     if (index >= sorted.length - 1) return
     const below = sorted[index + 1]
-    reorderMutation.mutate({ id: rule.id, newPriority: below.priority })
-    reorderMutation.mutate({ id: below.id, newPriority: rule.priority })
+    reorderMutation.mutate({ id: rule.id, newPriority: below.priority_order })
+    reorderMutation.mutate({ id: below.id, newPriority: rule.priority_order })
   }
 
   function getTeamName(id: string) {
@@ -279,8 +279,8 @@ export default function RoutingPage() {
   }
 
   function getAssignmentLabel(rule: RoutingRule) {
-    if (rule.assignToUserId) return getUserName(rule.assignToUserId)
-    if (rule.assignToTeam) return getTeamName(rule.assignToTeam)
+    if (rule.assign_to_user) return getUserName(rule.assign_to_user)
+    if (rule.assign_to_team) return getTeamName(rule.assign_to_team)
     return 'Unassigned'
   }
 
@@ -377,15 +377,15 @@ export default function RoutingPage() {
                         {rule.name}
                       </span>
                       <Badge variant="outline" className="text-[10px]">
-                        #{rule.priority}
+                        #{rule.priority_order}
                       </Badge>
                     </div>
                     <div className="flex items-center gap-1.5 mt-1 text-sm text-muted-foreground">
                       <span>If</span>
                       <Badge variant="secondary" className="text-[10px]">
-                        {rule.ticketType === 'any'
+                        {rule.ticket_type === 'any'
                           ? 'Any Type'
-                          : rule.ticketType}
+                          : rule.ticket_type}
                       </Badge>
                       <span>+</span>
                       <Badge variant="secondary" className="text-[10px]">

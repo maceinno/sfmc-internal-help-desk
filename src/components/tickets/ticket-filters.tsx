@@ -10,7 +10,7 @@ export type PriorityFilterValue = TicketPriority | 'all'
 export type CategoryFilterValue = TicketCategory | 'all'
 export type SortField = keyof Pick<
   Ticket,
-  'updatedAt' | 'createdAt' | 'priority' | 'status'
+  'updated_at' | 'created_at' | 'priority' | 'status'
 >
 export type SortDirection = 'asc' | 'desc'
 
@@ -46,8 +46,8 @@ const CATEGORY_OPTIONS: { value: CategoryFilterValue; label: string }[] = [
 ]
 
 const SORT_OPTIONS: { value: SortField; label: string }[] = [
-  { value: 'updatedAt', label: 'Last Updated' },
-  { value: 'createdAt', label: 'Created' },
+  { value: 'updated_at', label: 'Last Updated' },
+  { value: 'created_at', label: 'Created' },
   { value: 'priority', label: 'Priority' },
   { value: 'status', label: 'Status' },
 ]

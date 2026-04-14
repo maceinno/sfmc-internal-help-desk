@@ -84,8 +84,8 @@ export default function ReportsPage() {
     let avgResolutionHours = 0
     if (resolvedTickets.length > 0) {
       const totalHours = resolvedTickets.reduce((sum, t) => {
-        const created = new Date(t.createdAt).getTime()
-        const updated = new Date(t.updatedAt).getTime()
+        const created = new Date(t.created_at).getTime()
+        const updated = new Date(t.updated_at).getTime()
         return sum + (updated - created) / (1000 * 60 * 60)
       }, 0)
       avgResolutionHours = totalHours / resolvedTickets.length
@@ -94,8 +94,8 @@ export default function ReportsPage() {
     // SLA compliance rate
     let slaCompliant = 0
     resolvedTickets.forEach((t) => {
-      const created = new Date(t.createdAt).getTime()
-      const updated = new Date(t.updatedAt).getTime()
+      const created = new Date(t.created_at).getTime()
+      const updated = new Date(t.updated_at).getTime()
       const resolutionHours = (updated - created) / (1000 * 60 * 60)
       const slaHours = SLA_CONFIG[t.priority].hours
       if (resolutionHours <= slaHours) {
@@ -187,8 +187,8 @@ export default function ReportsPage() {
     tickets
       .filter((t) => t.status !== 'solved')
       .forEach((t) => {
-        if (t.assignedTo) {
-          const user = users.find((u) => u.id === t.assignedTo)
+        if (t.assigned_to) {
+          const user = users.find((u) => u.id === t.assigned_to)
           if (user) {
             counts[user.name] = (counts[user.name] || 0) + 1
           }

@@ -158,9 +158,9 @@ export function UserAutocomplete({
                       className="gap-2.5 py-2"
                     >
                       <Avatar size="sm">
-                        {user.avatar && (
+                        {user.avatar_url && (
                           <AvatarImage
-                            src={user.avatar}
+                            src={user.avatar_url}
                             alt={user.name}
                           />
                         )}

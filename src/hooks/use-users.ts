@@ -19,7 +19,7 @@ export function useUsers() {
 
       const supabase = createClerkSupabaseClient(token)
       const { data, error } = await supabase
-        .from('users')
+        .from('profiles')
         .select('*')
         .order('name', { ascending: true })
 

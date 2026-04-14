@@ -24,14 +24,14 @@ export function CustomFieldRenderer({ field, value, onChange }: CustomFieldRende
 
   return (
     <div className="space-y-1.5">
-      {field.type !== 'checkbox' && (
+      {field.field_type !== 'checkbox' && (
         <Label htmlFor={id}>
           {field.label}
           {field.required && <span className="text-destructive ml-1">*</span>}
         </Label>
       )}
 
-      {field.type === 'text' && (
+      {field.field_type === 'text' && (
         <Input
           id={id}
           type="text"
@@ -41,7 +41,7 @@ export function CustomFieldRenderer({ field, value, onChange }: CustomFieldRende
         />
       )}
 
-      {field.type === 'textarea' && (
+      {field.field_type === 'textarea' && (
         <Textarea
           id={id}
           value={(value as string) ?? ''}
@@ -51,7 +51,7 @@ export function CustomFieldRenderer({ field, value, onChange }: CustomFieldRende
         />
       )}
 
-      {field.type === 'number' && (
+      {field.field_type === 'number' && (
         <Input
           id={id}
           type="number"
@@ -64,7 +64,7 @@ export function CustomFieldRenderer({ field, value, onChange }: CustomFieldRende
         />
       )}
 
-      {field.type === 'date' && (
+      {field.field_type === 'date' && (
         <Input
           id={id}
           type="date"
@@ -73,7 +73,7 @@ export function CustomFieldRenderer({ field, value, onChange }: CustomFieldRende
         />
       )}
 
-      {field.type === 'select' && (
+      {field.field_type === 'select' && (
         <Select
           value={(value as string) ?? ''}
           onValueChange={(val) => onChange(val)}
@@ -91,7 +91,7 @@ export function CustomFieldRenderer({ field, value, onChange }: CustomFieldRende
         </Select>
       )}
 
-      {field.type === 'multiselect' && (
+      {field.field_type === 'multiselect' && (
         <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
           {field.options?.map((option) => {
             const selected = Array.isArray(value) ? value : []
@@ -117,7 +117,7 @@ export function CustomFieldRenderer({ field, value, onChange }: CustomFieldRende
         </div>
       )}
 
-      {field.type === 'checkbox' && (
+      {field.field_type === 'checkbox' && (
         <div className="flex items-center gap-3">
           <Switch
             id={id}
@@ -131,8 +131,8 @@ export function CustomFieldRenderer({ field, value, onChange }: CustomFieldRende
         </div>
       )}
 
-      {field.helpText && field.type !== 'checkbox' && (
-        <p className="text-xs text-muted-foreground">{field.helpText}</p>
+      {field.help_text && field.field_type !== 'checkbox' && (
+        <p className="text-xs text-muted-foreground">{field.help_text}</p>
       )}
     </div>
   )

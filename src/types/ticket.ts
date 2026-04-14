@@ -1,6 +1,6 @@
 // ============================================================================
 // Core domain types for the SFMC Internal Help Desk Portal
-// Ported from the prototype (magic-patterns) and aligned with the DB schema.
+// Field names use snake_case to match Supabase column names directly.
 // ============================================================================
 
 export type TicketStatus = 'new' | 'open' | 'pending' | 'on_hold' | 'solved'
@@ -49,21 +49,23 @@ export type CustomFieldType =
   | 'date'
   | 'number'
 
-// ── Interfaces ───────────────────────────────────────────────
+// ── Interfaces (snake_case to match DB) ─────────────────────
 
 /** A file attached to a ticket or message. */
 export interface Attachment {
   id: string
-  fileName: string
-  fileSize: number
-  fileType: string
-  uploadedBy: string
-  uploadedAt: string
+  file_name: string
+  file_size: number
+  file_type: string
+  uploaded_by: string
+  created_at: string
+  storage_path: string
   url?: string
   version?: number
-  versionGroup?: string
-  isFinal?: boolean
-  messageId?: string
+  version_group?: string
+  is_final?: boolean
+  message_id?: string
+  ticket_id?: string
 }
 
 /** A physical branch location. */
@@ -82,34 +84,35 @@ export interface User {
   name: string
   email: string
   role: 'employee' | 'agent' | 'admin'
-  avatar: string
+  avatar_url?: string
   department?: string
   departments?: string[]
-  teamIds?: string[]
-  branchId?: string
-  regionId?: string
-  isOutOfOffice?: boolean
-  ticketTypesHandled?: TicketType[]
-  hasRegionalAccess?: boolean
-  managedRegionId?: string
-  hasBranchAccess?: boolean
-  managedBranchId?: string
+  team_ids?: string[]
+  branch_id?: string
+  region_id?: string
+  is_out_of_office?: boolean
+  ticket_types_handled?: TicketType[]
+  has_regional_access?: boolean
+  managed_region_id?: string
+  has_branch_access?: boolean
+  managed_branch_id?: string
 }
 
 /** A single message within a ticket conversation thread. */
 export interface Message {
   id: string
-  authorId: string
+  ticket_id?: string
+  author_id: string
   content: string
-  timestamp: string
-  isInternal: boolean
+  created_at: string
+  is_internal: boolean
   attachments?: Attachment[]
-  taggedAgents?: string[]
+  tagged_agents?: string[]
 }
 
 /** A field value stored on a ticket for a given custom field. */
 export interface CustomFieldValue {
-  fieldId: string
+  field_id: string
   value: string | string[] | boolean | number | null
 }
 
@@ -120,27 +123,25 @@ export interface Ticket {
   description: string
   status: TicketStatus
   priority: TicketPriority
-  category: TicketCategory
-  createdBy: string
-  assignedTo?: string
-  assignedTeam?: string
+  category: TicketCategory | string
+  created_by: string
+  assigned_to?: string
+  assigned_team?: string
   cc?: string[]
   collaborators?: string[]
-  createdAt: string
-  updatedAt: string
-  messages: Message[]
+  created_at: string
+  updated_at: string
+  messages?: Message[]
   attachments?: Attachment[]
-  ticketType?: TicketType
-  subCategory?: string
-  internalNotes?: string
+  ticket_type?: TicketType | string
+  sub_category?: string
+  internal_notes?: string
   visibility?: TicketVisibility
-  parentTicketId?: string
-  customFields?: CustomFieldValue[]
-  /** If this ticket was merged into another. */
-  mergedIntoId?: string
-  /** IDs of tickets merged into this one. */
-  mergedTicketIds?: string[]
-  mailingAddress?: {
+  parent_ticket_id?: string
+  custom_fields?: CustomFieldValue[]
+  merged_into_id?: string
+  merged_ticket_ids?: string[]
+  mailing_address?: {
     street1: string
     street2?: string
     city: string
@@ -153,13 +154,13 @@ export interface Ticket {
 export interface AppNotification {
   id: string
   type: NotificationType
-  ticketId: string
-  ticketTitle: string
-  fromUserId: string
-  toUserId: string
+  ticket_id: string
+  ticket_title: string
+  from_user_id: string
+  to_user_id: string
   message: string
   read: boolean
-  timestamp: string
+  created_at: string
 }
 
 /** Aggregated statistics for a ticket view. */
@@ -186,15 +187,14 @@ export interface ViewConfig {
   id: string
   name: string
   enabled: boolean
-  group: string
-  filterConfig: ViewFilterConfig
-  order: number
-  isCustom?: boolean
+  group_name: string
+  filter_config: ViewFilterConfig
+  sort_order: number
+  is_custom?: boolean
 }
 
 // ── SLA Types ────────────────────────────────────────────────
 
-/** Conditions that a ticket must match for an SLA policy to apply. */
 export interface SlaPolicyConditions {
   ticketTypes: TicketType[] | 'any'
   categories: TicketCategory[] | 'any'
@@ -202,58 +202,48 @@ export interface SlaPolicyConditions {
   subCategories?: string[] | 'any'
 }
 
-/** Response-time metrics defined by an SLA policy. */
 export interface SlaPolicyMetrics {
   firstReplyHours: number
   nextReplyHours: number
-  /** Percentage (0-100) at which to flag "at risk". Default 75. */
   warningThreshold?: number
 }
 
-/** An SLA policy that maps ticket conditions to response-time targets. */
 export interface SlaPolicy {
   id: string
   name: string
   enabled: boolean
   conditions: SlaPolicyConditions
   metrics: SlaPolicyMetrics
-  order: number
-  isDefault?: boolean
+  sort_order: number
+  is_default?: boolean
 }
 
 // ── Schedule Types ───────────────────────────────────────────
 
-/** A single business-hours window for a day of the week. */
 export interface BusinessHoursEntry {
   day: DayOfWeek
   enabled: boolean
-  /** "HH:MM" format, e.g. "08:00" */
   startTime: string
-  /** "HH:MM" format, e.g. "17:00" */
   endTime: string
 }
 
-/** A named holiday when the office is closed. */
 export interface Holiday {
   id: string
   name: string
-  /** "YYYY-MM-DD" format */
   date: string
 }
 
-/** A department's business-hours schedule including holidays. */
 export interface DepartmentSchedule {
   id: string
-  departmentName: string
+  department_name: string
   timezone: string
-  businessHours: BusinessHoursEntry[]
+  business_hours: BusinessHoursEntry[]
   holidays: Holiday[]
   enabled: boolean
 }
 
 // ── Canned Responses ─────────────────────────────────────────
 
-/** Side-effects applied when a canned response is used. */
 export interface CannedResponseAction {
   setStatus?: TicketStatus
   setPriority?: TicketPriority
@@ -262,52 +252,46 @@ export interface CannedResponseAction {
   addInternalNote?: string
 }
 
-/** A reusable pre-written reply with optional automated actions. */
 export interface CannedResponse {
   id: string
   name: string
   content: string
   category?: string
   actions?: CannedResponseAction
-  isPersonal?: boolean
-  createdBy?: string
-  usageCount?: number
+  is_personal?: boolean
+  created_by?: string
+  usage_count?: number
 }
 
 // ── Routing ──────────────────────────────────────────────────
 
-/** A rule that auto-assigns tickets to a user or team based on type/category. */
 export interface RoutingRule {
   id: string
   name: string
   enabled: boolean
-  ticketType: string | 'any'
+  ticket_type: string | 'any'
   category: string | 'any'
-  assignToUserId?: string
-  assignToTeam?: string
-  /** Lower value = higher priority; rules are evaluated in order. */
-  priority: number
+  assign_to_user?: string
+  assign_to_team?: string
+  priority_order: number
 }
 
 // ── Custom Fields ────────────────────────────────────────────
 
-/** Definition of a custom field that can be added to tickets. */
 export interface CustomField {
   id: string
   name: string
   label: string
-  type: CustomFieldType
+  field_type: CustomFieldType
   required: boolean
-  /** For select/multiselect types. */
   options?: string[]
-  defaultValue?: string | string[] | boolean | number
-  helpText?: string
+  default_value?: string | string[] | boolean | number
+  help_text?: string
   placeholder?: string
-  visibleToRoles: ('employee' | 'agent' | 'admin')[]
-  /** Department/TicketType names. Empty = visible to all departments. */
-  visibleToDepartments?: string[]
-  order: number
+  visible_to_roles: ('employee' | 'agent' | 'admin')[]
+  visible_to_departments?: string[]
+  sort_order: number
   enabled: boolean
-  createdAt: string
-  updatedAt: string
+  created_at?: string
+  updated_at?: string
 }

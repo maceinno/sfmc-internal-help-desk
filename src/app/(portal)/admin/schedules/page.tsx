@@ -116,7 +116,7 @@ export default function SchedulesAdminPage() {
         if (s.id !== scheduleId) return s
         return {
           ...s,
-          businessHours: s.businessHours.map((bh) =>
+          businessHours: s.business_hours.map((bh) =>
             bh.day === day ? { ...bh, [field]: value } : bh
           ),
         }
@@ -162,9 +162,9 @@ export default function SchedulesAdminPage() {
     if (!newDeptName.trim()) return
     const newSchedule: DepartmentSchedule = {
       id: `sched-${Date.now()}`,
-      departmentName: newDeptName.trim(),
+      department_name: newDeptName.trim(),
       timezone: newTimezone,
-      businessHours: [...DEFAULT_BUSINESS_HOURS],
+      business_hours: [...DEFAULT_BUSINESS_HOURS],
       holidays: [],
       enabled: true,
     }
@@ -190,9 +190,9 @@ export default function SchedulesAdminPage() {
       const { error } = await supabase.from('department_schedules').upsert(
         localSchedules.map((s) => ({
           id: s.id,
-          department_name: s.departmentName,
+          department_name: s.department_name,
           timezone: s.timezone,
-          business_hours: s.businessHours,
+          business_hours: s.business_hours,
           holidays: s.holidays,
           enabled: s.enabled,
         }))
@@ -284,7 +284,7 @@ export default function SchedulesAdminPage() {
                     size="sm"
                   />
                   <div>
-                    <CardTitle>{schedule.departmentName}</CardTitle>
+                    <CardTitle>{schedule.department_name}</CardTitle>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {schedule.timezone}
                     </p>
@@ -351,7 +351,7 @@ export default function SchedulesAdminPage() {
                     </div>
 
                     <div className="space-y-3">
-                      {schedule.businessHours.map((bh) => (
+                      {schedule.business_hours.map((bh) => (
                         <div key={bh.day} className="flex items-center gap-3">
                           <div className="w-24">
                             <label className="flex items-center gap-2 cursor-pointer">

@@ -125,14 +125,14 @@ export function CreateTicketForm() {
       hasPreFilled.current = true
       setValue('title', `Follow-up: ${followUpTicket.title}`)
       setValue('description', `Follow-up to ticket #${followUpTicket.id}\n\n`)
-      if (followUpTicket.ticketType) {
-        setValue('ticketType', followUpTicket.ticketType)
+      if (followUpTicket.ticket_type) {
+        setValue('ticketType', followUpTicket.ticket_type)
       }
       if (followUpTicket.category) {
         setValue('category', followUpTicket.category)
       }
-      if (followUpTicket.subCategory) {
-        setValue('subCategory', followUpTicket.subCategory)
+      if (followUpTicket.sub_category) {
+        setValue('subCategory', followUpTicket.sub_category)
       }
       if (followUpTicket.priority) {
         setValue('priority', followUpTicket.priority)
@@ -184,22 +184,22 @@ export function CreateTicketForm() {
     return customFields
       .filter((field) => {
         if (!field.enabled) return false
-        if (!field.visibleToRoles.includes(profile.role)) return false
+        if (!field.visible_to_roles.includes(profile.role)) return false
         if (
-          field.visibleToDepartments &&
-          field.visibleToDepartments.length > 0
+          field.visible_to_departments &&
+          field.visible_to_departments.length > 0
         ) {
-          if (!field.visibleToDepartments.includes(ticketType)) return false
+          if (!field.visible_to_departments.includes(ticketType)) return false
         }
         return true
       })
-      .sort((a, b) => a.order - b.order)
+      .sort((a, b) => a.sort_order - b.sort_order)
   }, [customFields, profile, ticketType])
 
   // ── Custom field helpers ─────────────────────────────────────
 
   const getCustomFieldValue = (fieldId: string) => {
-    return customFieldValues.find((v) => v.fieldId === fieldId)?.value
+    return customFieldValues.find((v) => v.field_id === fieldId)?.value
   }
 
   const setCustomFieldValue = (
@@ -207,13 +207,13 @@ export function CreateTicketForm() {
     value: string | string[] | boolean | number | null,
   ) => {
     setCustomFieldValues((prev) => {
-      const idx = prev.findIndex((v) => v.fieldId === fieldId)
+      const idx = prev.findIndex((v) => v.field_id === fieldId)
       if (idx >= 0) {
         const next = [...prev]
         next[idx] = { ...next[idx], value }
         return next
       }
-      return [...prev, { fieldId, value }]
+      return [...prev, { field_id: fieldId, value }]
     })
   }
 

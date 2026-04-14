@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     atRiskCount++
 
     // Only notify if the ticket has an assigned agent
-    if (!ticket.assignedTo) continue
+    if (!ticket.assigned_to) continue
 
     // Check for an existing sla_at_risk notification for this ticket in the
     // last hour to avoid duplicate noise.
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
       .select('id')
       .eq('ticket_id', ticket.id)
       .eq('type', 'sla_at_risk')
-      .eq('to_user_id', ticket.assignedTo)
+      .eq('to_user_id', ticket.assigned_to)
       .gte('created_at', oneHourAgo)
       .limit(1)
 
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
       ticket_id: ticket.id,
       ticket_title: ticket.title,
       from_user_id: 'system',
-      to_user_id: ticket.assignedTo,
+      to_user_id: ticket.assigned_to,
       message: `SLA is ${statusLabel} for ticket "${ticket.title}"`,
       read: false,
     })

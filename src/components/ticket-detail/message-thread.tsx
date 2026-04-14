@@ -59,8 +59,8 @@ export function MessageThread({
 
   const sortedMessages = React.useMemo(() => {
     return [...messages].sort((a, b) => {
-      const timeA = new Date(a.timestamp).getTime()
-      const timeB = new Date(b.timestamp).getTime()
+      const timeA = new Date(a.created_at).getTime()
+      const timeB = new Date(b.created_at).getTime()
       return sortOrder === "oldest" ? timeA - timeB : timeB - timeA
     })
   }, [messages, sortOrder])
@@ -69,8 +69,8 @@ export function MessageThread({
     <div className="flex gap-4">
       <div className="shrink-0">
         <Avatar>
-          {creator?.avatar && (
-            <AvatarImage src={creator.avatar} alt={creator?.name} />
+          {creator?.avatar_url && (
+            <AvatarImage src={creator.avatar_url} alt={creator?.name} />
           )}
           <AvatarFallback>
             {getInitials(creator?.name ?? "?")}
@@ -102,15 +102,15 @@ export function MessageThread({
 
   const renderMessageAttachments = (messageId: string) => {
     const messageAttachments = attachments.filter(
-      (att) => att.messageId === messageId
+      (att) => att.message_id === messageId
     )
     if (messageAttachments.length === 0) return null
 
     const images = messageAttachments.filter(
-      (att) => att.fileType.startsWith("image/") && att.url
+      (att) => att.file_type.startsWith("image/") && att.url
     )
     const files = messageAttachments.filter(
-      (att) => !(att.fileType.startsWith("image/") && att.url)
+      (att) => !(att.file_type.startsWith("image/") && att.url)
     )
 
     return (
@@ -121,12 +121,12 @@ export function MessageThread({
               <button
                 key={att.id}
                 type="button"
-                onClick={() => onImageClick?.(att.url!, att.fileName)}
+                onClick={() => onImageClick?.(att.url!, att.file_name)}
                 className="group relative overflow-hidden rounded-lg border border-gray-200 transition-all hover:border-blue-400 hover:shadow-md"
               >
                 <img
                   src={att.url}
-                  alt={att.fileName}
+                  alt={att.file_name}
                   className="h-24 w-36 object-cover"
                 />
                 <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/30">
@@ -134,7 +134,7 @@ export function MessageThread({
                 </div>
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-1">
                   <p className="truncate text-[10px] text-white">
-                    {att.fileName}
+                    {att.file_name}
                   </p>
                 </div>
               </button>
@@ -152,17 +152,17 @@ export function MessageThread({
                 <Paperclip className="h-4 w-4 shrink-0 text-muted-foreground" />
                 <div className="min-w-0">
                   <p className="max-w-[180px] truncate text-xs font-medium text-gray-900">
-                    {att.fileName}
+                    {att.file_name}
                   </p>
                   <p className="text-[10px] text-muted-foreground">
-                    {formatFileSize(att.fileSize)}
+                    {formatFileSize(att.file_size)}
                     {att.version && <span className="ml-1">v{att.version}</span>}
                   </p>
                 </div>
                 <button
                   type="button"
                   className="shrink-0 rounded p-1 text-muted-foreground transition-colors hover:text-blue-600"
-                  title={`Download ${att.fileName}`}
+                  title={`Download ${att.file_name}`}
                 >
                   <Download className="h-3.5 w-3.5" />
                 </button>
@@ -175,13 +175,13 @@ export function MessageThread({
   }
 
   const renderMessage = (message: Message) => {
-    const author = getUser(message.authorId)
+    const author = getUser(message.author_id)
 
     return (
       <div
         key={message.id}
         className={
-          message.isInternal
+          message.is_internal
             ? "-mx-6 border-y border-amber-100 bg-amber-50/50 px-6 py-4"
             : ""
         }
@@ -189,8 +189,8 @@ export function MessageThread({
         <div className="flex gap-4">
           <div className="shrink-0">
             <Avatar>
-              {author?.avatar && (
-                <AvatarImage src={author.avatar} alt={author?.name} />
+              {author?.avatar_url && (
+                <AvatarImage src={author.avatar_url} alt={author?.name} />
               )}
               <AvatarFallback>
                 {getInitials(author?.name ?? "?")}
@@ -203,14 +203,14 @@ export function MessageThread({
                 <span className="font-semibold text-gray-900">
                   {author?.name ?? "Unknown"}
                 </span>
-                {message.isInternal && (
+                {message.is_internal && (
                   <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
                     <Lock className="h-3 w-3" /> Internal Note
                   </span>
                 )}
               </div>
               <span className="text-sm text-muted-foreground">
-                {new Date(message.timestamp).toLocaleString()}
+                {new Date(message.created_at).toLocaleString()}
               </span>
             </div>
             <div className="text-gray-800">
