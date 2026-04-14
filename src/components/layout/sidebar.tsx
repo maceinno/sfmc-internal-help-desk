@@ -18,7 +18,9 @@ import {
   X,
   MapPin,
   Building2,
+  LogOut,
 } from 'lucide-react'
+import { useClerk } from '@clerk/nextjs'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { useNotifications } from '@/hooks/use-notifications'
 import { useUIStore } from '@/stores/ui-store'
@@ -37,6 +39,7 @@ export function Sidebar() {
   const { data: notifications = [] } = useNotifications()
   const { mobileMenuOpen, setMobileMenuOpen } = useUIStore()
   const { panelOpen: notifOpen, togglePanel: toggleNotifs } = useNotificationStore()
+  const { signOut } = useClerk()
   const [showOooConfirm, setShowOooConfirm] = useState(false)
 
   const unreadCount = notifications.filter((n) => !n.read).length
@@ -234,20 +237,29 @@ export function Sidebar() {
                 <p className="text-sm font-medium text-white truncate">{profile?.name ?? 'Loading...'}</p>
                 <p className="text-xs text-slate-400 truncate capitalize">{profile?.role ?? ''}</p>
               </div>
-              {isAdmin && (
-                <Link
-                  href="/admin/views"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`p-1.5 rounded-md transition-colors ${
-                    pathname.startsWith('/admin')
-                      ? 'bg-amber-700/90 text-white'
-                      : 'text-slate-500 hover:text-white hover:bg-slate-700'
-                  }`}
-                  title="Admin Settings"
+              <div className="flex items-center gap-1">
+                {isAdmin && (
+                  <Link
+                    href="/admin/views"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`p-1.5 rounded-md transition-colors ${
+                      pathname.startsWith('/admin')
+                        ? 'bg-amber-700/90 text-white'
+                        : 'text-slate-500 hover:text-white hover:bg-slate-700'
+                    }`}
+                    title="Admin Settings"
+                  >
+                    <Settings className="w-4 h-4" />
+                  </Link>
+                )}
+                <button
+                  onClick={() => signOut({ redirectUrl: '/sign-in' })}
+                  className="p-1.5 rounded-md transition-colors text-slate-500 hover:text-red-400 hover:bg-slate-700"
+                  title="Sign out"
                 >
-                  <Settings className="w-4 h-4" />
-                </Link>
-              )}
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
