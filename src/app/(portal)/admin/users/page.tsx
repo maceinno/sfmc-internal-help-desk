@@ -9,6 +9,7 @@ import {
   Pencil,
   Users,
   UserPlus,
+  Eye,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClerkSupabaseClient } from '@/lib/supabase/client'
@@ -465,13 +466,41 @@ export default function UsersPage() {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => openEdit(u)}
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          title="View as this user"
+                          onClick={async () => {
+                            try {
+                              const res = await fetch('/api/users/assume', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ userId: u.id }),
+                              })
+                              if (!res.ok) {
+                                const err = await res.json().catch(() => ({}))
+                                throw new Error(err.error ?? 'Failed')
+                              }
+                              toast.success(`Now viewing as ${u.name}`)
+                              // Redirect to appropriate page for the assumed role
+                              const dest = u.role === 'employee' ? '/my-tickets' : '/dashboard'
+                              window.location.href = dest
+                            } catch (err) {
+                              toast.error(err instanceof Error ? err.message : 'Failed to assume user')
+                            }
+                          }}
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => openEdit(u)}
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

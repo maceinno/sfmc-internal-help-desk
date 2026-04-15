@@ -38,7 +38,7 @@ interface NavItem {
 
 export function Sidebar() {
   const pathname = usePathname()
-  const { profile, isAdmin, isAgent, isEmployee } = useCurrentUser()
+  const { profile, isAdmin, isAgent, isEmployee, isRealAdmin, isAssuming } = useCurrentUser()
   const { data: branding } = useBranding()
   const { data: notifications = [] } = useNotifications()
   const { mobileMenuOpen, setMobileMenuOpen } = useUIStore()
@@ -303,7 +303,7 @@ export function Sidebar() {
                 <p className="text-xs text-slate-400 truncate capitalize">{profile?.role ?? ''}</p>
               </div>
               <div className="flex items-center gap-1">
-                {isAdmin && (
+                {(isAdmin || isRealAdmin) && (
                   <Link
                     href="/admin/views"
                     onClick={() => setMobileMenuOpen(false)}
