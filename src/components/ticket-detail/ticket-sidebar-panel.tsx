@@ -40,6 +40,8 @@ interface TicketSidebarPanelProps {
   currentUser: User
   users: User[]
   onUpdateField: (field: string, value: unknown) => void
+  onCcAdd?: (userId: string) => void
+  onCcRemove?: (userId: string) => void
   customFields?: CustomField[]
   slaPolicies?: SlaPolicy[]
   schedules?: DepartmentSchedule[]
@@ -86,6 +88,8 @@ export function TicketSidebarPanel({
   currentUser,
   users,
   onUpdateField,
+  onCcAdd,
+  onCcRemove,
   customFields = [],
   slaPolicies,
   schedules,
@@ -102,44 +106,36 @@ export function TicketSidebarPanel({
 
   const creator = getUser(ticket.created_by)
 
-  // CC list resolved to users
+  // CC list resolved to users (cc contains user IDs from ticket_cc join)
   const ccUsers = React.useMemo(() => {
-    return (ticket.cc ?? []).map((email) => {
-      const user = users.find((u) => u.email === email)
-      return { email, user }
+    return (ticket.cc ?? []).map((userId) => {
+      const user = getUser(userId)
+      return { userId, user }
     })
-  }, [ticket.cc, users])
+  }, [ticket.cc, getUser])
 
   // Collaborators not already shown as CC
   const collaboratorUsers = React.useMemo(() => {
-    const ccUserIds = ccUsers
-      .map((c) => c.user?.id)
-      .filter(Boolean) as string[]
+    const ccUserIds = new Set(ticket.cc ?? [])
     return (ticket.collaborators ?? [])
-      .filter((id) => !ccUserIds.includes(id))
+      .filter((id) => !ccUserIds.has(id))
       .map((id) => getUser(id))
       .filter(Boolean) as User[]
-  }, [ticket.collaborators, ccUsers, getUser])
+  }, [ticket.collaborators, ticket.cc, getUser])
 
   const handleAssigneeSelect = (userId: string) => {
     onUpdateField("assignedTo", userId || null)
   }
 
   const handleCcAdd = (userId: string) => {
-    const user = getUser(userId)
-    if (!user) return
     const currentCc = ticket.cc ?? []
-    if (!currentCc.includes(user.email)) {
-      onUpdateField("cc", [...currentCc, user.email])
+    if (!currentCc.includes(userId)) {
+      onCcAdd?.(userId)
     }
   }
 
-  const handleCcRemove = (email: string) => {
-    const currentCc = ticket.cc ?? []
-    onUpdateField(
-      "cc",
-      currentCc.filter((e: string) => e !== email)
-    )
+  const handleCcRemove = (userId: string) => {
+    onCcRemove?.(userId)
   }
 
   // Render read-only field
@@ -402,9 +398,9 @@ export function TicketSidebarPanel({
               CC'd
             </p>
             <div className="flex flex-col gap-1.5">
-              {ccUsers.map(({ email, user }) => (
+              {ccUsers.map(({ userId, user }) => (
                 <div
-                  key={email}
+                  key={userId}
                   className="flex items-center gap-3 rounded-lg p-2"
                 >
                   <Avatar size="sm">
@@ -412,12 +408,12 @@ export function TicketSidebarPanel({
                       <AvatarImage src={user.avatar_url} alt="" />
                     )}
                     <AvatarFallback>
-                      {getInitials(user?.name ?? email)}
+                      {getInitials(user?.name ?? userId)}
                     </AvatarFallback>
                   </Avatar>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-gray-900">
-                      {user?.name ?? email}
+                      {user?.name ?? userId}
                     </p>
                     {user && (
                       <p className="truncate text-xs capitalize text-muted-foreground">
@@ -434,7 +430,7 @@ export function TicketSidebarPanel({
                   {isAgentOrAdmin && (
                     <button
                       type="button"
-                      onClick={() => handleCcRemove(email)}
+                      onClick={() => handleCcRemove(userId)}
                       className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-destructive"
                     >
                       <X className="h-3 w-3" />
@@ -497,11 +493,7 @@ export function TicketSidebarPanel({
               selectedIds={[]}
               onSelect={handleCcAdd}
               placeholder="Search to add CC..."
-              excludeIds={
-                ccUsers
-                  .map((c) => c.user?.id)
-                  .filter(Boolean) as string[]
-              }
+              excludeIds={ccUsers.map((c) => c.userId)}
             />
           </div>
         )}

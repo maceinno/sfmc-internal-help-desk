@@ -83,12 +83,20 @@ export function useTicket(id: string | null | undefined) {
       const supabase = createClerkSupabaseClient(token)
       const { data, error } = await supabase
         .from('tickets')
-        .select('*, messages(*), attachments(*)')
+        .select('*, messages(*), attachments(*), ticket_cc(user_id), ticket_collaborators(user_id)')
         .eq('id', id!)
         .single()
 
       if (error) throw error
-      return data as Ticket
+
+      // Flatten join table arrays into simple string arrays
+      const ticket = data as Record<string, unknown>
+      ticket.cc = ((data as Record<string, unknown>).ticket_cc as { user_id: string }[] | null)?.map((r) => r.user_id) ?? []
+      ticket.collaborators = ((data as Record<string, unknown>).ticket_collaborators as { user_id: string }[] | null)?.map((r) => r.user_id) ?? []
+      delete ticket.ticket_cc
+      delete ticket.ticket_collaborators
+
+      return ticket as unknown as Ticket
     },
     enabled: !!id,
   })

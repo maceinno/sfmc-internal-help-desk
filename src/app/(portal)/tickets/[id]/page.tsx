@@ -20,6 +20,8 @@ import { MergeModal } from "@/components/ticket-detail/merge-modal"
 import { useTicket, useTickets, useUpdateTicket } from "@/hooks/use-tickets"
 import { useCurrentUser } from "@/hooks/use-current-user"
 import { useUsers } from "@/hooks/use-users"
+import { useAuth } from "@clerk/nextjs"
+import { createClerkSupabaseClient } from "@/lib/supabase/client"
 import { useCannedResponses, useTeams } from "@/hooks/use-admin-config"
 import { useUIStore } from "@/stores/ui-store"
 import { canViewInternalNotes } from "@/lib/permissions/policies"
@@ -37,6 +39,7 @@ export default function TicketDetailPage({
 
   const { data: ticket, isLoading: isTicketLoading } = useTicket(id)
   const { profile: currentUser, isLoading: isUserLoading } = useCurrentUser()
+  const { getToken } = useAuth()
   const { data: cannedResponses } = useCannedResponses()
   const { data: teams } = useTeams()
   const { data: allUsers = [] } = useUsers()
@@ -66,6 +69,46 @@ export default function TicketDetailPage({
       } as Parameters<typeof updateTicket.mutate>[0])
     },
     [ticket, updateTicket]
+  )
+
+  const handleCcAdd = React.useCallback(
+    async (userId: string) => {
+      if (!ticket) return
+      try {
+        const token = await getToken({ template: "supabase" })
+        if (!token) return
+        const supabase = createClerkSupabaseClient(token)
+        const { error } = await supabase
+          .from("ticket_cc")
+          .upsert({ ticket_id: ticket.id, user_id: userId }, { onConflict: "ticket_id,user_id" })
+        if (error) throw error
+        queryClient.invalidateQueries({ queryKey: ["ticket", ticket.id] })
+      } catch {
+        toast.error("Failed to add CC")
+      }
+    },
+    [ticket, getToken, queryClient]
+  )
+
+  const handleCcRemove = React.useCallback(
+    async (userId: string) => {
+      if (!ticket) return
+      try {
+        const token = await getToken({ template: "supabase" })
+        if (!token) return
+        const supabase = createClerkSupabaseClient(token)
+        const { error } = await supabase
+          .from("ticket_cc")
+          .delete()
+          .eq("ticket_id", ticket.id)
+          .eq("user_id", userId)
+        if (error) throw error
+        queryClient.invalidateQueries({ queryKey: ["ticket", ticket.id] })
+      } catch {
+        toast.error("Failed to remove CC")
+      }
+    },
+    [ticket, getToken, queryClient]
   )
 
   const handleReplySubmit = React.useCallback(
@@ -364,6 +407,8 @@ export default function TicketDetailPage({
           currentUser={currentUser}
           users={users}
           onUpdateField={handleUpdateField}
+          onCcAdd={handleCcAdd}
+          onCcRemove={handleCcRemove}
           teams={teams?.map((t) => ({ id: t.id, name: t.name })) ?? []}
         />
       </div>
