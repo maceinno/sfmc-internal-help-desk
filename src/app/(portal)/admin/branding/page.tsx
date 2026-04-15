@@ -111,24 +111,22 @@ export default function BrandingPage() {
 
       setUploading(true)
       try {
-        const token = await getToken({ template: 'supabase' })
-        if (!token) throw new Error('No auth token')
-        const supabase = createClerkSupabaseClient(token)
+        const formData = new FormData()
+        formData.append('file', file)
 
-        const ext = file.name.split('.').pop() ?? 'png'
-        const path = `branding/logo-${Date.now()}.${ext}`
+        const res = await fetch('/api/upload/branding', {
+          method: 'POST',
+          body: formData,
+        })
 
-        const { error: uploadError } = await supabase.storage
-          .from('attachments')
-          .upload(path, file, { upsert: true })
-        if (uploadError) throw uploadError
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          throw new Error(err.error ?? 'Upload failed')
+        }
 
-        const { data: urlData } = supabase.storage
-          .from('attachments')
-          .getPublicUrl(path)
-
+        const data = await res.json()
         const altText = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ')
-        update({ logoUrl: urlData.publicUrl, logoAlt: altText })
+        update({ logoUrl: data.url, logoAlt: altText })
         toast.success('Logo uploaded')
       } catch (err) {
         toast.error('Failed to upload logo')
@@ -137,7 +135,7 @@ export default function BrandingPage() {
         setUploading(false)
       }
     },
-    [getToken, update],
+    [update],
   )
 
   const handleDrop = useCallback(

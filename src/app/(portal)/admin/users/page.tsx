@@ -8,6 +8,7 @@ import {
   Search,
   Pencil,
   Users,
+  UserPlus,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClerkSupabaseClient } from '@/lib/supabase/client'
@@ -116,6 +117,20 @@ export default function UsersPage() {
   const [roleFilter, setRoleFilter] = useState('all')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [form, setForm] = useState<UserFormState | null>(null)
+  const [addDialogOpen, setAddDialogOpen] = useState(false)
+  const [addForm, setAddForm] = useState({
+    name: '',
+    email: '',
+    role: 'employee' as User['role'],
+    department: '',
+    teamIds: [] as string[],
+    branchId: '',
+    regionId: '',
+    hasBranchAccess: false,
+    managedBranchId: '',
+    hasRegionalAccess: false,
+    managedRegionId: '',
+  })
 
   // ── Filtered list ──────────────────────────────────────────
 
@@ -190,6 +205,46 @@ export default function UsersPage() {
     },
     onError: (err: Error) => {
       toast.error(`Failed to update: ${err.message}`)
+    },
+  })
+
+  const createMutation = useMutation({
+    mutationFn: async (data: typeof addForm) => {
+      const res = await fetch('/api/users/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: data.name,
+          email: data.email,
+          role: data.role,
+          department: data.department || undefined,
+          teamIds: data.teamIds.length > 0 ? data.teamIds : undefined,
+          branchId: data.branchId || undefined,
+          regionId: data.regionId || undefined,
+          hasBranchAccess: data.hasBranchAccess,
+          managedBranchId: data.hasBranchAccess ? data.managedBranchId || undefined : undefined,
+          hasRegionalAccess: data.hasRegionalAccess,
+          managedRegionId: data.hasRegionalAccess ? data.managedRegionId || undefined : undefined,
+        }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error ?? 'Failed to create user')
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] })
+      setAddDialogOpen(false)
+      setAddForm({
+        name: '', email: '', role: 'employee', department: '',
+        teamIds: [], branchId: '', regionId: '',
+        hasBranchAccess: false, managedBranchId: '',
+        hasRegionalAccess: false, managedRegionId: '',
+      })
+      toast.success('User created — they will receive an email to set their password')
+    },
+    onError: (err: Error) => {
+      toast.error(`Failed to create user: ${err.message}`)
     },
   })
 
@@ -288,12 +343,17 @@ export default function UsersPage() {
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
-        <p className="text-gray-500 mt-1">
-          Edit user roles, teams, and access settings. Users are provisioned via
-          Clerk.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
+          <p className="text-gray-500 mt-1">
+            Manage user roles, teams, and access settings.
+          </p>
+        </div>
+        <Button onClick={() => setAddDialogOpen(true)}>
+          <UserPlus className="w-4 h-4 mr-1.5" />
+          Add User
+        </Button>
       </div>
 
       {/* Search + Filter */}
@@ -762,6 +822,199 @@ export default function UsersPage() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* ── Add User Dialog ──────────────────────────────────── */}
+      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add New User</DialogTitle>
+            <DialogDescription>
+              Create a new user account. They will receive an email to set their password.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-2">
+            {/* Name */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1.5">
+                <Label>Name</Label>
+                <Input
+                  value={addForm.name}
+                  onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))}
+                  placeholder="John Doe"
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  value={addForm.email}
+                  onChange={(e) => setAddForm((f) => ({ ...f, email: e.target.value }))}
+                  placeholder="john@example.com"
+                />
+              </div>
+            </div>
+
+            {/* Role + Region */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1.5">
+                <Label>Role</Label>
+                <Select
+                  value={addForm.role}
+                  onValueChange={(val) =>
+                    setAddForm((f) => val ? { ...f, role: val as User['role'] } : f)
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ROLE_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {o.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-1.5">
+                <Label>Region</Label>
+                <Select
+                  value={addForm.regionId || '__none__'}
+                  onValueChange={(val) =>
+                    setAddForm((f) => ({
+                      ...f,
+                      regionId: !val || val === '__none__' ? '' : val,
+                    }))
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Unassigned" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Unassigned</SelectItem>
+                    {regions.map((r) => (
+                      <SelectItem key={r.id} value={r.id}>
+                        {r.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Branch */}
+            <div className="grid gap-1.5">
+              <Label>Branch</Label>
+              <Select
+                value={addForm.branchId || '__none__'}
+                onValueChange={(val) =>
+                  setAddForm((f) => ({
+                    ...f,
+                    branchId: !val || val === '__none__' ? '' : val,
+                  }))
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Unassigned" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Unassigned</SelectItem>
+                  {branches.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      {b.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Access toggles */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div>
+                  <p className="text-sm font-medium">Regional Access</p>
+                </div>
+                <Switch
+                  checked={addForm.hasRegionalAccess}
+                  onCheckedChange={(checked) =>
+                    setAddForm((f) => ({
+                      ...f,
+                      hasRegionalAccess: checked,
+                      managedRegionId: checked ? f.managedRegionId : '',
+                    }))
+                  }
+                />
+              </div>
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div>
+                  <p className="text-sm font-medium">Branch Access</p>
+                </div>
+                <Switch
+                  checked={addForm.hasBranchAccess}
+                  onCheckedChange={(checked) =>
+                    setAddForm((f) => ({
+                      ...f,
+                      hasBranchAccess: checked,
+                      managedBranchId: checked ? f.managedBranchId : '',
+                    }))
+                  }
+                />
+              </div>
+            </div>
+
+            {/* Teams */}
+            <div className="grid gap-1.5">
+              <Label>Teams</Label>
+              <div className="flex flex-wrap gap-1.5 p-2 border rounded-lg min-h-[42px]">
+                {teams.map((t) => {
+                  const selected = addForm.teamIds.includes(t.id)
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() =>
+                        setAddForm((f) => ({
+                          ...f,
+                          teamIds: selected
+                            ? f.teamIds.filter((id) => id !== t.id)
+                            : [...f.teamIds, t.id],
+                        }))
+                      }
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                        selected
+                          ? 'bg-primary/10 text-primary border-primary/30'
+                          : 'bg-background text-muted-foreground border-border hover:border-foreground/30'
+                      }`}
+                    >
+                      {t.name}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setAddDialogOpen(false)}
+              disabled={createMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => createMutation.mutate(addForm)}
+              disabled={createMutation.isPending || !addForm.name.trim() || !addForm.email.trim()}
+            >
+              {createMutation.isPending && (
+                <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+              )}
+              Add User
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
