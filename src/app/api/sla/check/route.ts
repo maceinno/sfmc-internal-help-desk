@@ -122,8 +122,8 @@ export async function GET(request: NextRequest) {
       assignedTo: ticket.assigned_to,
       status: sla.isOverdue ? 'breached' : 'at_risk',
       timeInfo: sla.isOverdue
-        ? `SLA breached — overdue by ${formatTimeRemaining(sla.msRemaining)}`
-        : `SLA at risk — ${formatTimeRemaining(sla.msRemaining)} remaining`,
+        ? `SLA breached — overdue by ${formatTimeRemaining(sla.timeRemainingMs)}`
+        : `SLA at risk — ${formatTimeRemaining(sla.timeRemainingMs)} remaining`,
     })
 
     notificationsCreated++
