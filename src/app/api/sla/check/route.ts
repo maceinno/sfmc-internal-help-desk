@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getSlaStatus } from '@/lib/sla/calculator'
+import { getSlaStatus, formatTimeRemaining } from '@/lib/sla/calculator'
+import { notifySlaAlert } from '@/lib/email/notify'
 import type { Ticket, SlaPolicy } from '@/types/ticket'
 
 // ── Auth helper ─────────────────────────────────────────────────
@@ -113,6 +114,17 @@ export async function GET(request: NextRequest) {
       )
       continue
     }
+
+    // Send SLA email alert
+    notifySlaAlert({
+      ticketId: ticket.id,
+      ticketTitle: ticket.title,
+      assignedTo: ticket.assigned_to,
+      status: sla.isOverdue ? 'breached' : 'at_risk',
+      timeInfo: sla.isOverdue
+        ? `SLA breached — overdue by ${formatTimeRemaining(sla.msRemaining)}`
+        : `SLA at risk — ${formatTimeRemaining(sla.msRemaining)} remaining`,
+    })
 
     notificationsCreated++
   }

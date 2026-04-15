@@ -64,10 +64,45 @@ export default function TicketDetailPage({
   const handleUpdateField = React.useCallback(
     (field: string, value: unknown) => {
       if (!ticket) return
-      updateTicket.mutate({
-        id: ticket.id,
-        [field]: value,
-      } as Parameters<typeof updateTicket.mutate>[0])
+
+      const oldValue = (ticket as Record<string, unknown>)[field === 'assignedTo' ? 'assigned_to' : field]
+
+      updateTicket.mutate(
+        {
+          id: ticket.id,
+          [field]: value,
+        } as Parameters<typeof updateTicket.mutate>[0],
+        {
+          onSuccess: () => {
+            // Fire email notifications for status and assignment changes
+            if (field === 'status' && oldValue !== value) {
+              fetch(`/api/tickets/${ticket.id}/notify`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'status_changed',
+                  ticketTitle: ticket.title,
+                  createdBy: ticket.created_by,
+                  oldStatus: oldValue,
+                  newStatus: value,
+                }),
+              }).catch(() => {})
+            }
+            if (field === 'assignedTo' && value && oldValue !== value) {
+              fetch(`/api/tickets/${ticket.id}/notify`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'assignment_changed',
+                  ticketTitle: ticket.title,
+                  createdBy: ticket.created_by,
+                  newAssigneeId: value,
+                }),
+              }).catch(() => {})
+            }
+          },
+        }
+      )
     },
     [ticket, updateTicket]
   )

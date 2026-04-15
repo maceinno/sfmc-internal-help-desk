@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { notifyNewReply, notifyUserTagged } from '@/lib/email/notify'
 import type {
   TicketStatus,
   TicketPriority,
@@ -244,6 +245,26 @@ export async function POST(
 
   if (touchError) {
     console.error('[reply] Failed to update ticket timestamp:', touchError)
+  }
+
+  // ── Send email notifications (non-blocking) ────────────────────────────────
+  notifyNewReply({
+    ticketId,
+    ticketTitle: ticket.title,
+    authorId: userId,
+    content: body.content,
+    isInternal: body.isInternal,
+    createdBy: ticket.created_by,
+    assignedTo: ticket.assigned_to,
+  })
+
+  if (body.taggedAgents && body.taggedAgents.length > 0) {
+    notifyUserTagged({
+      ticketId,
+      ticketTitle: ticket.title,
+      taggedUserIds: body.taggedAgents,
+      taggedById: userId,
+    })
   }
 
   return NextResponse.json(message, { status: 201 })

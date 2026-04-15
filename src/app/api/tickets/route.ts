@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { applyRoutingRules } from '@/lib/routing/rule-engine'
+import { notifyTicketCreated } from '@/lib/email/notify'
 import type {
   TicketPriority,
   TicketCategory,
@@ -193,6 +194,16 @@ export async function POST(request: Request) {
       // Non-fatal: ticket is created, but custom fields failed
     }
   }
+
+  // ── Send email notifications (non-blocking) ────────────────────────────────
+  notifyTicketCreated({
+    id: ticket.id,
+    title: ticket.title,
+    category: ticket.category,
+    priority: ticket.priority,
+    created_by: userId,
+    assigned_to: ticket.assigned_to,
+  })
 
   return NextResponse.json(ticket, { status: 201 })
 }
