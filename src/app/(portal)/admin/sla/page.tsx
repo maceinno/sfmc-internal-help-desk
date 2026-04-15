@@ -209,7 +209,7 @@ export default function SlaAdminPage() {
           enabled: p.enabled,
           conditions: p.conditions,
           metrics: p.metrics,
-          display_order: p.sort_order,
+          sort_order: p.sort_order,
           is_default: p.is_default ?? false,
         }))
       )

@@ -259,7 +259,7 @@ export default function ViewsAdminPage() {
             enabled: v.enabled,
             group_name: v.group_name,
             filter_config: v.filter_config,
-            display_order: v.sort_order,
+            sort_order: v.sort_order,
             is_custom: v.is_custom ?? false,
           }))
         )

@@ -170,6 +170,18 @@ export default function UsersPage() {
         .update(payload)
         .eq('id', data.id)
       if (error) throw error
+
+      // Sync role & access flags to Clerk publicMetadata so the
+      // middleware can enforce route access without a DB call.
+      const res = await fetch('/api/users/sync-clerk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: data.id }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error ?? 'Failed to sync role to Clerk')
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] })

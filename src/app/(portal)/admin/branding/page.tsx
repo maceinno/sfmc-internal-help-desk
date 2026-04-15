@@ -113,12 +113,12 @@ export default function BrandingPage() {
 
       if (branding?.id) {
         const { error } = await supabase
-          .from('branding')
+          .from('branding_config')
           .update(payload)
           .eq('id', branding.id)
         if (error) throw error
       } else {
-        const { error } = await supabase.from('branding').insert(payload)
+        const { error } = await supabase.from('branding_config').insert(payload)
         if (error) throw error
       }
     },

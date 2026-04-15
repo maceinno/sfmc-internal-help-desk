@@ -17,10 +17,14 @@ import { ReplyComposer } from "@/components/ticket-detail/reply-composer"
 import { TicketSidebarPanel } from "@/components/ticket-detail/ticket-sidebar-panel"
 import { AttachmentList } from "@/components/ticket-detail/attachment-list"
 import { MergeModal } from "@/components/ticket-detail/merge-modal"
-import { useTicket, useUpdateTicket } from "@/hooks/use-tickets"
+import { useTicket, useTickets, useUpdateTicket } from "@/hooks/use-tickets"
 import { useCurrentUser } from "@/hooks/use-current-user"
+import { useUsers } from "@/hooks/use-users"
 import { useCannedResponses, useTeams } from "@/hooks/use-admin-config"
+import { useUIStore } from "@/stores/ui-store"
 import { canViewInternalNotes } from "@/lib/permissions/policies"
+import { useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
 import type { Ticket, Message } from "@/types"
 
 export default function TicketDetailPage({
@@ -35,18 +39,23 @@ export default function TicketDetailPage({
   const { profile: currentUser, isLoading: isUserLoading } = useCurrentUser()
   const { data: cannedResponses } = useCannedResponses()
   const { data: teams } = useTeams()
+  const { data: allUsers = [] } = useUsers()
+  const { data: allTickets = [] } = useTickets()
   const updateTicket = useUpdateTicket()
+  const queryClient = useQueryClient()
+  const { setFollowUpFromTicketId } = useUIStore()
 
   const [showMergeModal, setShowMergeModal] = React.useState(false)
+  const [isSubmitting, setIsSubmitting] = React.useState(false)
 
   const isLoading = isTicketLoading || isUserLoading
 
-  // Users placeholder -- in a real implementation you'd fetch all users
-  // For now we derive a minimal list from ticket data
+  // Full users list for assignee display, mention dropdown, etc.
   const users = React.useMemo(() => {
+    if (allUsers.length > 0) return allUsers
     if (!currentUser) return []
     return [currentUser]
-  }, [currentUser])
+  }, [allUsers, currentUser])
 
   const handleUpdateField = React.useCallback(
     (field: string, value: unknown) => {
@@ -60,29 +69,101 @@ export default function TicketDetailPage({
   )
 
   const handleReplySubmit = React.useCallback(
-    (message: {
+    async (message: {
       content: string
       isInternal: boolean
       taggedAgents?: string[]
       attachments?: File[]
+      cannedResponseId?: string
     }) => {
       if (!ticket || !currentUser) return
-      // In a full implementation this would call a dedicated addMessage mutation.
-      // For now, we update the ticket optimistically via the existing update hook.
-      // This is a placeholder -- the real implementation would use a messages API.
-      console.log("Reply submitted:", message)
+      setIsSubmitting(true)
+
+      try {
+        // Upload attachments first if any
+        const attachmentIds: string[] = []
+        if (message.attachments && message.attachments.length > 0) {
+          for (const file of message.attachments) {
+            const formData = new FormData()
+            formData.append("file", file)
+            formData.append("ticketId", ticket.id)
+
+            const uploadRes = await fetch("/api/upload", {
+              method: "POST",
+              body: formData,
+            })
+            if (uploadRes.ok) {
+              const uploadData = await uploadRes.json()
+              if (uploadData.id) attachmentIds.push(uploadData.id)
+            }
+          }
+        }
+
+        // Submit reply via API
+        const res = await fetch(`/api/tickets/${ticket.id}/reply`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            content: message.content,
+            isInternal: message.isInternal,
+            taggedAgents: message.taggedAgents,
+            attachmentIds: attachmentIds.length > 0 ? attachmentIds : undefined,
+            cannedResponseId: message.cannedResponseId,
+          }),
+        })
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          throw new Error(err.error ?? "Failed to submit reply")
+        }
+
+        // Refresh ticket data to show new message
+        queryClient.invalidateQueries({ queryKey: ["ticket", ticket.id] })
+        queryClient.invalidateQueries({ queryKey: ["tickets"] })
+        toast.success(message.isInternal ? "Internal note added" : "Reply sent")
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to submit reply")
+      } finally {
+        setIsSubmitting(false)
+      }
     },
-    [ticket, currentUser]
+    [ticket, currentUser, queryClient]
   )
 
   const handleMergeConfirm = React.useCallback(
-    (targetTicket: Ticket, direction: "into" | "from") => {
+    async (targetTicket: Ticket, direction: "into" | "from") => {
       if (!ticket || !currentUser) return
-      // Merge logic would go here
-      console.log("Merge confirmed:", { targetTicket, direction })
-      setShowMergeModal(false)
+
+      // Determine source and target based on direction
+      const sourceId = direction === "into" ? ticket.id : targetTicket.id
+      const targetId = direction === "into" ? targetTicket.id : ticket.id
+
+      try {
+        const res = await fetch(`/api/tickets/${sourceId}/merge`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ targetTicketId: targetId }),
+        })
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          throw new Error(err.error ?? "Failed to merge tickets")
+        }
+
+        queryClient.invalidateQueries({ queryKey: ["tickets"] })
+        queryClient.invalidateQueries({ queryKey: ["ticket", ticket.id] })
+        toast.success(`Ticket merged successfully`)
+        setShowMergeModal(false)
+
+        // If current ticket was merged into another, navigate there
+        if (direction === "into") {
+          router.push(`/tickets/${targetTicket.id}`)
+        }
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to merge")
+      }
     },
-    [ticket, currentUser]
+    [ticket, currentUser, queryClient, router]
   )
 
   const handlePrint = React.useCallback(() => {
@@ -163,7 +244,14 @@ export default function TicketDetailPage({
         <div className="flex flex-wrap items-center gap-2">
           {/* Follow-up button */}
           {ticket.status === "solved" && !ticket.parent_ticket_id && (
-            <Button variant="outline" size="sm">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setFollowUpFromTicketId(ticket.id)
+                router.push("/tickets/new")
+              }}
+            >
               <CornerDownRight className="mr-2 h-4 w-4" />
               Create Follow-Up
             </Button>
@@ -285,7 +373,7 @@ export default function TicketDetailPage({
         open={showMergeModal}
         onOpenChange={setShowMergeModal}
         currentTicket={ticket}
-        allTickets={[]}
+        allTickets={allTickets.filter((t) => t.id !== ticket.id && t.status !== "solved" && !t.merged_into_id)}
         onConfirm={handleMergeConfirm}
       />
     </div>

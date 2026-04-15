@@ -56,7 +56,7 @@ export function useSlaPolicies() {
   return useSupabaseQuery<SlaPolicy>(
     ['admin', 'slaPolicies'],
     'sla_policies',
-    { orderBy: 'order', ascending: true },
+    { orderBy: 'sort_order', ascending: true },
   )
 }
 
@@ -66,7 +66,7 @@ export function useViewConfigs() {
   return useSupabaseQuery<ViewConfig>(
     ['admin', 'viewConfigs'],
     'view_configs',
-    { orderBy: 'order', ascending: true },
+    { orderBy: 'sort_order', ascending: true },
   )
 }
 
@@ -86,7 +86,7 @@ export function useRoutingRules() {
   return useSupabaseQuery<RoutingRule>(
     ['admin', 'routingRules'],
     'routing_rules',
-    { orderBy: 'priority', ascending: true },
+    { orderBy: 'priority_order', ascending: true },
   )
 }
 
@@ -96,7 +96,7 @@ export function useCustomFields() {
   return useSupabaseQuery<CustomField>(
     ['admin', 'customFields'],
     'custom_fields',
-    { orderBy: 'order', ascending: true },
+    { orderBy: 'sort_order', ascending: true },
   )
 }
 
@@ -131,7 +131,7 @@ export function useBranding() {
 
       const supabase = createClerkSupabaseClient(token)
       const { data, error } = await supabase
-        .from('branding')
+        .from('branding_config')
         .select('*')
         .limit(1)
         .single()

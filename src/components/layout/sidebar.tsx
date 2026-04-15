@@ -21,6 +21,8 @@ import {
   LogOut,
 } from 'lucide-react'
 import { useClerk } from '@clerk/nextjs'
+import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { useNotifications } from '@/hooks/use-notifications'
 import { useUIStore } from '@/stores/ui-store'
@@ -40,7 +42,9 @@ export function Sidebar() {
   const { mobileMenuOpen, setMobileMenuOpen } = useUIStore()
   const { panelOpen: notifOpen, togglePanel: toggleNotifs } = useNotificationStore()
   const { signOut } = useClerk()
+  const queryClient = useQueryClient()
   const [showOooConfirm, setShowOooConfirm] = useState(false)
+  const [oooLoading, setOooLoading] = useState(false)
 
   const unreadCount = notifications.filter((n) => !n.read).length
   const isAgentOrAdmin = isAgent || isAdmin
@@ -187,14 +191,26 @@ export function Sidebar() {
           {/* OOO Toggle (agents/admins only) */}
           {isAgentOrAdmin && (
             <div className="px-4 pt-3">
+              {profile?.is_out_of_office && (
+                <div className="mb-2 flex items-center gap-2 rounded-lg bg-amber-600/20 border border-amber-500/30 px-3 py-2">
+                  <PlaneTakeoff className="w-4 h-4 text-amber-400" />
+                  <span className="text-xs font-medium text-amber-300">Out of Office is ON</span>
+                </div>
+              )}
               {!showOooConfirm ? (
                 <button
                   onClick={() => setShowOooConfirm(true)}
-                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all text-slate-400 hover:bg-slate-800 hover:text-slate-200 border border-transparent"
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all border border-transparent ${
+                    profile?.is_out_of_office
+                      ? 'text-amber-400 hover:bg-slate-800'
+                      : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                  }`}
                 >
                   <div className="flex items-center gap-2">
                     <PlaneTakeoff className="w-4 h-4" />
-                    <span className="font-medium">Out of Office</span>
+                    <span className="font-medium">
+                      {profile?.is_out_of_office ? 'Disable Out of Office' : 'Out of Office'}
+                    </span>
                   </div>
                 </button>
               ) : (
@@ -202,18 +218,41 @@ export function Sidebar() {
                   <div className="flex items-start gap-2 mb-2.5">
                     <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-xs font-semibold text-white">Enable Out of Office?</p>
+                      <p className="text-xs font-semibold text-white">
+                        {profile?.is_out_of_office ? 'Disable Out of Office?' : 'Enable Out of Office?'}
+                      </p>
                       <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
-                        All your open tickets will be unassigned and returned to the group queue.
+                        {profile?.is_out_of_office
+                          ? 'You will be available for ticket assignment again.'
+                          : 'All your open tickets will be unassigned and returned to the group queue.'}
                       </p>
                     </div>
                   </div>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => setShowOooConfirm(false)}
-                      className="flex-1 px-3 py-1.5 text-xs font-medium bg-amber-600 text-white rounded-md hover:bg-amber-500 transition-colors"
+                      disabled={oooLoading}
+                      onClick={async () => {
+                        setOooLoading(true)
+                        try {
+                          const res = await fetch('/api/users/ooo', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ enabled: !profile?.is_out_of_office }),
+                          })
+                          if (!res.ok) throw new Error('Failed')
+                          queryClient.invalidateQueries({ queryKey: ['currentUserProfile'] })
+                          queryClient.invalidateQueries({ queryKey: ['tickets'] })
+                          toast.success(profile?.is_out_of_office ? 'Out of Office disabled' : 'Out of Office enabled')
+                        } catch {
+                          toast.error('Failed to toggle Out of Office')
+                        } finally {
+                          setOooLoading(false)
+                          setShowOooConfirm(false)
+                        }
+                      }}
+                      className="flex-1 px-3 py-1.5 text-xs font-medium bg-amber-600 text-white rounded-md hover:bg-amber-500 transition-colors disabled:opacity-50"
                     >
-                      Yes, enable
+                      {oooLoading ? 'Updating...' : 'Yes, confirm'}
                     </button>
                     <button
                       onClick={() => setShowOooConfirm(false)}

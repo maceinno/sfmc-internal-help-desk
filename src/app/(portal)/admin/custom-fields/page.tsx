@@ -113,7 +113,7 @@ export default function CustomFieldsPage() {
       const payload = {
         name: field.name,
         label: field.label,
-        type: field.field_type,
+        field_type: field.field_type,
         required: field.required,
         options: field.options ?? [],
         help_text: field.help_text,
@@ -122,7 +122,7 @@ export default function CustomFieldsPage() {
         visible_to_roles: field.visible_to_roles,
         visible_to_departments: field.visible_to_departments,
         enabled: field.enabled,
-        order: field.sort_order ?? 0,
+        sort_order: field.sort_order ?? 0,
       }
 
       if (field.id) {

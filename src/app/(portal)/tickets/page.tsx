@@ -9,6 +9,7 @@ import {
   Loader2,
 } from 'lucide-react'
 import { useTickets } from '@/hooks/use-tickets'
+import { useUsers } from '@/hooks/use-users'
 import { useViewConfigs } from '@/hooks/use-admin-config'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { useUIStore } from '@/stores/ui-store'
@@ -162,6 +163,7 @@ function applyViewFilter(
 export default function TicketsPage() {
   const { data: tickets = [], isLoading: ticketsLoading } = useTickets()
   const { data: viewConfigs = [], isLoading: viewsLoading } = useViewConfigs()
+  const { data: allUsers = [], isLoading: usersLoading } = useUsers()
   const { profile, isAdmin, isLoading: userLoading } = useCurrentUser()
 
   const { activeViewId, setActiveViewId } = useUIStore()
@@ -233,14 +235,13 @@ export default function TicketsPage() {
     [tickets, resolvedViewId, viewConfigs, profile?.id],
   )
 
-  // We don't have a separate users query yet, so build a minimal users array
-  // from the current user profile for assignee display.
   const users: User[] = useMemo(() => {
+    if (allUsers.length > 0) return allUsers
     if (!profile) return []
     return [profile]
-  }, [profile])
+  }, [allUsers, profile])
 
-  const isLoading = ticketsLoading || viewsLoading || userLoading
+  const isLoading = ticketsLoading || viewsLoading || userLoading || usersLoading
 
   if (isLoading) {
     return (

@@ -29,6 +29,7 @@ interface ReplyComposerProps {
     isInternal: boolean
     taggedAgents?: string[]
     attachments?: File[]
+    cannedResponseId?: string
   }) => void
   onCannedResponseSelect?: (response: CannedResponse) => void
 }
@@ -62,6 +63,7 @@ export function ReplyComposer({
   const [showCannedPicker, setShowCannedPicker] = React.useState(false)
   const [selectedFiles, setSelectedFiles] = React.useState<File[]>([])
   const [showFileUpload, setShowFileUpload] = React.useState(false)
+  const [pendingCannedResponseId, setPendingCannedResponseId] = React.useState<string | undefined>()
   const textareaRef = React.useRef<HTMLTextAreaElement>(null)
 
   const isAgentOrAdmin =
@@ -121,11 +123,13 @@ export function ReplyComposer({
       isInternal: isInternalNote,
       taggedAgents: taggedInMessage.length > 0 ? taggedInMessage : undefined,
       attachments: selectedFiles.length > 0 ? selectedFiles : undefined,
+      cannedResponseId: pendingCannedResponseId,
     })
     setReplyText("")
     setTaggedInMessage([])
     setSelectedFiles([])
     setShowFileUpload(false)
+    setPendingCannedResponseId(undefined)
   }
 
   const handleCannedResponseSelect = (response: CannedResponse) => {
@@ -138,6 +142,7 @@ export function ReplyComposer({
       prev ? prev + "\n\n" + processedContent : processedContent
     )
     setShowCannedPicker(false)
+    setPendingCannedResponseId(response.id)
     onCannedResponseSelect?.(response)
   }
 

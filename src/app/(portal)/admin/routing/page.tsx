@@ -129,9 +129,9 @@ export default function RoutingPage() {
         enabled: data.enabled,
         ticket_type: data.ticketType,
         category: data.category,
-        assign_to_user_id: data.assignToUserId || null,
+        assign_to_user: data.assignToUserId || null,
         assign_to_team: data.assignToTeam || null,
-        priority: data.priority,
+        priority_order: data.priority,
       }
 
       if (data.id) {

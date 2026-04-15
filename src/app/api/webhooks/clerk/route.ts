@@ -1,6 +1,6 @@
 import { Webhook } from "svix";
 import { headers } from "next/headers";
-import type { UserJSON, WebhookEvent } from "@clerk/nextjs/server";
+import { clerkClient, type UserJSON, type WebhookEvent } from "@clerk/nextjs/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // ---------------------------------------------------------------------------
@@ -143,6 +143,10 @@ async function handleUserUpsert(
       throw error;
     }
 
+    // Sync the default role to Clerk publicMetadata so the middleware
+    // can enforce route access from the very first login.
+    await syncPublicMetadata(data.id, payload.role, false, false);
+
     console.log(`[clerk-webhook] Profile created for user ${data.id}`);
   } else {
     const { error } = await supabase
@@ -156,6 +160,27 @@ async function handleUserUpsert(
     }
 
     console.log(`[clerk-webhook] Profile updated for user ${data.id}`);
+  }
+}
+
+/**
+ * Push role and access flags into Clerk publicMetadata.
+ */
+async function syncPublicMetadata(
+  userId: string,
+  role: string,
+  hasBranchAccess: boolean,
+  hasRegionalAccess: boolean,
+) {
+  try {
+    const client = await clerkClient();
+    await client.users.updateUserMetadata(userId, {
+      publicMetadata: { role, hasBranchAccess, hasRegionalAccess },
+    });
+    console.log(`[clerk-webhook] Synced publicMetadata for user ${userId}`);
+  } catch (err) {
+    // Non-fatal — profile was already saved to Supabase
+    console.error("[clerk-webhook] Failed to sync publicMetadata:", err);
   }
 }
 
