@@ -65,7 +65,7 @@ export default function TicketDetailPage({
     (field: string, value: unknown) => {
       if (!ticket) return
 
-      const oldValue = (ticket as Record<string, unknown>)[field === 'assignedTo' ? 'assigned_to' : field]
+      const oldValue = (ticket as unknown as Record<string, unknown>)[field === 'assignedTo' ? 'assigned_to' : field]
 
       updateTicket.mutate(
         {
