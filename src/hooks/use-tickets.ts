@@ -107,6 +107,17 @@ export function useTicket(id: string | null | undefined) {
       delete ticket.ticket_collaborators
       delete ticket.custom_field_values
 
+      // Generate public URLs for attachments
+      const attachments = (ticket.attachments as { id: string; storage_path: string; [k: string]: unknown }[]) ?? []
+      for (const att of attachments) {
+        if (att.storage_path) {
+          const { data: urlData } = supabase.storage
+            .from('attachments')
+            .getPublicUrl(att.storage_path)
+          att.url = urlData.publicUrl
+        }
+      }
+
       return ticket as unknown as Ticket
     },
     enabled: !!id,
