@@ -25,12 +25,18 @@ async function resolveUsers(userIds: string[]) {
 
 async function send(to: string, template: { subject: string; html: string }) {
   try {
-    await resend.emails.send({
+    console.log(`[email] Sending to ${to} from ${EMAIL_FROM} — subject: ${template.subject}`)
+    const { data, error } = await resend.emails.send({
       from: EMAIL_FROM,
       to,
       subject: template.subject,
       html: template.html,
     })
+    if (error) {
+      console.error(`[email] Resend error for ${to}:`, JSON.stringify(error))
+    } else {
+      console.log(`[email] Sent successfully to ${to} — id: ${data?.id}`)
+    }
   } catch (err) {
     console.error(`[email] Failed to send to ${to}:`, err)
   }
