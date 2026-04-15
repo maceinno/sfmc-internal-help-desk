@@ -42,10 +42,19 @@ interface CategoryOption {
   subCategories?: string[]
 }
 
-interface DepartmentCategoryRow {
+/** Raw DB row shape */
+interface DbCategoryRow {
   id: string
   ticket_type: string
-  categories: CategoryOption[]
+  category_name: string
+  sub_categories: string[] | null
+  sort_order: number
+}
+
+/** Grouped shape the UI works with */
+interface DepartmentCategoryRow {
+  ticket_type: string
+  categories: (CategoryOption & { dbId: string })[]
 }
 
 // ── Hook ────────────────────────────────────────────────────────
@@ -63,8 +72,26 @@ function useDepartmentCategories() {
         .from('department_categories')
         .select('*')
         .order('ticket_type', { ascending: true })
+        .order('sort_order', { ascending: true })
       if (error) throw error
-      return data as DepartmentCategoryRow[]
+
+      // Group flat rows by ticket_type
+      const grouped = new Map<string, (CategoryOption & { dbId: string })[]>()
+      for (const row of data as DbCategoryRow[]) {
+        if (!grouped.has(row.ticket_type)) {
+          grouped.set(row.ticket_type, [])
+        }
+        grouped.get(row.ticket_type)!.push({
+          dbId: row.id,
+          name: row.category_name,
+          subCategories: row.sub_categories?.length ? row.sub_categories : undefined,
+        })
+      }
+
+      return Array.from(grouped.entries()).map(([ticket_type, categories]) => ({
+        ticket_type,
+        categories,
+      }))
     },
   })
 }
@@ -101,54 +128,82 @@ export default function CategoriesPage() {
 
   // ── Mutations ───────────────────────────────────────────────
 
-  const upsertRow = useMutation({
-    mutationFn: async (row: {
-      id?: string
-      ticket_type: string
-      categories: CategoryOption[]
-    }) => {
-      const token = await getToken({ template: 'supabase' })
-      if (!token) throw new Error('No auth token')
-      const supabase = createClerkSupabaseClient(token)
+  const invalidate = () =>
+    queryClient.invalidateQueries({ queryKey: ['admin', 'departmentCategories'] })
 
-      if (row.id) {
-        const { error } = await supabase
-          .from('department_categories')
-          .update({
-            ticket_type: row.ticket_type,
-            categories: row.categories,
-          })
-          .eq('id', row.id)
-        if (error) throw error
-      } else {
-        const { error } = await supabase
-          .from('department_categories')
-          .insert({
-            ticket_type: row.ticket_type,
-            categories: row.categories,
-          })
-        if (error) throw error
-      }
+  const getSupabase = async () => {
+    const token = await getToken({ template: 'supabase' })
+    if (!token) throw new Error('No auth token')
+    return createClerkSupabaseClient(token)
+  }
+
+  const insertCategory = useMutation({
+    mutationFn: async (row: {
+      ticket_type: string
+      category_name: string
+      sub_categories?: string[]
+    }) => {
+      const supabase = await getSupabase()
+      const { error } = await supabase
+        .from('department_categories')
+        .insert(row)
+      if (error) throw error
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'departmentCategories'] })
-    },
+    onSuccess: invalidate,
   })
 
-  const deleteRow = useMutation({
+  const updateCategory = useMutation({
+    mutationFn: async (row: {
+      id: string
+      category_name?: string
+      sub_categories?: string[] | null
+      ticket_type?: string
+    }) => {
+      const supabase = await getSupabase()
+      const { id, ...payload } = row
+      const { error } = await supabase
+        .from('department_categories')
+        .update(payload)
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: invalidate,
+  })
+
+  const deleteCategory = useMutation({
     mutationFn: async (id: string) => {
-      const token = await getToken({ template: 'supabase' })
-      if (!token) throw new Error('No auth token')
-      const supabase = createClerkSupabaseClient(token)
+      const supabase = await getSupabase()
       const { error } = await supabase
         .from('department_categories')
         .delete()
         .eq('id', id)
       if (error) throw error
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'departmentCategories'] })
+    onSuccess: invalidate,
+  })
+
+  const deleteDepartment = useMutation({
+    mutationFn: async (ticketType: string) => {
+      const supabase = await getSupabase()
+      const { error } = await supabase
+        .from('department_categories')
+        .delete()
+        .eq('ticket_type', ticketType)
+      if (error) throw error
     },
+    onSuccess: invalidate,
+  })
+
+  const renameDepartment = useMutation({
+    mutationFn: async ({ oldName, newName }: { oldName: string; newName: string }) => {
+      const supabase = await getSupabase()
+      const { error } = await supabase
+        .from('department_categories')
+        .update({ ticket_type: newName })
+        .eq('ticket_type', oldName)
+      if (error) throw error
+    },
+    onSuccess: invalidate,
   })
 
   // ── Handlers ──────────────────────────────────────────────
@@ -161,25 +216,29 @@ export default function CategoriesPage() {
       return
     }
     try {
-      await upsertRow.mutateAsync({ ticket_type: name, categories: [] })
+      // Insert a placeholder category so the department shows up
+      await insertCategory.mutateAsync({
+        ticket_type: name,
+        category_name: 'General',
+      })
       toast.success(`Department "${name}" added`)
       setNewDeptName('')
       setShowAddDept(false)
     } catch {
       toast.error('Failed to add department')
     }
-  }, [newDeptName, rows, upsertRow])
+  }, [newDeptName, rows, insertCategory])
 
   const handleDeleteDept = useCallback(
     async (row: DepartmentCategoryRow) => {
       try {
-        await deleteRow.mutateAsync(row.id)
+        await deleteDepartment.mutateAsync(row.ticket_type)
         toast.success(`Department "${row.ticket_type}" deleted`)
       } catch {
         toast.error('Failed to delete department')
       }
     },
-    [deleteRow],
+    [deleteDepartment],
   )
 
   const handleRenameDept = useCallback(
@@ -189,15 +248,14 @@ export default function CategoriesPage() {
         setEditingDeptId(null)
         return
       }
-      if (rows?.some((r) => r.ticket_type === trimmed && r.id !== row.id)) {
+      if (rows?.some((r) => r.ticket_type === trimmed && r.ticket_type !== row.ticket_type)) {
         toast.error('A department with that name already exists')
         return
       }
       try {
-        await upsertRow.mutateAsync({
-          id: row.id,
-          ticket_type: trimmed,
-          categories: row.categories,
+        await renameDepartment.mutateAsync({
+          oldName: row.ticket_type,
+          newName: trimmed,
         })
         toast.success('Department renamed')
         setEditingDeptId(null)
@@ -205,7 +263,7 @@ export default function CategoriesPage() {
         toast.error('Failed to rename department')
       }
     },
-    [rows, upsertRow],
+    [rows, renameDepartment],
   )
 
   const handleAddCategory = useCallback(
@@ -217,10 +275,9 @@ export default function CategoriesPage() {
         return
       }
       try {
-        await upsertRow.mutateAsync({
-          id: row.id,
+        await insertCategory.mutateAsync({
           ticket_type: row.ticket_type,
-          categories: [...row.categories, { name }],
+          category_name: name,
         })
         toast.success(`Category "${name}" added`)
         setNewCatName('')
@@ -229,56 +286,47 @@ export default function CategoriesPage() {
         toast.error('Failed to add category')
       }
     },
-    [newCatName, upsertRow],
+    [newCatName, insertCategory],
   )
 
   const handleDeleteCategory = useCallback(
-    async (row: DepartmentCategoryRow, catIndex: number) => {
-      const cats = [...row.categories]
-      const removed = cats.splice(catIndex, 1)[0]
+    async (_row: DepartmentCategoryRow, catIndex: number, cat: CategoryOption & { dbId: string }) => {
       try {
-        await upsertRow.mutateAsync({
-          id: row.id,
-          ticket_type: row.ticket_type,
-          categories: cats,
-        })
-        toast.success(`Category "${removed.name}" deleted`)
+        await deleteCategory.mutateAsync(cat.dbId)
+        toast.success(`Category "${cat.name}" deleted`)
       } catch {
         toast.error('Failed to delete category')
       }
     },
-    [upsertRow],
+    [deleteCategory],
   )
 
   const handleSaveEditCategory = useCallback(async () => {
     if (!editDialog) return
-    const row = rows?.find((r) => r.id === editDialog.rowId)
+    const row = rows?.find((r) => r.ticket_type === editDialog.ticketType)
     if (!row) return
 
-    const cats = [...row.categories]
-    cats[editDialog.catIndex] = {
-      name: editName.trim() || editDialog.category.name,
-      subCategories: editSubs.length > 0 ? editSubs : undefined,
-    }
+    const cat = row.categories[editDialog.catIndex]
+    if (!cat) return
 
     try {
-      await upsertRow.mutateAsync({
-        id: row.id,
-        ticket_type: row.ticket_type,
-        categories: cats,
+      await updateCategory.mutateAsync({
+        id: cat.dbId,
+        category_name: editName.trim() || editDialog.category.name,
+        sub_categories: editSubs.length > 0 ? editSubs : null,
       })
       toast.success('Category updated')
       setEditDialog(null)
     } catch {
       toast.error('Failed to update category')
     }
-  }, [editDialog, rows, editName, editSubs, upsertRow])
+  }, [editDialog, rows, editName, editSubs, updateCategory])
 
   const openEditDialog = useCallback(
     (row: DepartmentCategoryRow, catIndex: number) => {
       const cat = row.categories[catIndex]
       setEditDialog({
-        rowId: row.id,
+        rowId: cat.dbId,
         ticketType: row.ticket_type,
         catIndex,
         category: cat,
@@ -337,7 +385,7 @@ export default function CategoriesPage() {
             />
             <Button
               onClick={handleAddDept}
-              disabled={upsertRow.isPending}
+              disabled={insertCategory.isPending || updateCategory.isPending}
             >
               Save
             </Button>
@@ -368,13 +416,13 @@ export default function CategoriesPage() {
       )}
 
       {rows?.map((row) => (
-        <Card key={row.id}>
+        <Card key={row.ticket_type}>
           {/* Department header */}
           <CardHeader className="border-b bg-muted/50">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Shield className="size-4 text-muted-foreground" />
-                {editingDeptId === row.id ? (
+                {editingDeptId === row.ticket_type ? (
                   <Input
                     className="h-7 w-60 text-sm font-semibold"
                     defaultValue={row.ticket_type}
@@ -400,7 +448,7 @@ export default function CategoriesPage() {
                   variant="ghost"
                   size="icon-sm"
                   onClick={() => {
-                    setEditingDeptId(row.id)
+                    setEditingDeptId(row.ticket_type)
                     setEditDeptName(row.ticket_type)
                   }}
                   title="Rename"
@@ -444,7 +492,7 @@ export default function CategoriesPage() {
                       variant="ghost"
                       size="icon-xs"
                       onClick={() =>
-                        handleDeleteCategory(row, catIndex)
+                        handleDeleteCategory(row, catIndex, cat)
                       }
                       title="Delete category"
                     >
@@ -479,7 +527,7 @@ export default function CategoriesPage() {
             ))}
 
             {/* Add category */}
-            {addCatFor === row.id ? (
+            {addCatFor === row.ticket_type ? (
               <div className="flex items-center gap-2 rounded-lg border p-3">
                 <Input
                   value={newCatName}
@@ -498,7 +546,7 @@ export default function CategoriesPage() {
                 <Button
                   size="sm"
                   onClick={() => handleAddCategory(row)}
-                  disabled={upsertRow.isPending}
+                  disabled={insertCategory.isPending || updateCategory.isPending}
                 >
                   Add
                 </Button>
@@ -519,7 +567,7 @@ export default function CategoriesPage() {
                 size="sm"
                 className="text-primary"
                 onClick={() => {
-                  setAddCatFor(row.id)
+                  setAddCatFor(row.ticket_type)
                   setNewCatName('')
                 }}
               >
@@ -613,12 +661,12 @@ export default function CategoriesPage() {
           </div>
 
           <DialogFooter>
-            <DialogClose render={<Button variant="outline" />}>
+            <Button variant="outline" onClick={() => setEditDialog(null)}>
               Cancel
-            </DialogClose>
+            </Button>
             <Button
               onClick={handleSaveEditCategory}
-              disabled={upsertRow.isPending}
+              disabled={insertCategory.isPending || updateCategory.isPending}
             >
               Save Changes
             </Button>
