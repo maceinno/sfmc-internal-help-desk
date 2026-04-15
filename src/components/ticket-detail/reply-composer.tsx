@@ -8,6 +8,7 @@ import {
   AtSign,
   X,
   FileText,
+  ImageIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -172,6 +173,55 @@ export function ReplyComposer({
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
+  const handlePaste = React.useCallback(
+    (e: React.ClipboardEvent) => {
+      const items = e.clipboardData?.items
+      if (!items) return
+
+      const imageFiles: File[] = []
+      for (const item of Array.from(items)) {
+        if (item.type.startsWith("image/")) {
+          const file = item.getAsFile()
+          if (file) {
+            // Give pasted images a readable name
+            const ext = file.type.split("/")[1] ?? "png"
+            const named = new File(
+              [file],
+              `pasted-image-${Date.now()}.${ext}`,
+              { type: file.type }
+            )
+            imageFiles.push(named)
+          }
+        }
+      }
+
+      if (imageFiles.length > 0) {
+        e.preventDefault()
+        setSelectedFiles((prev) => [...prev, ...imageFiles])
+        setShowFileUpload(true)
+      }
+    },
+    []
+  )
+
+  // Generate thumbnail previews for image files
+  const filePreviews = React.useMemo(() => {
+    return selectedFiles.map((file) => ({
+      file,
+      isImage: file.type.startsWith("image/"),
+      url: file.type.startsWith("image/") ? URL.createObjectURL(file) : null,
+    }))
+  }, [selectedFiles])
+
+  // Clean up object URLs
+  React.useEffect(() => {
+    return () => {
+      filePreviews.forEach((p) => {
+        if (p.url) URL.revokeObjectURL(p.url)
+      })
+    }
+  }, [filePreviews])
+
   return (
     <div className="border-t border-gray-100 bg-gray-50 p-4">
       <div
@@ -217,10 +267,11 @@ export function ReplyComposer({
             ref={textareaRef}
             value={replyText}
             onChange={handleTextChange}
+            onPaste={handlePaste}
             placeholder={
               isInternalNote
                 ? "Add an internal note... (Type @ to tag an agent)"
-                : "Type your reply... (Type @ to tag a user)"
+                : "Type your reply... (Type @ to tag a user, paste images)"
             }
             className={`min-h-[120px] w-full resize-none p-3 outline-none text-sm ${
               isInternalNote ? "bg-amber-50/30" : "bg-white"
@@ -301,16 +352,51 @@ export function ReplyComposer({
           </div>
         )}
 
-        {/* File Upload Area */}
-        {showFileUpload && (
+        {/* Attached Files Preview */}
+        {selectedFiles.length > 0 && (
+          <div className="border-t border-gray-100 px-3 py-2">
+            <div className="flex flex-wrap gap-2">
+              {filePreviews.map((preview, index) => (
+                <div
+                  key={index}
+                  className="group relative flex items-center gap-2 rounded-lg border bg-gray-50 px-2 py-1.5"
+                >
+                  {preview.isImage && preview.url ? (
+                    <img
+                      src={preview.url}
+                      alt=""
+                      className="h-10 w-10 rounded object-cover"
+                    />
+                  ) : (
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                  )}
+                  <div className="min-w-0 max-w-[120px]">
+                    <p className="truncate text-xs font-medium">
+                      {preview.file.name}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {(preview.file.size / 1024).toFixed(0)} KB
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveFile(index)}
+                    className="ml-1 rounded-full p-0.5 text-muted-foreground hover:bg-gray-200 hover:text-gray-700"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* File Upload Zone (toggle) */}
+        {showFileUpload && selectedFiles.length === 0 && (
           <div className="border-t border-gray-100 px-3 py-2">
             <FileUpload
               onFilesSelected={handleFilesSelected}
-              existingFiles={selectedFiles.map((f) => ({
-                name: f.name,
-                size: f.size,
-                type: f.type,
-              }))}
+              existingFiles={[]}
               onRemoveFile={handleRemoveFile}
             />
           </div>
@@ -325,8 +411,14 @@ export function ReplyComposer({
               size="icon-sm"
               onClick={() => setShowFileUpload(!showFileUpload)}
               title="Attach file"
+              className="relative"
             >
               <Paperclip className="h-4 w-4" />
+              {selectedFiles.length > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[9px] font-bold text-white">
+                  {selectedFiles.length}
+                </span>
+              )}
             </Button>
             {isAgentOrAdmin && cannedResponses.length > 0 && (
               <Button
