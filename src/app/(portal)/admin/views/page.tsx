@@ -205,8 +205,8 @@ export default function ViewsAdminPage() {
       if (swapIdx < 0 || swapIdx >= groupViews.length) return prev
       const swapView = groupViews[swapIdx]
       return prev.map((v) => {
-        if (v.id === id) return { ...v, order: swapView.sort_order }
-        if (v.id === swapView.id) return { ...v, order: view.sort_order }
+        if (v.id === id) return { ...v, sort_order: swapView.sort_order }
+        if (v.id === swapView.id) return { ...v, sort_order: view.sort_order }
         return v
       })
     })

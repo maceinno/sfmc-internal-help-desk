@@ -1,6 +1,7 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import {
   ChevronDown,
   ChevronRight,
@@ -167,6 +168,29 @@ export default function TicketsPage() {
   const { profile, isAdmin, isLoading: userLoading } = useCurrentUser()
 
   const { activeViewId, setActiveViewId } = useUIStore()
+  const searchParams = useSearchParams()
+
+  // Handle URL params from dashboard stat card links (e.g. /tickets?status=new)
+  useEffect(() => {
+    const status = searchParams.get('status')
+    const sla = searchParams.get('sla')
+    if (status) {
+      const viewMap: Record<string, string> = {
+        new: 'all-new',
+        open: 'all-open',
+        pending: 'pending',
+        on_hold: 'on-hold',
+        solved: 'solved',
+      }
+      if (viewMap[status]) setActiveViewId(viewMap[status])
+    } else if (sla) {
+      const slaMap: Record<string, string> = {
+        'at-risk': 'sla-at-risk',
+        breached: 'sla-breached',
+      }
+      if (slaMap[sla]) setActiveViewId(slaMap[sla])
+    }
+  }, [searchParams, setActiveViewId])
 
   // Collapsible group state
   const [collapsedGroups, setCollapsedGroups] = useState<

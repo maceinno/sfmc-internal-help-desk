@@ -24,6 +24,7 @@ import { useClerk } from '@clerk/nextjs'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useCurrentUser } from '@/hooks/use-current-user'
+import { useBranding } from '@/hooks/use-admin-config'
 import { useNotifications } from '@/hooks/use-notifications'
 import { useUIStore } from '@/stores/ui-store'
 import { useNotificationStore } from '@/stores/notification-store'
@@ -38,6 +39,7 @@ interface NavItem {
 export function Sidebar() {
   const pathname = usePathname()
   const { profile, isAdmin, isAgent, isEmployee } = useCurrentUser()
+  const { data: branding } = useBranding()
   const { data: notifications = [] } = useNotifications()
   const { mobileMenuOpen, setMobileMenuOpen } = useUIStore()
   const { panelOpen: notifOpen, togglePanel: toggleNotifs } = useNotificationStore()
@@ -98,7 +100,9 @@ export function Sidebar() {
         >
           <Menu className="w-5 h-5" />
         </button>
-        <span className="text-sm font-semibold text-white">SFMC Help Desk</span>
+        <span className="text-sm font-semibold text-white">
+          {(branding?.company_name as string) ?? 'SFMC Help Desk'}
+        </span>
         <div className="flex items-center gap-2">
           <button
             onClick={() => { setMobileMenuOpen(true); setTimeout(() => toggleNotifs(), 100) }}
@@ -127,9 +131,31 @@ export function Sidebar() {
         {/* Brand */}
         <div className="px-5 py-5 border-b border-slate-800/50 flex items-center justify-between">
           <div className="flex-1">
-            <div className="text-lg font-bold text-white text-center">SFMC Help Desk</div>
+            {branding?.logo_url ? (
+              <div
+                className="rounded-lg p-2 mx-auto w-fit"
+                style={{
+                  backgroundColor:
+                    (branding.logo_background as string) === 'white'
+                      ? '#ffffff'
+                      : (branding.logo_background as string) === 'custom'
+                        ? (branding.logo_background_color as string) ?? 'transparent'
+                        : 'transparent',
+                }}
+              >
+                <img
+                  src={branding.logo_url as string}
+                  alt={(branding.logo_alt as string) ?? 'Logo'}
+                  className="h-10 w-auto object-contain mx-auto"
+                />
+              </div>
+            ) : (
+              <div className="text-lg font-bold text-white text-center">
+                {(branding?.company_name as string) ?? 'SFMC Help Desk'}
+              </div>
+            )}
             <div className="text-[11px] text-slate-400 font-medium tracking-wide uppercase mt-1 text-center">
-              Internal Support Portal
+              {(branding?.portal_subtitle as string) ?? 'Internal Support Portal'}
             </div>
           </div>
           <button

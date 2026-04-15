@@ -154,7 +154,7 @@ export function ReplyComposer({
         if (isInternalNote) return u.role !== "employee"
         if (u.role !== "employee") return true
         const isCreator = u.id === ticketCreatedBy
-        const isCcd = ticketCc.includes(u.email)
+        const isCcd = ticketCc.includes(u.id)
         const isCollaborator = ticketCollaborators.includes(u.id)
         return isCreator || isCcd || isCollaborator
       })

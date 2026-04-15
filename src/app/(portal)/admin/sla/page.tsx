@@ -155,8 +155,8 @@ export default function SlaAdminPage() {
       const current = sorted[idx]
       const swap = sorted[swapIdx]
       return prev.map((p) => {
-        if (p.id === current.id) return { ...p, order: swap.sort_order }
-        if (p.id === swap.id) return { ...p, order: current.sort_order }
+        if (p.id === current.id) return { ...p, sort_order: swap.sort_order }
+        if (p.id === swap.id) return { ...p, sort_order: current.sort_order }
         return p
       })
     })

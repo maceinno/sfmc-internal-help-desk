@@ -17,10 +17,21 @@ interface ImportUserRow {
 }
 
 export async function POST(request: Request) {
-  // ── Authenticate ──────────────────────────────────────────────────────────
+  // ── Authenticate + authorize admin ────────────────────────────────────────
   const { userId } = await auth()
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const supabaseAuth = createAdminClient()
+  const { data: callerProfile } = await supabaseAuth
+    .from('profiles')
+    .select('role')
+    .eq('id', userId)
+    .single()
+
+  if (callerProfile?.role !== 'admin') {
+    return NextResponse.json({ error: 'Forbidden — admin only' }, { status: 403 })
   }
 
   // ── Parse body ────────────────────────────────────────────────────────────

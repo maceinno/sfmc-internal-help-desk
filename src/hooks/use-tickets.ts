@@ -44,7 +44,7 @@ export function useTickets(filters: TicketFilters = {}) {
       if (!token) throw new Error('No auth token')
 
       const supabase = createClerkSupabaseClient(token)
-      let query = supabase.from('tickets').select('*')
+      let query = supabase.from('tickets').select('*, ticket_cc(user_id), ticket_collaborators(user_id)')
 
       if (filters.status) {
         query = query.eq('status', filters.status)
@@ -63,7 +63,16 @@ export function useTickets(filters: TicketFilters = {}) {
 
       const { data, error } = await query
       if (error) throw error
-      return data as Ticket[]
+
+      // Flatten join table arrays into simple user ID arrays
+      return (data ?? []).map((row: Record<string, unknown>) => {
+        const ticket = { ...row }
+        ticket.cc = (row.ticket_cc as { user_id: string }[] | null)?.map((r) => r.user_id) ?? []
+        ticket.collaborators = (row.ticket_collaborators as { user_id: string }[] | null)?.map((r) => r.user_id) ?? []
+        delete ticket.ticket_cc
+        delete ticket.ticket_collaborators
+        return ticket as unknown as Ticket
+      })
     },
   })
 }
@@ -112,6 +121,16 @@ export interface CreateTicketPayload {
   ticketType?: string
   subCategory?: string
   attachments?: File[]
+  cc?: string[]
+  customFields?: { field_id: string; value: unknown }[]
+  mailingAddress?: {
+    street1: string
+    street2?: string
+    city: string
+    state: string
+    zip: string
+  }
+  parentTicketId?: string
 }
 
 export interface UpdateTicketPayload {
@@ -128,30 +147,60 @@ export interface UpdateTicketPayload {
  * Mutation hook to create a new ticket.
  */
 export function useCreateTicket() {
-  const { getToken } = useAuth()
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: async (payload: CreateTicketPayload) => {
-      const token = await getToken({ template: 'supabase' })
-      if (!token) throw new Error('No auth token')
+      // Upload attachments first
+      const attachmentIds: string[] = []
+      if (payload.attachments && payload.attachments.length > 0) {
+        for (const file of payload.attachments) {
+          const formData = new FormData()
+          formData.append('file', file)
+          // We'll link them after ticket creation; use a temp ticketId
+          // Actually the upload API requires a ticketId, so we'll upload
+          // after ticket creation. For now, skip — the API route doesn't
+          // handle file uploads inline. We'll handle this post-creation.
+        }
+      }
 
-      const supabase = createClerkSupabaseClient(token)
-      const { data, error } = await supabase
-        .from('tickets')
-        .insert({
+      // Call the server API route which handles routing rules, CC,
+      // custom fields, mailing address, and parent ticket linking.
+      const res = await fetch('/api/tickets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           title: payload.title,
           description: payload.description,
           priority: payload.priority,
           category: payload.category,
-          ticket_type: payload.ticketType,
-          sub_category: payload.subCategory,
-        })
-        .select()
-        .single()
+          ticketType: payload.ticketType,
+          subCategory: payload.subCategory,
+          cc: payload.cc,
+          customFields: payload.customFields,
+          mailingAddress: payload.mailingAddress,
+          parentTicketId: payload.parentTicketId,
+        }),
+      })
 
-      if (error) throw error
-      return data as Ticket
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error ?? 'Failed to create ticket')
+      }
+
+      const ticket = await res.json()
+
+      // Upload attachments now that we have a ticket ID
+      if (payload.attachments && payload.attachments.length > 0) {
+        for (const file of payload.attachments) {
+          const formData = new FormData()
+          formData.append('file', file)
+          formData.append('ticketId', ticket.id)
+          await fetch('/api/upload', { method: 'POST', body: formData })
+        }
+      }
+
+      return ticket as Ticket
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ticketKeys.lists() })

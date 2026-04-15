@@ -22,7 +22,7 @@ import { useCurrentUser } from "@/hooks/use-current-user"
 import { useUsers } from "@/hooks/use-users"
 import { useAuth } from "@clerk/nextjs"
 import { createClerkSupabaseClient } from "@/lib/supabase/client"
-import { useCannedResponses, useTeams } from "@/hooks/use-admin-config"
+import { useCannedResponses, useTeams, useCustomFields } from "@/hooks/use-admin-config"
 import { useUIStore } from "@/stores/ui-store"
 import { canViewInternalNotes } from "@/lib/permissions/policies"
 import { useQueryClient } from "@tanstack/react-query"
@@ -42,6 +42,7 @@ export default function TicketDetailPage({
   const { getToken } = useAuth()
   const { data: cannedResponses } = useCannedResponses()
   const { data: teams } = useTeams()
+  const { data: customFields } = useCustomFields()
   const { data: allUsers = [] } = useUsers()
   const { data: allTickets = [] } = useTickets()
   const updateTicket = useUpdateTicket()
@@ -82,7 +83,7 @@ export default function TicketDetailPage({
           .from("ticket_cc")
           .upsert({ ticket_id: ticket.id, user_id: userId }, { onConflict: "ticket_id,user_id" })
         if (error) throw error
-        queryClient.invalidateQueries({ queryKey: ["ticket", ticket.id] })
+        queryClient.invalidateQueries({ queryKey: ["tickets", "detail", ticket.id] })
       } catch {
         toast.error("Failed to add CC")
       }
@@ -103,7 +104,7 @@ export default function TicketDetailPage({
           .eq("ticket_id", ticket.id)
           .eq("user_id", userId)
         if (error) throw error
-        queryClient.invalidateQueries({ queryKey: ["ticket", ticket.id] })
+        queryClient.invalidateQueries({ queryKey: ["tickets", "detail", ticket.id] })
       } catch {
         toast.error("Failed to remove CC")
       }
@@ -161,7 +162,7 @@ export default function TicketDetailPage({
         }
 
         // Refresh ticket data to show new message
-        queryClient.invalidateQueries({ queryKey: ["ticket", ticket.id] })
+        queryClient.invalidateQueries({ queryKey: ["tickets", "detail", ticket.id] })
         queryClient.invalidateQueries({ queryKey: ["tickets"] })
         toast.success(message.isInternal ? "Internal note added" : "Reply sent")
       } catch (err) {
@@ -194,7 +195,7 @@ export default function TicketDetailPage({
         }
 
         queryClient.invalidateQueries({ queryKey: ["tickets"] })
-        queryClient.invalidateQueries({ queryKey: ["ticket", ticket.id] })
+        queryClient.invalidateQueries({ queryKey: ["tickets", "detail", ticket.id] })
         toast.success(`Ticket merged successfully`)
         setShowMergeModal(false)
 
@@ -410,6 +411,7 @@ export default function TicketDetailPage({
           onCcAdd={handleCcAdd}
           onCcRemove={handleCcRemove}
           teams={teams?.map((t) => ({ id: t.id, name: t.name })) ?? []}
+          customFields={customFields ?? []}
         />
       </div>
 

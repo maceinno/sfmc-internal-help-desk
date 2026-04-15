@@ -1,5 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 // ---------------------------------------------------------------------------
 // POST /api/users/ooo — Toggle Out of Office
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const supabase = await createServerSupabaseClient();
+  const supabase = createAdminClient();
 
   // ── Disabling OOO ────────────────────────────────────────────────────────
   if (!body.enabled) {

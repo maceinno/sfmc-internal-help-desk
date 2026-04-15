@@ -51,6 +51,34 @@ export async function POST(request: Request) {
     );
   }
 
+  // ── Verify caller has access to the ticket ────────────────────────────────
+  const supabaseCheck = createAdminClient();
+  const { data: ticketRow } = await supabaseCheck
+    .from("tickets")
+    .select("id, created_by, assigned_to")
+    .eq("id", ticketId)
+    .maybeSingle();
+
+  if (ticketRow) {
+    const { data: profile } = await supabaseCheck
+      .from("profiles")
+      .select("role")
+      .eq("id", userId)
+      .single();
+
+    const isAgentOrAdmin =
+      profile?.role === "agent" || profile?.role === "admin";
+    const isCreator = ticketRow.created_by === userId;
+    const isAssignee = ticketRow.assigned_to === userId;
+
+    if (!isAgentOrAdmin && !isCreator && !isAssignee) {
+      return Response.json(
+        { error: "You do not have access to this ticket." },
+        { status: 403 },
+      );
+    }
+  }
+
   // ── Validate file size ────────────────────────────────────────────────────
   if (file.size > MAX_FILE_SIZE) {
     return Response.json(

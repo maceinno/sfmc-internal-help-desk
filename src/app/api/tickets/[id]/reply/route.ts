@@ -54,7 +54,7 @@ export async function POST(
   // ── Verify ticket exists ───────────────────────────────────────────────────
   const { data: ticket, error: ticketFetchError } = await supabase
     .from('tickets')
-    .select('id, title, status')
+    .select('id, title, status, created_by, assigned_to')
     .eq('id', ticketId)
     .single()
 
@@ -63,6 +63,41 @@ export async function POST(
       { error: 'Ticket not found' },
       { status: 404 },
     )
+  }
+
+  // ── Verify caller has access to this ticket ───────────────────────────────
+  const { data: callerProfile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', userId)
+    .single()
+
+  const isAgentOrAdmin = callerProfile?.role === 'agent' || callerProfile?.role === 'admin'
+  const isCreator = ticket.created_by === userId
+  const isAssignee = ticket.assigned_to === userId
+
+  if (!isAgentOrAdmin && !isCreator && !isAssignee) {
+    // Check if CC'd or collaborator
+    const { data: ccRow } = await supabase
+      .from('ticket_cc')
+      .select('user_id')
+      .eq('ticket_id', ticketId)
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    const { data: collabRow } = await supabase
+      .from('ticket_collaborators')
+      .select('user_id')
+      .eq('ticket_id', ticketId)
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    if (!ccRow && !collabRow) {
+      return NextResponse.json(
+        { error: 'You do not have access to this ticket' },
+        { status: 403 },
+      )
+    }
   }
 
   // ── Insert message ─────────────────────────────────────────────────────────

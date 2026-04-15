@@ -217,7 +217,7 @@ export default function RoutingPage() {
       const supabase = createClerkSupabaseClient(token)
       const { error } = await supabase
         .from('routing_rules')
-        .update({ priority: newPriority })
+        .update({ priority_order: newPriority })
         .eq('id', id)
       if (error) throw error
     },

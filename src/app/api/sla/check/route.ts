@@ -20,9 +20,9 @@ function isAuthorized(request: NextRequest): boolean {
   return false
 }
 
-// ── POST handler ────────────────────────────────────────────────
+// ── GET handler (Vercel Cron sends GET requests) ────────────────
 
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   if (!isAuthorized(request)) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }

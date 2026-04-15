@@ -256,6 +256,12 @@ export function CreateTicketForm() {
       ticketType: data.ticketType,
       subCategory: data.subCategory || undefined,
       attachments: files.length > 0 ? files : undefined,
+      cc: ccRecipientIds.length > 0 ? ccRecipientIds : undefined,
+      customFields: customFieldValues.length > 0 ? customFieldValues : undefined,
+      mailingAddress: showMailingAddress && mailingAddress.street1
+        ? mailingAddress
+        : undefined,
+      parentTicketId: followUpFromTicketId || undefined,
     }
 
     const newTicket = await createTicket.mutateAsync(payload)

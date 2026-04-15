@@ -116,7 +116,7 @@ export default function SchedulesAdminPage() {
         if (s.id !== scheduleId) return s
         return {
           ...s,
-          businessHours: s.business_hours.map((bh) =>
+          business_hours: s.business_hours.map((bh) =>
             bh.day === day ? { ...bh, [field]: value } : bh
           ),
         }
