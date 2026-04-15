@@ -92,7 +92,7 @@ export function useTicket(id: string | null | undefined) {
       const supabase = createClerkSupabaseClient(token)
       const { data, error } = await supabase
         .from('tickets')
-        .select('*, messages(*), attachments(*), ticket_cc(user_id), ticket_collaborators(user_id)')
+        .select('*, messages(*), attachments(*), ticket_cc(user_id), ticket_collaborators(user_id), custom_field_values(field_id, value)')
         .eq('id', id!)
         .single()
 
@@ -102,8 +102,10 @@ export function useTicket(id: string | null | undefined) {
       const ticket = data as Record<string, unknown>
       ticket.cc = ((data as Record<string, unknown>).ticket_cc as { user_id: string }[] | null)?.map((r) => r.user_id) ?? []
       ticket.collaborators = ((data as Record<string, unknown>).ticket_collaborators as { user_id: string }[] | null)?.map((r) => r.user_id) ?? []
+      ticket.custom_fields = (data as Record<string, unknown>).custom_field_values ?? []
       delete ticket.ticket_cc
       delete ticket.ticket_collaborators
+      delete ticket.custom_field_values
 
       return ticket as unknown as Ticket
     },

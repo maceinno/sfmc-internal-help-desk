@@ -156,7 +156,7 @@ export function TicketSidebarPanel({
     const visibleFields = customFields.filter(
       (cf) =>
         cf.enabled &&
-        cf.visible_to_roles.includes(currentUser.role) &&
+        (!cf.visible_to_roles || cf.visible_to_roles.length === 0 || cf.visible_to_roles.includes(currentUser.role)) &&
         ticket.custom_fields?.some((v) => v.field_id === cf.id)
     )
 
