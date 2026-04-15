@@ -107,14 +107,32 @@ export function useTicket(id: string | null | undefined) {
       delete ticket.ticket_collaborators
       delete ticket.custom_field_values
 
-      // Generate public URLs for attachments
+      // Generate signed URLs for attachments (private bucket)
       const attachments = (ticket.attachments as { id: string; storage_path: string; [k: string]: unknown }[]) ?? []
-      for (const att of attachments) {
-        if (att.storage_path) {
-          const { data: urlData } = supabase.storage
-            .from('attachments')
-            .getPublicUrl(att.storage_path)
-          att.url = urlData.publicUrl
+      const storagePaths = attachments
+        .map((att) => att.storage_path)
+        .filter(Boolean)
+
+      if (storagePaths.length > 0) {
+        try {
+          const res = await fetch('/api/attachments/signed-urls', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ticketId: id,
+              storagePaths,
+            }),
+          })
+          if (res.ok) {
+            const { urls } = await res.json()
+            for (const att of attachments) {
+              if (att.storage_path && urls[att.storage_path]) {
+                att.url = urls[att.storage_path]
+              }
+            }
+          }
+        } catch {
+          // Signed URL generation failed — attachments will show without previews
         }
       }
 

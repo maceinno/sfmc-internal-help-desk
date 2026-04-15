@@ -53,11 +53,11 @@ export async function POST(request: Request) {
   }
 
   const ext = file.name.split('.').pop() ?? 'png'
-  const path = `branding/logo-${Date.now()}.${ext}`
+  const path = `logo-${Date.now()}.${ext}`
   const buffer = await file.arrayBuffer()
 
   const { error: uploadError } = await supabase.storage
-    .from('attachments')
+    .from('branding')
     .upload(path, buffer, {
       contentType: file.type,
       upsert: true,
@@ -69,7 +69,7 @@ export async function POST(request: Request) {
   }
 
   const { data: urlData } = supabase.storage
-    .from('attachments')
+    .from('branding')
     .getPublicUrl(path)
 
   return Response.json({ url: urlData.publicUrl })
