@@ -15,6 +15,8 @@ import {
   Palette,
   Loader2,
   Check,
+  Upload,
+  X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -52,22 +54,23 @@ const DEFAULT_BRANDING: BrandingForm = {
 
 function configToForm(config: BrandingConfig | null): BrandingForm {
   if (!config) return { ...DEFAULT_BRANDING }
+  // DB returns snake_case columns
   return {
-    companyName: (config.companyName as string) ?? DEFAULT_BRANDING.companyName,
+    companyName: (config.company_name as string) ?? DEFAULT_BRANDING.companyName,
     portalSubtitle:
-      (config.portalSubtitle as string) ?? DEFAULT_BRANDING.portalSubtitle,
-    logoUrl: (config.logoUrl as string) ?? '',
-    logoAlt: (config.logoAlt as string) ?? DEFAULT_BRANDING.logoAlt,
+      (config.portal_subtitle as string) ?? DEFAULT_BRANDING.portalSubtitle,
+    logoUrl: (config.logo_url as string) ?? '',
+    logoAlt: (config.logo_alt as string) ?? DEFAULT_BRANDING.logoAlt,
     logoBackground:
-      (config.logoBackground as BrandingForm['logoBackground']) ??
+      (config.logo_background as BrandingForm['logoBackground']) ??
       DEFAULT_BRANDING.logoBackground,
     logoBackgroundColor:
-      (config.logoBackgroundColor as string) ??
+      (config.logo_background_color as string) ??
       DEFAULT_BRANDING.logoBackgroundColor,
     primaryColor:
-      (config.primaryColor as string) ?? DEFAULT_BRANDING.primaryColor,
+      (config.primary_color as string) ?? DEFAULT_BRANDING.primaryColor,
     accentColor:
-      (config.accentColor as string) ?? DEFAULT_BRANDING.accentColor,
+      (config.accent_color as string) ?? DEFAULT_BRANDING.accentColor,
   }
 }
 
@@ -79,6 +82,8 @@ export default function BrandingPage() {
   const { data: branding, isLoading } = useBranding()
 
   const [form, setForm] = useState<BrandingForm>({ ...DEFAULT_BRANDING })
+  const [uploading, setUploading] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
 
   // Sync form when data loads
   useEffect(() => {
@@ -90,6 +95,59 @@ export default function BrandingPage() {
   const update = useCallback(
     (patch: Partial<BrandingForm>) => setForm((prev) => ({ ...prev, ...patch })),
     [],
+  )
+
+  const handleLogoUpload = useCallback(
+    async (file: File) => {
+      const ALLOWED = ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp']
+      if (!ALLOWED.includes(file.type)) {
+        toast.error('Logo must be PNG, JPG, SVG, or WEBP')
+        return
+      }
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error('Logo must be under 2 MB')
+        return
+      }
+
+      setUploading(true)
+      try {
+        const token = await getToken({ template: 'supabase' })
+        if (!token) throw new Error('No auth token')
+        const supabase = createClerkSupabaseClient(token)
+
+        const ext = file.name.split('.').pop() ?? 'png'
+        const path = `branding/logo-${Date.now()}.${ext}`
+
+        const { error: uploadError } = await supabase.storage
+          .from('attachments')
+          .upload(path, file, { upsert: true })
+        if (uploadError) throw uploadError
+
+        const { data: urlData } = supabase.storage
+          .from('attachments')
+          .getPublicUrl(path)
+
+        const altText = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ')
+        update({ logoUrl: urlData.publicUrl, logoAlt: altText })
+        toast.success('Logo uploaded')
+      } catch (err) {
+        toast.error('Failed to upload logo')
+        console.error(err)
+      } finally {
+        setUploading(false)
+      }
+    },
+    [getToken, update],
+  )
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault()
+      setDragOver(false)
+      const file = e.dataTransfer.files?.[0]
+      if (file) handleLogoUpload(file)
+    },
+    [handleLogoUpload],
   )
 
   // ── Mutation ──────────────────────────────────────────────
@@ -272,27 +330,83 @@ export default function BrandingPage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-5">
-          {/* Logo URL */}
+          {/* Logo upload / URL */}
           <div>
-            <Label>Logo URL</Label>
-            <Input
-              value={form.logoUrl}
-              onChange={(e) => update({ logoUrl: e.target.value })}
-              placeholder="https://example.com/logo.png"
-              className="mt-1.5"
-            />
+            <Label>Logo</Label>
+
+            {/* Current logo preview + remove */}
             {form.logoUrl && (
-              <div className="mt-3 inline-block rounded-lg border bg-white p-4">
-                <img
-                  src={form.logoUrl}
-                  alt={form.logoAlt}
-                  className="h-12 w-auto object-contain"
-                  onError={(e) => {
-                    ;(e.target as HTMLImageElement).style.display = 'none'
-                  }}
-                />
+              <div className="mt-2 mb-3 flex items-start gap-3">
+                <div className="inline-block rounded-lg border bg-white p-4">
+                  <img
+                    src={form.logoUrl}
+                    alt={form.logoAlt}
+                    className="h-12 w-auto object-contain"
+                    onError={(e) => {
+                      ;(e.target as HTMLImageElement).style.display = 'none'
+                    }}
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => update({ logoUrl: '', logoAlt: '' })}
+                >
+                  <X className="size-3.5 mr-1" />
+                  Remove
+                </Button>
               </div>
             )}
+
+            {/* Drag-and-drop upload zone */}
+            <div
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={handleDrop}
+              className={`relative flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-colors ${
+                dragOver
+                  ? 'border-primary bg-primary/5'
+                  : 'border-border hover:border-muted-foreground/40'
+              }`}
+            >
+              {uploading ? (
+                <Loader2 className="size-6 animate-spin text-muted-foreground" />
+              ) : (
+                <>
+                  <Upload className="size-8 text-muted-foreground mb-2" />
+                  <p className="text-sm font-medium">Drag & drop your logo here</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    PNG, JPG, SVG, or WEBP &middot; Max 2 MB
+                  </p>
+                  <label className="mt-3 cursor-pointer">
+                    <span className="text-sm font-medium text-primary hover:underline">
+                      Or click to browse
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) handleLogoUpload(file)
+                        e.target.value = ''
+                      }}
+                    />
+                  </label>
+                </>
+              )}
+            </div>
+
+            {/* Or paste URL */}
+            <div className="mt-3">
+              <p className="text-xs text-muted-foreground mb-1.5">Or paste a URL:</p>
+              <Input
+                value={form.logoUrl}
+                onChange={(e) => update({ logoUrl: e.target.value })}
+                placeholder="https://example.com/logo.png"
+              />
+            </div>
           </div>
 
           {/* Alt text */}
