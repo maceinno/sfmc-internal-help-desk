@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useTimezone } from '@/hooks/use-timezone'
 import { ArrowRight, Loader2 } from 'lucide-react'
 import { useTickets } from '@/hooks/use-tickets'
+import { useUsers } from '@/hooks/use-users'
 import { useSlaPolicies } from '@/hooks/use-admin-config'
 import { getAtRiskTickets, getOverdueTickets, getSlaStatus } from '@/lib/sla'
 import { StatsCards } from '@/components/dashboard/stats-cards'
@@ -16,6 +17,7 @@ import { SlaIndicator } from '@/components/tickets/sla-indicator'
 
 export default function DashboardPage() {
   const { data: tickets = [], isLoading: ticketsLoading } = useTickets()
+  const { data: allUsers = [] } = useUsers()
   const { data: policies = [] } = useSlaPolicies()
   const router = useRouter()
   const { formatDate } = useTimezone()
@@ -84,6 +86,7 @@ export default function DashboardPage() {
       <SlaAtRiskTable
         atRiskTickets={stats.atRisk}
         overdueTickets={stats.overdue}
+        users={allUsers}
         policies={policies}
       />
 
@@ -113,7 +116,7 @@ export default function DashboardPage() {
                     ID
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Subject
+                    Title
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status

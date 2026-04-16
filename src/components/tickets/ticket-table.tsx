@@ -90,6 +90,7 @@ export function TicketTable({
   }
 
   return (
+  <>
     <Table>
       <TableHeader>
         <TableRow className="bg-gray-50/80">
@@ -182,5 +183,11 @@ export function TicketTable({
         })}
       </TableBody>
     </Table>
+    {tickets.length > 0 && (
+      <div className="py-4 text-center text-xs text-gray-400 border-t border-gray-100">
+        Showing {tickets.length} ticket{tickets.length !== 1 ? 's' : ''}
+      </div>
+    )}
+  </>
   )
 }

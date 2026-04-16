@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { AlertCircle, AlertTriangle } from 'lucide-react'
-import type { Ticket, SlaPolicy, DepartmentSchedule } from '@/types/ticket'
+import type { Ticket, User, SlaPolicy, DepartmentSchedule } from '@/types/ticket'
 import { getSlaStatus, formatTimeRemaining } from '@/lib/sla'
 import { PriorityBadge } from '@/components/tickets/priority-badge'
 import { StatusBadge } from '@/components/tickets/status-badge'
@@ -11,6 +11,7 @@ import { SlaIndicator } from '@/components/tickets/sla-indicator'
 interface SlaAtRiskTableProps {
   atRiskTickets: Ticket[]
   overdueTickets: Ticket[]
+  users?: User[]
   policies?: SlaPolicy[]
   schedules?: DepartmentSchedule[]
 }
@@ -18,10 +19,16 @@ interface SlaAtRiskTableProps {
 export function SlaAtRiskTable({
   atRiskTickets,
   overdueTickets,
+  users = [],
   policies,
   schedules,
 }: SlaAtRiskTableProps) {
   const router = useRouter()
+
+  const getUserName = (userId: string | null) => {
+    if (!userId) return null
+    return users.find((u) => u.id === userId)?.name ?? null
+  }
 
   const navigateToTicket = (ticketId: string) => {
     router.push(`/tickets/${ticketId}`)
@@ -51,7 +58,7 @@ export function SlaAtRiskTable({
                     ID
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-amber-800 uppercase tracking-wider">
-                    Subject
+                    Title
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-amber-800 uppercase tracking-wider">
                     Status
@@ -87,7 +94,7 @@ export function SlaAtRiskTable({
                       <PriorityBadge priority={ticket.priority} />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {ticket.assigned_to ? 'Assigned' : 'Unassigned'}
+                      {getUserName(ticket.assigned_to) ?? <span className="italic text-gray-400">Unassigned</span>}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <SlaIndicator
@@ -126,7 +133,7 @@ export function SlaAtRiskTable({
                     ID
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-red-800 uppercase tracking-wider">
-                    Subject
+                    Title
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-red-800 uppercase tracking-wider">
                     Status
@@ -162,7 +169,7 @@ export function SlaAtRiskTable({
                       <PriorityBadge priority={ticket.priority} />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {ticket.assigned_to ? 'Assigned' : 'Unassigned'}
+                      {getUserName(ticket.assigned_to) ?? <span className="italic text-gray-400">Unassigned</span>}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <SlaIndicator
