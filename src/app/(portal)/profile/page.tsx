@@ -53,7 +53,6 @@ export default function ProfilePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: name.trim(),
-          department: department.trim() || undefined,
         }),
       })
       if (!res.ok) {
@@ -214,11 +213,10 @@ export default function ProfilePage() {
               <Building2 className="size-3.5 text-muted-foreground" />
               Department
             </Label>
-            <Input
-              value={department}
-              onChange={(e) => setDepartment(e.target.value)}
-              placeholder="Your department"
-            />
+            <Input value={profile.department ?? 'Not assigned'} disabled />
+            <p className="text-xs text-muted-foreground">
+              Department is managed by administrators.
+            </p>
           </div>
 
           <div className="flex justify-end pt-2">
