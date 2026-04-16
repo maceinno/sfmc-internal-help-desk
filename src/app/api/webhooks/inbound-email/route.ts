@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+import { Webhook } from 'svix'
+import { headers } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { parseReplyContent, extractTicketId } from '@/lib/email/parse-reply'
 import { notifyNewReply } from '@/lib/email/notify'
@@ -6,23 +8,13 @@ import { notifyNewReply } from '@/lib/email/notify'
 /**
  * POST /api/webhooks/inbound-email
  *
- * Receives inbound emails from Resend. When someone replies to a
- * ticket notification email, this webhook:
+ * Receives inbound emails from Resend (via Svix webhook).
+ * Verifies the webhook signature, then:
  * 1. Extracts the ticket ID from the To address
  * 2. Looks up the sender by email → Supabase profile
  * 3. Strips quoted text to get only the new reply
  * 4. Inserts a message on the ticket
  * 5. Triggers reply notifications to other parties
- *
- * Resend inbound webhook payload:
- * {
- *   from: "user@example.com",
- *   to: "ticket+T-1064@support.sfmc.com",
- *   subject: "Re: [T-1064] ...",
- *   text: "plain text body",
- *   html: "html body",
- *   headers: { ... }
- * }
  */
 
 interface InboundEmailPayload {
@@ -37,13 +29,43 @@ interface InboundEmailPayload {
 export async function POST(request: Request) {
   console.log('[inbound-email] Webhook received')
 
-  let body: InboundEmailPayload
-  try {
-    body = await request.json()
-  } catch {
-    console.error('[inbound-email] Invalid JSON body')
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+  // ── Verify webhook signature ──────────────────────────────────────────────
+  const webhookSecret = process.env.RESEND_WEBHOOK_SECRET
+  if (!webhookSecret) {
+    console.error('[inbound-email] Missing RESEND_WEBHOOK_SECRET env var')
+    return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 })
   }
+
+  const headerPayload = await headers()
+  const svixId = headerPayload.get('svix-id')
+  const svixTimestamp = headerPayload.get('svix-timestamp')
+  const svixSignature = headerPayload.get('svix-signature')
+
+  if (!svixId || !svixTimestamp || !svixSignature) {
+    console.error('[inbound-email] Missing svix headers')
+    return NextResponse.json({ error: 'Missing webhook headers' }, { status: 400 })
+  }
+
+  const rawBody = await request.text()
+
+  const wh = new Webhook(webhookSecret)
+  let payload: { type: string; data: InboundEmailPayload }
+
+  try {
+    payload = wh.verify(rawBody, {
+      'svix-id': svixId,
+      'svix-timestamp': svixTimestamp,
+      'svix-signature': svixSignature,
+    }) as { type: string; data: InboundEmailPayload }
+  } catch (err) {
+    console.error('[inbound-email] Signature verification failed:', err)
+    return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
+  }
+
+  // Resend wraps the email data inside a { type, data } envelope
+  const body = payload.data ?? (payload as unknown as InboundEmailPayload)
+
+  console.log(`[inbound-email] Verified webhook — type: ${payload.type}`)
 
   // ── Extract ticket ID from the To address ─────────────────────────────────
   const toAddresses = Array.isArray(body.to) ? body.to : [body.to]
