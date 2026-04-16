@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { resend, EMAIL_FROM } from './resend'
+import { resend, EMAIL_FROM, ticketReplyTo } from './resend'
 import * as templates from './templates'
 import { createAdminClient } from '@/lib/supabase/admin'
 
@@ -28,12 +28,13 @@ async function resolveUsers(userIds: string[]) {
   return map
 }
 
-async function send(to: string, template: { subject: string; html: string }) {
+async function send(to: string, template: { subject: string; html: string }, ticketId?: string) {
   try {
     console.log(`[email] Sending to ${to} from ${EMAIL_FROM} — subject: ${template.subject}`)
     const { data, error } = await resend.emails.send({
       from: EMAIL_FROM,
       to,
+      replyTo: ticketId ? ticketReplyTo(ticketId) : undefined,
       subject: template.subject,
       html: template.html,
     })
@@ -71,7 +72,7 @@ export async function notifyTicketCreated(ticket: {
       title: ticket.title,
       category: ticket.category,
       priority: ticket.priority,
-    }))
+    }), ticket.id)
   }
 
   if (ticket.assigned_to) {
@@ -83,7 +84,7 @@ export async function notifyTicketCreated(ticket: {
         category: ticket.category,
         priority: ticket.priority,
         creatorName: creator?.name ?? 'Unknown',
-      }))
+      }), ticket.id)
     }
   }
 }
@@ -202,9 +203,9 @@ export async function notifyNewReply(p: {
       }
 
       if (ccUserIds.includes(userId) && userId !== p.createdBy && userId !== p.assignedTo) {
-        await send(user.email, templates.ccNotification(templateParams))
+        await send(user.email, templates.ccNotification(templateParams), p.ticketId)
       } else {
-        await send(user.email, templates.newReply(templateParams))
+        await send(user.email, templates.newReply(templateParams), p.ticketId)
       }
     }
   } catch (err) {
@@ -237,7 +238,7 @@ export async function notifyStatusChanged(p: {
       oldStatus: p.oldStatus,
       newStatus: p.newStatus,
       changedByName: changer?.name ?? 'An agent',
-    }))
+    }), p.ticketId)
   }
 }
 
@@ -263,7 +264,7 @@ export async function notifyAssignmentChanged(p: {
       title: p.ticketTitle,
       assigneeName: assignee.name,
       assignedByName: assigner?.name ?? 'An admin',
-    }))
+    }), p.ticketId)
   }
 }
 
@@ -288,7 +289,7 @@ export async function notifyUserTagged(p: {
         ticketId: p.ticketId,
         title: p.ticketTitle,
         taggedByName: tagger?.name ?? 'Someone',
-      }))
+      }), p.ticketId)
     }
   }
 }
@@ -314,6 +315,6 @@ export async function notifySlaAlert(p: {
       title: p.ticketTitle,
       status: p.status,
       timeInfo: p.timeInfo,
-    }))
+    }), p.ticketId)
   }
 }

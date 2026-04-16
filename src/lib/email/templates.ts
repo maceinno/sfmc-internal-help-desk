@@ -35,8 +35,11 @@ function layout(body: string) {
         <!-- Footer -->
         <tr>
           <td style="padding:24px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;">
-            <p style="margin:0;font-size:12px;color:#9ca3af;">
-              This is an automated notification from the SFMC Help Desk Portal.
+            <p style="margin:0 0 4px;font-size:12px;color:#6b7280;font-weight:500;">
+              Reply directly to this email to respond to the ticket.
+            </p>
+            <p style="margin:0;font-size:11px;color:#9ca3af;">
+              SFMC Help Desk Portal &middot;
               <a href="${PORTAL_URL}" style="color:#2563eb;text-decoration:none;">Open Portal</a>
             </p>
           </td>
