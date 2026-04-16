@@ -84,7 +84,7 @@ export async function notifyTicketCreated(ticket: {
 }
 
 /**
- * New reply — notify relevant parties (creator, assignee, CC'd users).
+ * New reply — notify all parties on the ticket with the full conversation.
  * Skips the author of the reply.
  */
 export async function notifyNewReply(p: {
@@ -97,6 +97,36 @@ export async function notifyNewReply(p: {
   assignedTo: string | null
 }) {
   const supabase = createAdminClient()
+
+  // Fetch conversation history + ticket description
+  const { data: ticket } = await supabase
+    .from('tickets')
+    .select('description')
+    .eq('id', p.ticketId)
+    .single()
+
+  const { data: messages } = await supabase
+    .from('messages')
+    .select('author_id, content, is_internal, created_at')
+    .eq('ticket_id', p.ticketId)
+    .order('created_at', { ascending: true })
+
+  // Resolve all author IDs from the conversation
+  const allAuthorIds = new Set<string>([p.authorId, p.createdBy])
+  for (const msg of messages ?? []) {
+    allAuthorIds.add(msg.author_id)
+  }
+  const allUsers = await resolveUsers(Array.from(allAuthorIds))
+
+  // Build conversation thread (exclude the new message — it's shown separately)
+  const conversation: templates.ConversationMessage[] = (messages ?? [])
+    .filter((msg) => msg.content !== p.content) // Skip the new message
+    .map((msg) => ({
+      authorName: allUsers.get(msg.author_id)?.name ?? 'Unknown',
+      content: msg.content,
+      isInternal: msg.is_internal,
+      createdAt: msg.created_at,
+    }))
 
   // Get CC'd user IDs
   const { data: ccRows } = await supabase
@@ -134,26 +164,37 @@ export async function notifyNewReply(p: {
   if (recipientIds.size === 0) return
 
   const users = await resolveUsers(Array.from(recipientIds))
-  const authorUsers = await resolveUsers([p.authorId])
-  const authorName = authorUsers.get(p.authorId)?.name ?? 'Someone'
+  const authorName = allUsers.get(p.authorId)?.name ?? 'Someone'
+
+  // Filter conversation — employees should not see internal notes
+  const publicConversation = conversation.filter((msg) => !msg.isInternal)
 
   for (const [userId, user] of users) {
-    // CC'd users get a different template
+    // Determine if this recipient can see internal notes (agents/admins only)
+    const { data: recipientProfile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .single()
+
+    const isAgentOrAdmin = recipientProfile?.role === 'agent' || recipientProfile?.role === 'admin'
+    const visibleConversation = isAgentOrAdmin ? conversation : publicConversation
+
+    const templateParams = {
+      ticketId: p.ticketId,
+      title: p.ticketTitle,
+      authorName,
+      content: p.content,
+      isInternal: p.isInternal,
+      description: ticket?.description,
+      conversation: visibleConversation,
+    }
+
+    // CC'd-only users get a slightly different header
     if (ccUserIds.includes(userId) && userId !== p.createdBy && userId !== p.assignedTo) {
-      send(user.email, templates.ccNotification({
-        ticketId: p.ticketId,
-        title: p.ticketTitle,
-        authorName,
-        content: p.content,
-      }))
+      send(user.email, templates.ccNotification(templateParams))
     } else {
-      send(user.email, templates.newReply({
-        ticketId: p.ticketId,
-        title: p.ticketTitle,
-        authorName,
-        content: p.content,
-        isInternal: p.isInternal,
-      }))
+      send(user.email, templates.newReply(templateParams))
     }
   }
 }

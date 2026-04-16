@@ -117,26 +117,86 @@ export function ticketCreatedAgent(p: {
   }
 }
 
+export interface ConversationMessage {
+  authorName: string
+  content: string
+  isInternal: boolean
+  createdAt: string
+}
+
 export function newReply(p: {
   ticketId: string
   title: string
   authorName: string
   content: string
   isInternal: boolean
+  description?: string
+  conversation?: ConversationMessage[]
 }) {
-  const preview = p.content.length > 300 ? p.content.slice(0, 300) + '...' : p.content
+  const preview = p.content.length > 500 ? p.content.slice(0, 500) + '...' : p.content
   const label = p.isInternal ? 'New Internal Note' : 'New Reply'
+
+  // Build conversation thread (most recent messages, excluding the new one)
+  let threadHtml = ''
+  if (p.conversation && p.conversation.length > 0) {
+    const messages = p.conversation.slice(-10) // Last 10 messages
+    threadHtml = `
+      <div style="margin-top:24px;padding-top:20px;border-top:2px solid #e5e7eb;">
+        <p style="margin:0 0 12px;font-size:12px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">
+          Conversation History
+        </p>
+        ${messages.map((msg) => {
+          const date = new Date(msg.createdAt).toLocaleString('en-US', {
+            month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+          })
+          const msgPreview = msg.content.length > 300 ? msg.content.slice(0, 300) + '...' : msg.content
+          const borderColor = msg.isInternal ? '#fbbf24' : '#e5e7eb'
+          const bgColor = msg.isInternal ? '#fffbeb' : '#ffffff'
+          const badge = msg.isInternal ? '<span style="display:inline-block;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-left:6px;">Internal</span>' : ''
+          return `
+            <div style="margin-bottom:8px;padding:12px;border-left:3px solid ${borderColor};background:${bgColor};border-radius:0 6px 6px 0;">
+              <div style="margin-bottom:4px;">
+                <strong style="font-size:13px;color:#111827;">${msg.authorName}</strong>${badge}
+                <span style="font-size:11px;color:#9ca3af;margin-left:8px;">${date}</span>
+              </div>
+              <p style="margin:0;font-size:13px;color:#4b5563;white-space:pre-wrap;line-height:1.5;">${msgPreview}</p>
+            </div>`
+        }).join('')}
+      </div>`
+  }
+
+  // Include original ticket description at the bottom
+  let descriptionHtml = ''
+  if (p.description) {
+    const descPreview = p.description.length > 300 ? p.description.slice(0, 300) + '...' : p.description
+    descriptionHtml = `
+      <div style="margin-top:16px;padding-top:16px;border-top:1px dashed #d1d5db;">
+        <p style="margin:0 0 8px;font-size:12px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">
+          Original Request
+        </p>
+        <div style="padding:12px;background:#f9fafb;border-radius:6px;">
+          <p style="margin:0;font-size:13px;color:#4b5563;white-space:pre-wrap;line-height:1.5;">${descPreview}</p>
+        </div>
+      </div>`
+  }
+
   return {
-    subject: `[${p.ticketId}] ${label} on: ${p.title}`,
+    subject: `Re: [${p.ticketId}] ${p.title}`,
     html: layout(`
       <h2 style="margin:0 0 8px;font-size:20px;color:#111827;">${label}</h2>
       <p style="margin:0 0 16px;color:#6b7280;font-size:14px;">
         <strong>${p.authorName}</strong> ${p.isInternal ? 'added an internal note to' : 'replied to'} ticket <strong>${p.ticketId}</strong>.
       </p>
-      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:16px;">
-        <p style="margin:0;font-size:14px;color:#374151;white-space:pre-wrap;line-height:1.6;">${preview}</p>
+      <div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:16px;margin-bottom:16px;">
+        <div style="margin-bottom:4px;">
+          <strong style="font-size:13px;color:#111827;">${p.authorName}</strong>
+          <span style="font-size:11px;color:#6b7280;margin-left:8px;">just now</span>
+        </div>
+        <p style="margin:0;font-size:14px;color:#1e1b4b;white-space:pre-wrap;line-height:1.6;">${preview}</p>
       </div>
-      ${button(ticketUrl(p.ticketId), 'View Conversation')}
+      ${button(ticketUrl(p.ticketId), 'View & Reply')}
+      ${threadHtml}
+      ${descriptionHtml}
     `),
   }
 }
@@ -225,20 +285,26 @@ export function ccNotification(p: {
   title: string
   authorName: string
   content: string
+  description?: string
+  conversation?: ConversationMessage[]
 }) {
-  const preview = p.content.length > 300 ? p.content.slice(0, 300) + '...' : p.content
+  const preview = p.content.length > 500 ? p.content.slice(0, 500) + '...' : p.content
+
+  // Reuse the reply template's thread rendering
+  const replyTemplate = newReply({
+    ...p,
+    isInternal: false,
+  })
+
   return {
-    subject: `[${p.ticketId}] New activity on CC'd ticket: ${p.title}`,
-    html: layout(`
-      <h2 style="margin:0 0 8px;font-size:20px;color:#111827;">CC'd Ticket Update</h2>
-      <p style="margin:0 0 16px;color:#6b7280;font-size:14px;">
-        <strong>${p.authorName}</strong> posted on ticket <strong>${p.ticketId}</strong> that you are CC'd on.
-      </p>
-      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:16px;">
-        <p style="margin:0;font-size:14px;color:#374151;white-space:pre-wrap;line-height:1.6;">${preview}</p>
-      </div>
-      ${button(ticketUrl(p.ticketId), 'View Ticket')}
-    `),
+    subject: `Re: [${p.ticketId}] ${p.title}`,
+    html: replyTemplate.html.replace(
+      'New Reply',
+      "CC'd Ticket Update"
+    ).replace(
+      'replied to',
+      'posted on'
+    ),
   }
 }
 
