@@ -6,7 +6,8 @@ export const resend = new Resend(process.env.RESEND_API_KEY)
 export const EMAIL_FROM = process.env.EMAIL_FROM ?? 'SFMC Help Desk <notifications@support.sfmc.com>'
 
 // Inbound email domain — replies to ticket notifications go here
-export const INBOUND_DOMAIN = process.env.INBOUND_EMAIL_DOMAIN ?? 'support.sfmc.com'
+// Uses a separate subdomain (reply.sfmc.com) to avoid CNAME/MX conflict on support.sfmc.com
+export const INBOUND_DOMAIN = process.env.INBOUND_EMAIL_DOMAIN ?? 'reply.sfmc.com'
 
 /**
  * Generate the Reply-To address for a ticket.
