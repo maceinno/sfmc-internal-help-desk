@@ -66,7 +66,7 @@ export async function notifyTicketCreated(ticket: {
 
   const creator = users.get(ticket.created_by)
   if (creator) {
-    send(creator.email, templates.ticketCreatedCreator({
+    await send(creator.email, templates.ticketCreatedCreator({
       ticketId: ticket.id,
       title: ticket.title,
       category: ticket.category,
@@ -77,7 +77,7 @@ export async function notifyTicketCreated(ticket: {
   if (ticket.assigned_to) {
     const agent = users.get(ticket.assigned_to)
     if (agent && agent.email !== creator?.email) {
-      send(agent.email, templates.ticketCreatedAgent({
+      await send(agent.email, templates.ticketCreatedAgent({
         ticketId: ticket.id,
         title: ticket.title,
         category: ticket.category,
@@ -201,9 +201,9 @@ export async function notifyNewReply(p: {
       }
 
       if (ccUserIds.includes(userId) && userId !== p.createdBy && userId !== p.assignedTo) {
-        send(user.email, templates.ccNotification(templateParams))
+        await send(user.email, templates.ccNotification(templateParams))
       } else {
-        send(user.email, templates.newReply(templateParams))
+        await send(user.email, templates.newReply(templateParams))
       }
     }
   } catch (err) {
@@ -230,7 +230,7 @@ export async function notifyStatusChanged(p: {
   const changer = users.get(p.changedById)
 
   if (creator) {
-    send(creator.email, templates.statusChanged({
+    await send(creator.email, templates.statusChanged({
       ticketId: p.ticketId,
       title: p.ticketTitle,
       oldStatus: p.oldStatus,
@@ -257,7 +257,7 @@ export async function notifyAssignmentChanged(p: {
   const assigner = users.get(p.assignedById)
 
   if (assignee) {
-    send(assignee.email, templates.assignmentChanged({
+    await send(assignee.email, templates.assignmentChanged({
       ticketId: p.ticketId,
       title: p.ticketTitle,
       assigneeName: assignee.name,
@@ -283,7 +283,7 @@ export async function notifyUserTagged(p: {
     if (userId === p.taggedById) continue
     const user = users.get(userId)
     if (user) {
-      send(user.email, templates.userTagged({
+      await send(user.email, templates.userTagged({
         ticketId: p.ticketId,
         title: p.ticketTitle,
         taggedByName: tagger?.name ?? 'Someone',
@@ -308,7 +308,7 @@ export async function notifySlaAlert(p: {
   const agent = users.get(p.assignedTo)
 
   if (agent) {
-    send(agent.email, templates.slaAlert({
+    await send(agent.email, templates.slaAlert({
       ticketId: p.ticketId,
       title: p.ticketTitle,
       status: p.status,

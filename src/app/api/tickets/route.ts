@@ -195,8 +195,8 @@ export async function POST(request: Request) {
     }
   }
 
-  // ── Send email notifications (non-blocking) ────────────────────────────────
-  notifyTicketCreated({
+  // ── Send email notifications (must await — Vercel kills function after response) ──
+  await notifyTicketCreated({
     id: ticket.id,
     title: ticket.title,
     category: ticket.category,

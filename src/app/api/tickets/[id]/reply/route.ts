@@ -247,8 +247,8 @@ export async function POST(
     console.error('[reply] Failed to update ticket timestamp:', touchError)
   }
 
-  // ── Send email notifications (non-blocking) ────────────────────────────────
-  notifyNewReply({
+  // ── Send email notifications (must await — Vercel kills the function after response) ──
+  await notifyNewReply({
     ticketId,
     ticketTitle: ticket.title,
     authorId: userId,
@@ -259,7 +259,7 @@ export async function POST(
   })
 
   if (body.taggedAgents && body.taggedAgents.length > 0) {
-    notifyUserTagged({
+    await notifyUserTagged({
       ticketId,
       ticketTitle: ticket.title,
       taggedUserIds: body.taggedAgents,

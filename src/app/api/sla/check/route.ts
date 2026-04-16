@@ -116,7 +116,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Send SLA email alert
-    notifySlaAlert({
+    await notifySlaAlert({
       ticketId: ticket.id,
       ticketTitle: ticket.title,
       assignedTo: ticket.assigned_to,
