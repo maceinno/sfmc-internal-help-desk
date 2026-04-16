@@ -5,20 +5,25 @@ import * as templates from './templates'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 /**
- * Resolve user IDs to emails. Returns a map of userId -> { email, name }.
+ * Resolve user IDs to emails + roles. Returns a map of userId -> { email, name, role }.
  */
 async function resolveUsers(userIds: string[]) {
-  if (userIds.length === 0) return new Map<string, { email: string; name: string }>()
+  if (userIds.length === 0) return new Map<string, { email: string; name: string; role: string }>()
 
   const supabase = createAdminClient()
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('profiles')
-    .select('id, email, name')
+    .select('id, email, name, role')
     .in('id', userIds)
 
-  const map = new Map<string, { email: string; name: string }>()
+  if (error) {
+    console.error('[email] Failed to resolve users:', error)
+    return new Map<string, { email: string; name: string; role: string }>()
+  }
+
+  const map = new Map<string, { email: string; name: string; role: string }>()
   for (const u of data ?? []) {
-    map.set(u.id, { email: u.email, name: u.name })
+    map.set(u.id, { email: u.email, name: u.name, role: u.role })
   }
   return map
 }
@@ -96,106 +101,113 @@ export async function notifyNewReply(p: {
   createdBy: string
   assignedTo: string | null
 }) {
-  const supabase = createAdminClient()
+  try {
+    console.log(`[email] notifyNewReply called for ticket ${p.ticketId} by ${p.authorId}`)
 
-  // Fetch conversation history + ticket description
-  const { data: ticket } = await supabase
-    .from('tickets')
-    .select('description')
-    .eq('id', p.ticketId)
-    .single()
+    const supabase = createAdminClient()
 
-  const { data: messages } = await supabase
-    .from('messages')
-    .select('author_id, content, is_internal, created_at')
-    .eq('ticket_id', p.ticketId)
-    .order('created_at', { ascending: true })
+    // Fetch conversation history + ticket description
+    const { data: ticket } = await supabase
+      .from('tickets')
+      .select('description')
+      .eq('id', p.ticketId)
+      .single()
 
-  // Resolve all author IDs from the conversation
-  const allAuthorIds = new Set<string>([p.authorId, p.createdBy])
-  for (const msg of messages ?? []) {
-    allAuthorIds.add(msg.author_id)
-  }
-  const allUsers = await resolveUsers(Array.from(allAuthorIds))
+    const { data: messages } = await supabase
+      .from('messages')
+      .select('author_id, content, is_internal, created_at')
+      .eq('ticket_id', p.ticketId)
+      .order('created_at', { ascending: true })
 
-  // Build conversation thread (exclude the new message — it's shown separately)
-  const conversation: templates.ConversationMessage[] = (messages ?? [])
-    .filter((msg) => msg.content !== p.content) // Skip the new message
-    .map((msg) => ({
-      authorName: allUsers.get(msg.author_id)?.name ?? 'Unknown',
-      content: msg.content,
-      isInternal: msg.is_internal,
-      createdAt: msg.created_at,
-    }))
-
-  // Get CC'd user IDs
-  const { data: ccRows } = await supabase
-    .from('ticket_cc')
-    .select('user_id')
-    .eq('ticket_id', p.ticketId)
-
-  const ccUserIds = (ccRows ?? []).map((r) => r.user_id)
-
-  // Collect all recipients (deduplicated, excluding author)
-  const recipientIds = new Set<string>()
-
-  if (!p.isInternal) {
-    // Public reply: notify creator, assignee, CC'd users
-    recipientIds.add(p.createdBy)
-    if (p.assignedTo) recipientIds.add(p.assignedTo)
-    ccUserIds.forEach((id) => recipientIds.add(id))
-  } else {
-    // Internal note: only notify assignee and agents/admins who are CC'd or collaborators
-    if (p.assignedTo) recipientIds.add(p.assignedTo)
-
-    const { data: collabRows } = await supabase
-      .from('ticket_collaborators')
+    // Get CC'd user IDs
+    const { data: ccRows } = await supabase
+      .from('ticket_cc')
       .select('user_id')
       .eq('ticket_id', p.ticketId)
 
-    for (const r of collabRows ?? []) {
-      recipientIds.add(r.user_id)
-    }
-  }
+    const ccUserIds = (ccRows ?? []).map((r) => r.user_id)
 
-  // Remove the author
-  recipientIds.delete(p.authorId)
+    // Collect all recipients (deduplicated, excluding author)
+    const recipientIds = new Set<string>()
 
-  if (recipientIds.size === 0) return
-
-  const users = await resolveUsers(Array.from(recipientIds))
-  const authorName = allUsers.get(p.authorId)?.name ?? 'Someone'
-
-  // Filter conversation — employees should not see internal notes
-  const publicConversation = conversation.filter((msg) => !msg.isInternal)
-
-  for (const [userId, user] of users) {
-    // Determine if this recipient can see internal notes (agents/admins only)
-    const { data: recipientProfile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', userId)
-      .single()
-
-    const isAgentOrAdmin = recipientProfile?.role === 'agent' || recipientProfile?.role === 'admin'
-    const visibleConversation = isAgentOrAdmin ? conversation : publicConversation
-
-    const templateParams = {
-      ticketId: p.ticketId,
-      title: p.ticketTitle,
-      authorName,
-      content: p.content,
-      isInternal: p.isInternal,
-      description: ticket?.description,
-      conversation: visibleConversation,
-    }
-
-    // CC'd-only users get a slightly different header
-    if (ccUserIds.includes(userId) && userId !== p.createdBy && userId !== p.assignedTo) {
-      send(user.email, templates.ccNotification(templateParams))
+    if (!p.isInternal) {
+      recipientIds.add(p.createdBy)
+      if (p.assignedTo) recipientIds.add(p.assignedTo)
+      ccUserIds.forEach((id) => recipientIds.add(id))
     } else {
-      send(user.email, templates.newReply(templateParams))
+      if (p.assignedTo) recipientIds.add(p.assignedTo)
+
+      const { data: collabRows } = await supabase
+        .from('ticket_collaborators')
+        .select('user_id')
+        .eq('ticket_id', p.ticketId)
+
+      for (const r of collabRows ?? []) {
+        recipientIds.add(r.user_id)
+      }
     }
+
+    recipientIds.delete(p.authorId)
+
+    if (recipientIds.size === 0) {
+      console.log(`[email] notifyNewReply: no recipients after filtering`)
+      return
+    }
+
+    // Resolve all user IDs we need (recipients + message authors)
+    const allAuthorIds = new Set<string>([p.authorId, p.createdBy])
+    for (const msg of messages ?? []) {
+      allAuthorIds.add(msg.author_id)
+    }
+    for (const id of recipientIds) {
+      allAuthorIds.add(id)
+    }
+
+    const allUsers = await resolveUsers(Array.from(allAuthorIds))
+    const authorName = allUsers.get(p.authorId)?.name ?? 'Someone'
+
+    console.log(`[email] notifyNewReply: sending to ${recipientIds.size} recipients`)
+
+    // Build conversation thread
+    const conversation: templates.ConversationMessage[] = (messages ?? [])
+      .filter((msg) => msg.content !== p.content)
+      .map((msg) => ({
+        authorName: allUsers.get(msg.author_id)?.name ?? 'Unknown',
+        content: msg.content,
+        isInternal: msg.is_internal,
+        createdAt: msg.created_at,
+      }))
+
+    const publicConversation = conversation.filter((msg) => !msg.isInternal)
+
+    for (const userId of recipientIds) {
+      const user = allUsers.get(userId)
+      if (!user) {
+        console.log(`[email] notifyNewReply: skipping ${userId} — user not found`)
+        continue
+      }
+
+      const isAgentOrAdmin = user.role === 'agent' || user.role === 'admin'
+      const visibleConversation = isAgentOrAdmin ? conversation : publicConversation
+
+      const templateParams = {
+        ticketId: p.ticketId,
+        title: p.ticketTitle,
+        authorName,
+        content: p.content,
+        isInternal: p.isInternal,
+        description: ticket?.description,
+        conversation: visibleConversation,
+      }
+
+      if (ccUserIds.includes(userId) && userId !== p.createdBy && userId !== p.assignedTo) {
+        send(user.email, templates.ccNotification(templateParams))
+      } else {
+        send(user.email, templates.newReply(templateParams))
+      }
+    }
+  } catch (err) {
+    console.error('[email] notifyNewReply crashed:', err)
   }
 }
 
