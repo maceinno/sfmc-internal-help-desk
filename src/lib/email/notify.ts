@@ -147,7 +147,7 @@ export async function notifyNewReply(p: {
       }
     }
 
-    recipientIds.delete(p.authorId)
+    // All parties get every reply — including the author (for their records)
 
     if (recipientIds.size === 0) {
       console.log(`[email] notifyNewReply: no recipients after filtering`)
