@@ -25,7 +25,7 @@ export function SlaAtRiskTable({
 }: SlaAtRiskTableProps) {
   const router = useRouter()
 
-  const getUserName = (userId: string | null) => {
+  const getUserName = (userId: string | null | undefined) => {
     if (!userId) return null
     return users.find((u) => u.id === userId)?.name ?? null
   }
