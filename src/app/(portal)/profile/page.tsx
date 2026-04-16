@@ -245,7 +245,7 @@ export default function ProfilePage() {
               <Clock className="size-3.5 text-muted-foreground" />
               Timezone
             </Label>
-            <Select value={timezone} onValueChange={setTimezone}>
+            <Select value={timezone} onValueChange={(val) => { if (val) setTimezone(val) }}>
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
