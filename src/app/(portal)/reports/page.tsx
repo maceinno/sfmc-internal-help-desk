@@ -306,7 +306,7 @@ export default function ReportsPage() {
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       {/* Header */}
-      <div>
+      <div className="pb-6 border-b border-gray-200">
         <h1 className="text-2xl font-bold text-gray-900">
           Reports &amp; Analytics
         </h1>

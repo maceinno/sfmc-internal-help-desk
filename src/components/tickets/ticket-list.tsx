@@ -133,10 +133,10 @@ export function TicketList({ tickets, title, users }: TicketListProps) {
   return (
     <div className="flex flex-col h-full overflow-hidden bg-white">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+      <div className="px-6 py-4 border-b border-gray-200 bg-white flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">{title}</h1>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
+          <p className="text-sm text-gray-500 mt-0.5">
             {displayTickets.length} ticket{displayTickets.length !== 1 ? 's' : ''}
           </p>
         </div>

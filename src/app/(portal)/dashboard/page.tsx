@@ -48,7 +48,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center pb-6 border-b border-gray-200">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-500 mt-1">

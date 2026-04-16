@@ -86,7 +86,7 @@ export function TicketFilters({
   onSortDirectionChange,
 }: TicketFiltersProps) {
   return (
-    <div className="flex flex-wrap items-center gap-2 px-4 py-2 border-b border-gray-200 bg-gray-50/50">
+    <div className="flex flex-wrap items-center gap-2 px-6 py-3 border-b border-gray-200 bg-gray-50/50">
       {/* Search */}
       <div className="relative flex-1 min-w-[180px] max-w-xs">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
