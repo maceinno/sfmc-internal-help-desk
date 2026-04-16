@@ -23,16 +23,75 @@ function parseTime(timeStr: string): { hours: number; minutes: number } {
 }
 
 /**
+ * Get the date/time components in a specific timezone.
+ * Uses Intl.DateTimeFormat to convert from UTC to the target timezone.
+ */
+function getDateInTimezone(date: Date, timezone: string) {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+
+  const parts = formatter.formatToParts(date);
+  const get = (type: string) => parseInt(parts.find((p) => p.type === type)?.value ?? '0');
+
+  return {
+    year: get('year'),
+    month: get('month'), // 1-12
+    day: get('day'),
+    hours: get('hour') === 24 ? 0 : get('hour'), // midnight edge case
+    minutes: get('minute'),
+    seconds: get('second'),
+    dayOfWeek: new Date(
+      Date.UTC(get('year'), get('month') - 1, get('day'))
+    ).getUTCDay(),
+  };
+}
+
+/**
+ * Create a Date from timezone-local components.
+ * Finds the UTC instant that corresponds to the given local time in the timezone.
+ */
+function createDateInTimezone(
+  year: number,
+  month: number, // 1-12
+  day: number,
+  hours: number,
+  minutes: number,
+  seconds: number,
+  timezone: string,
+): Date {
+  // Start with a rough UTC guess
+  const guess = new Date(Date.UTC(year, month - 1, day, hours, minutes, seconds));
+
+  // Get what time that guess represents in the target timezone
+  const inTz = getDateInTimezone(guess, timezone);
+
+  // Calculate the offset and adjust
+  const guessMs = guess.getTime();
+  const diffHours = hours - inTz.hours;
+  const diffMinutes = minutes - inTz.minutes;
+  const offsetMs = (diffHours * 60 + diffMinutes) * 60 * 1000;
+
+  return new Date(guessMs + offsetMs);
+}
+
+/**
  * Check whether a given date falls on a holiday.
- *
- * @param date  - The date to test.
- * @param holidays - Array of objects with a `date` field in "YYYY-MM-DD" format.
  */
 export function isHoliday(
   date: Date,
   holidays: { date: string }[],
+  timezone: string = 'UTC',
 ): boolean {
-  const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  const tz = getDateInTimezone(date, timezone);
+  const dateStr = `${tz.year}-${String(tz.month).padStart(2, '0')}-${String(tz.day).padStart(2, '0')}`;
   return holidays.some((h) => h.date === dateStr);
 }
 
@@ -44,8 +103,11 @@ export function getBusinessHoursForDay(
   date: Date,
   schedule: DepartmentSchedule,
 ): BusinessHoursEntry | null {
-  if (isHoliday(date, schedule.holidays)) return null;
-  const dayName = DAY_MAP[date.getDay()];
+  const tz = schedule.timezone || 'America/New_York';
+  if (isHoliday(date, schedule.holidays, tz)) return null;
+
+  const tzDate = getDateInTimezone(date, tz);
+  const dayName = DAY_MAP[tzDate.dayOfWeek];
   const entry = schedule.business_hours.find((bh: BusinessHoursEntry) => bh.day === dayName);
   return entry && entry.enabled ? entry : null;
 }
@@ -55,17 +117,14 @@ export function getBusinessHoursForDay(
  *
  * Starting from `startDate`, walk forward through the schedule counting
  * only open hours until `hours` business hours have been consumed.
- *
- * @param startDate - Start timestamp (epoch ms or Date).
- * @param hours     - Number of business hours until the deadline.
- * @param schedule  - The department schedule to use.
- * @returns The deadline as epoch milliseconds.
+ * All time calculations are done in the schedule's timezone.
  */
 export function calculateBusinessHoursDeadline(
   startDate: number | Date,
   hours: number,
   schedule: DepartmentSchedule,
 ): number {
+  const tz = schedule.timezone || 'America/New_York';
   let remainingMs = hours * 60 * 60 * 1000;
   let cursor = new Date(typeof startDate === 'number' ? startDate : startDate.getTime());
 
@@ -77,33 +136,26 @@ export function calculateBusinessHoursDeadline(
     const entry = getBusinessHoursForDay(cursor, schedule);
 
     if (!entry) {
-      cursor = new Date(
-        cursor.getFullYear(),
-        cursor.getMonth(),
-        cursor.getDate() + 1,
-        0, 0, 0,
+      // Advance to midnight in the schedule's timezone
+      const tzDate = getDateInTimezone(cursor, tz);
+      cursor = createDateInTimezone(
+        tzDate.year, tzDate.month, tzDate.day + 1,
+        0, 0, 0, tz,
       );
       continue;
     }
 
+    const tzDate = getDateInTimezone(cursor, tz);
     const start = parseTime(entry.startTime);
     const end = parseTime(entry.endTime);
 
-    const dayStart = new Date(
-      cursor.getFullYear(),
-      cursor.getMonth(),
-      cursor.getDate(),
-      start.hours,
-      start.minutes,
-      0,
+    const dayStart = createDateInTimezone(
+      tzDate.year, tzDate.month, tzDate.day,
+      start.hours, start.minutes, 0, tz,
     );
-    const dayEnd = new Date(
-      cursor.getFullYear(),
-      cursor.getMonth(),
-      cursor.getDate(),
-      end.hours,
-      end.minutes,
-      0,
+    const dayEnd = createDateInTimezone(
+      tzDate.year, tzDate.month, tzDate.day,
+      end.hours, end.minutes, 0, tz,
     );
 
     if (cursor.getTime() < dayStart.getTime()) {
@@ -111,11 +163,9 @@ export function calculateBusinessHoursDeadline(
     }
 
     if (cursor.getTime() >= dayEnd.getTime()) {
-      cursor = new Date(
-        cursor.getFullYear(),
-        cursor.getMonth(),
-        cursor.getDate() + 1,
-        0, 0, 0,
+      cursor = createDateInTimezone(
+        tzDate.year, tzDate.month, tzDate.day + 1,
+        0, 0, 0, tz,
       );
       continue;
     }
@@ -126,38 +176,31 @@ export function calculateBusinessHoursDeadline(
       return cursor.getTime() + remainingMs;
     } else {
       remainingMs -= availableMs;
-      cursor = new Date(
-        cursor.getFullYear(),
-        cursor.getMonth(),
-        cursor.getDate() + 1,
-        0, 0, 0,
+      cursor = createDateInTimezone(
+        tzDate.year, tzDate.month, tzDate.day + 1,
+        0, 0, 0, tz,
       );
     }
   }
 
-  // Fallback: if iterations are exhausted, return best-effort future timestamp
   return cursor.getTime() + remainingMs;
 }
 
 /**
  * Calculate how many business-hours milliseconds have elapsed between
  * two points in time, counting only scheduled business hours.
- *
- * @param startDate - Start timestamp (epoch ms or Date).
- * @param endDate   - End timestamp (epoch ms or Date).
- * @param schedule  - The department schedule to use.
- * @returns Elapsed business-hours time in milliseconds.
+ * All time calculations are done in the schedule's timezone.
  */
 export function calculateBusinessHoursElapsed(
   startDate: number | Date,
   endDate: number | Date,
   schedule: DepartmentSchedule,
 ): number {
-  const startMs = typeof startDate === 'number' ? startDate : startDate.getTime();
+  const tz = schedule.timezone || 'America/New_York';
   const endMs = typeof endDate === 'number' ? endDate : endDate.getTime();
 
   let elapsed = 0;
-  let cursor = new Date(startMs);
+  let cursor = new Date(typeof startDate === 'number' ? startDate : startDate.getTime());
 
   const maxIterations = 365;
   let iterations = 0;
@@ -167,33 +210,25 @@ export function calculateBusinessHoursElapsed(
     const entry = getBusinessHoursForDay(cursor, schedule);
 
     if (!entry) {
-      cursor = new Date(
-        cursor.getFullYear(),
-        cursor.getMonth(),
-        cursor.getDate() + 1,
-        0, 0, 0,
+      const tzDate = getDateInTimezone(cursor, tz);
+      cursor = createDateInTimezone(
+        tzDate.year, tzDate.month, tzDate.day + 1,
+        0, 0, 0, tz,
       );
       continue;
     }
 
+    const tzDate = getDateInTimezone(cursor, tz);
     const start = parseTime(entry.startTime);
     const end = parseTime(entry.endTime);
 
-    const dayStart = new Date(
-      cursor.getFullYear(),
-      cursor.getMonth(),
-      cursor.getDate(),
-      start.hours,
-      start.minutes,
-      0,
+    const dayStart = createDateInTimezone(
+      tzDate.year, tzDate.month, tzDate.day,
+      start.hours, start.minutes, 0, tz,
     );
-    const dayEnd = new Date(
-      cursor.getFullYear(),
-      cursor.getMonth(),
-      cursor.getDate(),
-      end.hours,
-      end.minutes,
-      0,
+    const dayEnd = createDateInTimezone(
+      tzDate.year, tzDate.month, tzDate.day,
+      end.hours, end.minutes, 0, tz,
     );
 
     if (cursor.getTime() < dayStart.getTime()) {
@@ -201,22 +236,18 @@ export function calculateBusinessHoursElapsed(
     }
 
     if (cursor.getTime() >= dayEnd.getTime()) {
-      cursor = new Date(
-        cursor.getFullYear(),
-        cursor.getMonth(),
-        cursor.getDate() + 1,
-        0, 0, 0,
+      cursor = createDateInTimezone(
+        tzDate.year, tzDate.month, tzDate.day + 1,
+        0, 0, 0, tz,
       );
       continue;
     }
 
     const periodEnd = Math.min(dayEnd.getTime(), endMs);
     elapsed += periodEnd - cursor.getTime();
-    cursor = new Date(
-      cursor.getFullYear(),
-      cursor.getMonth(),
-      cursor.getDate() + 1,
-      0, 0, 0,
+    cursor = createDateInTimezone(
+      tzDate.year, tzDate.month, tzDate.day + 1,
+      0, 0, 0, tz,
     );
   }
 

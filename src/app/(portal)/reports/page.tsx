@@ -240,6 +240,54 @@ export default function ReportsPage() {
     )
   }, [categoryBreakdown])
 
+  // ── Monthly agent/department breakdown ─────────────────────────────────────
+
+  const monthlyBreakdown = useMemo(() => {
+    const rows: {
+      month: string
+      agent: string
+      department: string
+      new: number
+      open: number
+      pending: number
+      onHold: number
+      solved: number
+      total: number
+    }[] = []
+
+    const byKey = new Map<string, typeof rows[0]>()
+
+    tickets.forEach((t) => {
+      const date = new Date(t.created_at)
+      const month = date.toLocaleString('en-US', { month: 'short', year: 'numeric' })
+      const agent = t.assigned_to
+        ? (users.find((u) => u.id === t.assigned_to)?.name ?? 'Unknown')
+        : 'Unassigned'
+      const department = t.ticket_type ?? 'Other'
+      const key = `${month}|${agent}|${department}`
+
+      if (!byKey.has(key)) {
+        byKey.set(key, { month, agent, department, new: 0, open: 0, pending: 0, onHold: 0, solved: 0, total: 0 })
+      }
+      const row = byKey.get(key)!
+      row.total++
+      if (t.status === 'new') row.new++
+      else if (t.status === 'open') row.open++
+      else if (t.status === 'pending') row.pending++
+      else if (t.status === 'on_hold') row.onHold++
+      else if (t.status === 'solved') row.solved++
+    })
+
+    return Array.from(byKey.values()).sort((a, b) => {
+      // Sort by month desc, then agent, then department
+      const ma = new Date(a.month).getTime()
+      const mb = new Date(b.month).getTime()
+      if (mb !== ma) return mb - ma
+      if (a.agent !== b.agent) return a.agent.localeCompare(b.agent)
+      return a.department.localeCompare(b.department)
+    })
+  }, [tickets, users])
+
   // ── Loading state ─────────────────────────────────────────────────────────
 
   if (isLoading) {
@@ -536,6 +584,51 @@ export default function ReportsPage() {
           </table>
         </div>
       </div>
+      {/* Monthly Agent/Department Breakdown */}
+      {monthlyBreakdown.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="p-6 border-b border-gray-100">
+            <h3 className="font-semibold text-gray-900">
+              Tickets Per Month Per Agent Per Department
+            </h3>
+            <p className="text-sm text-gray-500 mt-1">
+              Breakdown of ticket volume by month, assigned agent, and department.
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Month</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Agent</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">New</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Open</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Pending</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">On Hold</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Solved</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {monthlyBreakdown.map((row, idx) => (
+                  <tr key={idx} className={idx % 2 === 0 ? '' : 'bg-gray-50/50'}>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{row.month}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{row.agent}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{row.department}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-yellow-600 font-medium">{row.new || '-'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-red-600 font-medium">{row.open || '-'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-blue-600 font-medium">{row.pending || '-'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-900 font-medium">{row.onHold || '-'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-500">{row.solved || '-'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-center font-bold text-gray-900">{row.total}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

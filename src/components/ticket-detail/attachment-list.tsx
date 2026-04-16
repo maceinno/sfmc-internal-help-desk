@@ -221,13 +221,17 @@ export function AttachmentList({
                           </div>
                         </div>
                         <div className="flex items-center gap-1">
-                          <button
-                            type="button"
+                          <a
+                            href={displayFile.url ?? '#'}
+                            download={displayFile.file_name}
+                            target="_blank"
+                            rel="noopener noreferrer"
                             className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-blue-50 hover:text-blue-600"
                             title={`Download ${displayFile.file_name}`}
+                            onClick={(e) => { if (!displayFile.url) e.preventDefault() }}
                           >
                             <Download className="h-4 w-4" />
-                          </button>
+                          </a>
                           {olderFiles.length > 0 && (
                             <button
                               type="button"
@@ -298,13 +302,17 @@ export function AttachmentList({
                                 </p>
                               </div>
                             </div>
-                            <button
-                              type="button"
+                            <a
+                              href={att.url ?? '#'}
+                              download={att.file_name}
+                              target="_blank"
+                              rel="noopener noreferrer"
                               className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-blue-50 hover:text-blue-600"
                               title={`Download ${att.file_name}`}
+                              onClick={(e) => { if (!att.url) e.preventDefault() }}
                             >
                               <Download className="h-3.5 w-3.5" />
-                            </button>
+                            </a>
                           </div>
                         )
                       })}
@@ -378,13 +386,17 @@ export function AttachmentList({
                       </p>
                     </div>
                   </div>
-                  <button
-                    type="button"
+                  <a
+                    href={att.url ?? '#'}
+                    download={att.file_name}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="ml-3 shrink-0 rounded-lg p-2 text-muted-foreground transition-colors hover:bg-blue-50 hover:text-blue-600"
                     title={`Download ${att.file_name}`}
+                    onClick={(e) => { if (!att.url) e.preventDefault() }}
                   >
                     <Download className="h-4 w-4" />
-                  </button>
+                  </a>
                 </div>
               )
             })}

@@ -171,13 +171,17 @@ export function MessageThread({
                     {att.version && <span className="ml-1">v{att.version}</span>}
                   </p>
                 </div>
-                <button
-                  type="button"
+                <a
+                  href={att.url ?? '#'}
+                  download={att.file_name}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="shrink-0 rounded p-1 text-muted-foreground transition-colors hover:text-blue-600"
                   title={`Download ${att.file_name}`}
+                  onClick={(e) => { if (!att.url) e.preventDefault() }}
                 >
                   <Download className="h-3.5 w-3.5" />
-                </button>
+                </a>
               </div>
             ))}
           </div>

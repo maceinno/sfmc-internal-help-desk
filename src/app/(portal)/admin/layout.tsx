@@ -13,6 +13,7 @@ const ADMIN_TABS = [
   { label: 'Routing', href: '/admin/routing' },
   { label: 'Categories', href: '/admin/categories' },
   { label: 'Custom Fields', href: '/admin/custom-fields' },
+  { label: 'Regions & Branches', href: '/admin/regions-branches' },
   { label: 'Branding', href: '/admin/branding' },
   { label: 'Import', href: '/admin/import' },
 ] as const
