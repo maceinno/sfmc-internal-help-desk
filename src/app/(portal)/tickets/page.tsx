@@ -192,10 +192,18 @@ export default function TicketsPage() {
     }
   }, [searchParams, setActiveViewId])
 
-  // Collapsible group state
+  // Collapsible group state — department groups collapsed by default
   const [collapsedGroups, setCollapsedGroups] = useState<
     Record<string, boolean>
-  >({})
+  >(() => {
+    const initial: Record<string, boolean> = {}
+    // Collapse all groups except Global, My Queue, By Status
+    for (const cat of TICKET_CATEGORIES) {
+      initial[cat] = true
+    }
+    initial['Other'] = true
+    return initial
+  })
 
   const toggleGroup = (groupName: string) => {
     setCollapsedGroups((prev) => ({
