@@ -295,13 +295,31 @@ export function Sidebar() {
           {/* User Profile */}
           <div className="p-4">
             <div className="flex items-center space-x-3 p-2 rounded-lg">
-              <div className="w-10 h-10 rounded-full border-2 border-slate-700 bg-slate-700 flex items-center justify-center text-sm font-semibold text-white">
-                {profile?.name?.charAt(0)?.toUpperCase() ?? '?'}
-              </div>
-              <div className="flex-1 min-w-0">
+              <Link
+                href="/profile"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex-shrink-0"
+              >
+                {profile?.avatar_url ? (
+                  <img
+                    src={profile.avatar_url}
+                    alt={profile.name}
+                    className="w-10 h-10 rounded-full border-2 border-slate-700 object-cover hover:border-slate-500 transition-colors"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full border-2 border-slate-700 bg-slate-700 flex items-center justify-center text-sm font-semibold text-white hover:border-slate-500 transition-colors">
+                    {profile?.name?.charAt(0)?.toUpperCase() ?? '?'}
+                  </div>
+                )}
+              </Link>
+              <Link
+                href="/profile"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex-1 min-w-0 hover:opacity-80 transition-opacity"
+              >
                 <p className="text-sm font-medium text-white truncate">{profile?.name ?? 'Loading...'}</p>
                 <p className="text-xs text-slate-400 truncate capitalize">{profile?.role ?? ''}</p>
-              </div>
+              </Link>
               <div className="flex items-center gap-1">
                 {(isAdmin || isRealAdmin) && (
                   <Link

@@ -41,7 +41,7 @@ export async function POST(request: Request) {
   // Read the profile from Supabase (source of truth)
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('role, has_branch_access, has_regional_access')
+    .select('name, role, has_branch_access, has_regional_access')
     .eq('id', userId)
     .single()
 
@@ -52,8 +52,17 @@ export async function POST(request: Request) {
     )
   }
 
-  // Sync to Clerk publicMetadata
+  // Sync to Clerk
   const client = await clerkClient()
+
+  // Sync name
+  const nameParts = profile.name.trim().split(/\s+/)
+  await client.users.updateUser(userId, {
+    firstName: nameParts[0],
+    lastName: nameParts.length > 1 ? nameParts.slice(1).join(' ') : '',
+  })
+
+  // Sync publicMetadata
   await client.users.updateUserMetadata(userId, {
     publicMetadata: {
       role: profile.role,

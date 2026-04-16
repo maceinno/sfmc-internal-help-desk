@@ -160,6 +160,7 @@ export default function UsersPage() {
       const supabase = createClerkSupabaseClient(token)
 
       const payload = {
+        name: data.name,
         role: data.role,
         department: data.department || null,
         departments: data.departments.length > 0 ? data.departments : null,
@@ -523,16 +524,20 @@ export default function UsersPage() {
             </DialogHeader>
 
             <div className="grid gap-4 py-2">
-              {/* Name (read-only) */}
+              {/* Name (editable) */}
               <div className="grid gap-1.5">
                 <Label>Name</Label>
-                <Input value={form.name} disabled />
+                <Input
+                  value={form.name}
+                  onChange={(e) => setForm((f) => f ? { ...f, name: e.target.value } : f)}
+                />
               </div>
 
               {/* Email (read-only) */}
               <div className="grid gap-1.5">
                 <Label>Email</Label>
                 <Input value={form.email} disabled />
+                <p className="text-xs text-muted-foreground">Email is managed by Clerk and cannot be changed here.</p>
               </div>
 
               {/* Role */}
