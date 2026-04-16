@@ -10,6 +10,7 @@ import {
   Shield,
   Mail,
   Building2,
+  Clock,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useCurrentUser } from '@/hooks/use-current-user'
@@ -23,6 +24,23 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+
+const US_TIMEZONES = [
+  { value: 'America/New_York', label: 'Eastern Time (ET)' },
+  { value: 'America/Chicago', label: 'Central Time (CT)' },
+  { value: 'America/Denver', label: 'Mountain Time (MT)' },
+  { value: 'America/Los_Angeles', label: 'Pacific Time (PT)' },
+  { value: 'America/Anchorage', label: 'Alaska Time (AKT)' },
+  { value: 'Pacific/Honolulu', label: 'Hawaii Time (HT)' },
+  { value: 'America/Phoenix', label: 'Arizona (no DST)' },
+]
 
 export default function ProfilePage() {
   const { profile, isLoading, user } = useCurrentUser()
@@ -30,6 +48,7 @@ export default function ProfilePage() {
 
   const [name, setName] = useState('')
   const [department, setDepartment] = useState('')
+  const [timezone, setTimezone] = useState('America/Chicago')
   const [saving, setSaving] = useState(false)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -38,6 +57,7 @@ export default function ProfilePage() {
     if (profile) {
       setName(profile.name)
       setDepartment(profile.department ?? '')
+      setTimezone(profile.timezone ?? 'America/Chicago')
     }
   }, [profile])
 
@@ -53,6 +73,7 @@ export default function ProfilePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: name.trim(),
+          timezone,
         }),
       })
       if (!res.ok) {
@@ -216,6 +237,28 @@ export default function ProfilePage() {
             <Input value={profile.department ?? 'Not assigned'} disabled />
             <p className="text-xs text-muted-foreground">
               Department is managed by administrators.
+            </p>
+          </div>
+
+          <div className="grid gap-1.5">
+            <Label className="flex items-center gap-1.5">
+              <Clock className="size-3.5 text-muted-foreground" />
+              Timezone
+            </Label>
+            <Select value={timezone} onValueChange={setTimezone}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {US_TIMEZONES.map((tz) => (
+                  <SelectItem key={tz.value} value={tz.value}>
+                    {tz.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Used for SLA calculations and time displays.
             </p>
           </div>
 

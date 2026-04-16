@@ -299,7 +299,7 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO department_schedules (id, department_name, timezone, business_hours, holidays, enabled) VALUES
   ('sched-closing',
    'Closing Support',
-   'America/New_York',
+   'America/Chicago',
    '[
      {"day": "monday",    "enabled": true,  "startTime": "08:00", "endTime": "17:00"},
      {"day": "tuesday",   "enabled": true,  "startTime": "08:00", "endTime": "17:00"},
@@ -325,7 +325,7 @@ INSERT INTO department_schedules (id, department_name, timezone, business_hours,
 
   ('sched-it',
    'IT Support',
-   'America/New_York',
+   'America/Chicago',
    '[
      {"day": "monday",    "enabled": true,  "startTime": "07:00", "endTime": "19:00"},
      {"day": "tuesday",   "enabled": true,  "startTime": "07:00", "endTime": "19:00"},
@@ -351,7 +351,7 @@ INSERT INTO department_schedules (id, department_name, timezone, business_hours,
 
   ('sched-lending',
    'Lending Support',
-   'America/New_York',
+   'America/Chicago',
    '[
      {"day": "monday",    "enabled": true,  "startTime": "08:00", "endTime": "17:00"},
      {"day": "tuesday",   "enabled": true,  "startTime": "08:00", "endTime": "17:00"},
@@ -377,7 +377,7 @@ INSERT INTO department_schedules (id, department_name, timezone, business_hours,
 
   ('sched-marketing',
    'Marketing Support',
-   'America/New_York',
+   'America/Chicago',
    '[
      {"day": "monday",    "enabled": true,  "startTime": "08:00", "endTime": "17:00"},
      {"day": "tuesday",   "enabled": true,  "startTime": "08:00", "endTime": "17:00"},
@@ -403,7 +403,7 @@ INSERT INTO department_schedules (id, department_name, timezone, business_hours,
 
   ('sched-payoff',
    'Payoff Request',
-   'America/New_York',
+   'America/Chicago',
    '[
      {"day": "monday",    "enabled": true,  "startTime": "08:00", "endTime": "17:00"},
      {"day": "tuesday",   "enabled": true,  "startTime": "08:00", "endTime": "17:00"},
@@ -429,7 +429,7 @@ INSERT INTO department_schedules (id, department_name, timezone, business_hours,
 
   ('sched-product-desk',
    'Product Desk (Non-Agency Products)',
-   'America/New_York',
+   'America/Chicago',
    '[
      {"day": "monday",    "enabled": true,  "startTime": "08:00", "endTime": "17:00"},
      {"day": "tuesday",   "enabled": true,  "startTime": "08:00", "endTime": "17:00"},
@@ -455,7 +455,7 @@ INSERT INTO department_schedules (id, department_name, timezone, business_hours,
 
   ('sched-secondary',
    'Secondary Support',
-   'America/New_York',
+   'America/Chicago',
    '[
      {"day": "monday",    "enabled": true,  "startTime": "08:00", "endTime": "17:00"},
      {"day": "tuesday",   "enabled": true,  "startTime": "08:00", "endTime": "17:00"},

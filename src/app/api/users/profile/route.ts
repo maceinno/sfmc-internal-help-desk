@@ -16,7 +16,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  let body: { name?: string; department?: string; avatarUrl?: string }
+  let body: { name?: string; department?: string; avatarUrl?: string; timezone?: string }
   try {
     body = await request.json()
   } catch {
@@ -30,6 +30,7 @@ export async function PATCH(request: Request) {
   if (body.name?.trim()) payload.name = body.name.trim()
   if (body.department !== undefined) payload.department = body.department || null
   if (body.avatarUrl !== undefined) payload.avatar_url = body.avatarUrl || null
+  if (body.timezone) payload.timezone = body.timezone
 
   if (Object.keys(payload).length === 0) {
     return NextResponse.json({ error: 'No fields to update' }, { status: 400 })

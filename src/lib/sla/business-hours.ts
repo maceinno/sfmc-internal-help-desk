@@ -103,7 +103,7 @@ export function getBusinessHoursForDay(
   date: Date,
   schedule: DepartmentSchedule,
 ): BusinessHoursEntry | null {
-  const tz = schedule.timezone || 'America/New_York';
+  const tz = schedule.timezone || 'America/Chicago';
   if (isHoliday(date, schedule.holidays, tz)) return null;
 
   const tzDate = getDateInTimezone(date, tz);
@@ -124,7 +124,7 @@ export function calculateBusinessHoursDeadline(
   hours: number,
   schedule: DepartmentSchedule,
 ): number {
-  const tz = schedule.timezone || 'America/New_York';
+  const tz = schedule.timezone || 'America/Chicago';
   let remainingMs = hours * 60 * 60 * 1000;
   let cursor = new Date(typeof startDate === 'number' ? startDate : startDate.getTime());
 
@@ -196,7 +196,7 @@ export function calculateBusinessHoursElapsed(
   endDate: number | Date,
   schedule: DepartmentSchedule,
 ): number {
-  const tz = schedule.timezone || 'America/New_York';
+  const tz = schedule.timezone || 'America/Chicago';
   const endMs = typeof endDate === 'number' ? endDate : endDate.getTime();
 
   let elapsed = 0;

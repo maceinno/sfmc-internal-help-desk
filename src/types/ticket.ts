@@ -96,6 +96,7 @@ export interface User {
   managed_region_id?: string
   has_branch_access?: boolean
   managed_branch_id?: string
+  timezone?: string
 }
 
 /** A single message within a ticket conversation thread. */

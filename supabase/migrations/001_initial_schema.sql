@@ -273,7 +273,7 @@ CREATE TRIGGER trg_sla_policies_updated_at
 CREATE TABLE department_schedules (
     id              text PRIMARY KEY,
     department_name text NOT NULL,
-    timezone        text NOT NULL DEFAULT 'America/New_York',
+    timezone        text NOT NULL DEFAULT 'America/Chicago',
     business_hours  jsonb NOT NULL DEFAULT '[]',
     holidays        jsonb NOT NULL DEFAULT '[]',
     enabled         boolean NOT NULL DEFAULT true,
