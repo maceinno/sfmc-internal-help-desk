@@ -3,7 +3,7 @@
  * All templates follow a consistent branded layout.
  */
 
-const PORTAL_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://help.sfmchl.com'
+const PORTAL_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://help.sfmc.com'
 
 function ticketUrl(ticketId: string) {
   return `${PORTAL_URL}/tickets/${ticketId}`

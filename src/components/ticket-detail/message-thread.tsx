@@ -57,6 +57,9 @@ export function MessageThread({
 
   const creator = getUser(ticketCreatedBy)
 
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null)
+  const bottomRef = React.useRef<HTMLDivElement>(null)
+
   const sortedMessages = React.useMemo(() => {
     return [...messages].sort((a, b) => {
       const timeA = new Date(a.created_at).getTime()
@@ -64,6 +67,15 @@ export function MessageThread({
       return sortOrder === "oldest" ? timeA - timeB : timeB - timeA
     })
   }, [messages, sortOrder])
+
+  // Scroll to bottom when messages change (new reply added)
+  const prevMessageCount = React.useRef(messages.length)
+  React.useEffect(() => {
+    if (messages.length > prevMessageCount.current && sortOrder === "oldest") {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+    }
+    prevMessageCount.current = messages.length
+  }, [messages.length, sortOrder])
 
   const renderOriginalRequest = () => (
     <div className="flex gap-4">
@@ -248,10 +260,11 @@ export function MessageThread({
       )}
 
       {/* Messages */}
-      <div className="flex-1 space-y-8 overflow-y-auto p-6">
+      <div ref={scrollContainerRef} className="flex-1 space-y-8 overflow-y-auto p-6">
         {sortOrder === "oldest" && renderOriginalRequest()}
         {sortedMessages.map(renderMessage)}
         {sortOrder === "newest" && renderOriginalRequest()}
+        <div ref={bottomRef} />
       </div>
     </div>
   )

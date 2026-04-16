@@ -8,6 +8,7 @@ import {
   AtSign,
   X,
   FileText,
+  Loader2,
   ImageIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -31,7 +32,7 @@ interface ReplyComposerProps {
     taggedAgents?: string[]
     attachments?: File[]
     cannedResponseId?: string
-  }) => void
+  }) => void | Promise<void>
   onCannedResponseSelect?: (response: CannedResponse) => void
 }
 
@@ -65,6 +66,7 @@ export function ReplyComposer({
   const [selectedFiles, setSelectedFiles] = React.useState<File[]>([])
   const [showFileUpload, setShowFileUpload] = React.useState(false)
   const [pendingCannedResponseId, setPendingCannedResponseId] = React.useState<string | undefined>()
+  const [isSending, setIsSending] = React.useState(false)
   const textareaRef = React.useRef<HTMLTextAreaElement>(null)
 
   const isAgentOrAdmin =
@@ -117,20 +119,25 @@ export function ReplyComposer({
     setTaggedInMessage(taggedInMessage.filter((id) => id !== userId))
   }
 
-  const handleSend = () => {
-    if (!replyText.trim()) return
-    onSubmit({
-      content: replyText,
-      isInternal: isInternalNote,
-      taggedAgents: taggedInMessage.length > 0 ? taggedInMessage : undefined,
-      attachments: selectedFiles.length > 0 ? selectedFiles : undefined,
-      cannedResponseId: pendingCannedResponseId,
-    })
-    setReplyText("")
-    setTaggedInMessage([])
-    setSelectedFiles([])
-    setShowFileUpload(false)
-    setPendingCannedResponseId(undefined)
+  const handleSend = async () => {
+    if (!replyText.trim() || isSending) return
+    setIsSending(true)
+    try {
+      await onSubmit({
+        content: replyText,
+        isInternal: isInternalNote,
+        taggedAgents: taggedInMessage.length > 0 ? taggedInMessage : undefined,
+        attachments: selectedFiles.length > 0 ? selectedFiles : undefined,
+        cannedResponseId: pendingCannedResponseId,
+      })
+      setReplyText("")
+      setTaggedInMessage([])
+      setSelectedFiles([])
+      setShowFileUpload(false)
+      setPendingCannedResponseId(undefined)
+    } finally {
+      setIsSending(false)
+    }
   }
 
   const handleCannedResponseSelect = (response: CannedResponse) => {
@@ -435,7 +442,7 @@ export function ReplyComposer({
           </div>
           <Button
             onClick={handleSend}
-            disabled={!replyText.trim()}
+            disabled={!replyText.trim() || isSending}
             size="default"
             className={
               isInternalNote && replyText.trim()
@@ -443,8 +450,17 @@ export function ReplyComposer({
                 : ""
             }
           >
-            <Send className="mr-2 h-4 w-4" />
-            {isInternalNote ? "Add Note" : "Send Reply"}
+            {isSending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Sending...
+              </>
+            ) : (
+              <>
+                <Send className="mr-2 h-4 w-4" />
+                {isInternalNote ? "Add Note" : "Send Reply"}
+              </>
+            )}
           </Button>
         </div>
       </div>
