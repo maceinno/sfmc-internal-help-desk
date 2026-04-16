@@ -22,6 +22,7 @@ import { Separator } from "@/components/ui/separator"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { UserAutocomplete } from "@/components/shared/user-autocomplete"
 import { SlaIndicator } from "@/components/tickets/sla-indicator"
+import { useTimezone } from "@/hooks/use-timezone"
 import { canEditTicket, canViewInternalNotes } from "@/lib/permissions/policies"
 import type {
   Ticket,
@@ -95,6 +96,7 @@ export function TicketSidebarPanel({
   schedules,
   teams = [],
 }: TicketSidebarPanelProps) {
+  const { formatDateTime } = useTimezone()
   const isEditable = canEditTicket(currentUser, ticket)
   const isAgentOrAdmin =
     currentUser.role === "agent" || currentUser.role === "admin"
@@ -525,7 +527,7 @@ export function TicketSidebarPanel({
               Created
             </span>
             <span className="text-gray-900">
-              {new Date(ticket.created_at).toLocaleDateString()}
+              {formatDateTime(ticket.created_at)}
             </span>
           </div>
           <div className="flex items-center justify-between">
@@ -534,7 +536,7 @@ export function TicketSidebarPanel({
               Updated
             </span>
             <span className="text-gray-900">
-              {new Date(ticket.updated_at).toLocaleDateString()}
+              {formatDateTime(ticket.updated_at)}
             </span>
           </div>
         </div>

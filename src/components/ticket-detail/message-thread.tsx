@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { ArrowUpDown, Lock, Paperclip, Search, Download } from "lucide-react"
+import { useTimezone } from "@/hooks/use-timezone"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -46,6 +47,7 @@ export function MessageThread({
   attachments = [],
   onImageClick,
 }: MessageThreadProps) {
+  const { formatDateTime } = useTimezone()
   const [sortOrder, setSortOrder] = React.useState<"oldest" | "newest">(
     "oldest"
   )
@@ -102,7 +104,7 @@ export function MessageThread({
             )}
           </div>
           <span className="text-sm text-muted-foreground">
-            {new Date(ticketCreatedAt).toLocaleString()}
+            {formatDateTime(ticketCreatedAt)}
           </span>
         </div>
         <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 text-gray-800">
@@ -226,7 +228,7 @@ export function MessageThread({
                 )}
               </div>
               <span className="text-sm text-muted-foreground">
-                {new Date(message.created_at).toLocaleString()}
+                {formatDateTime(message.created_at)}
               </span>
             </div>
             <div className="text-gray-800">

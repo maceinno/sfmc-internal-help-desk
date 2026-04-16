@@ -23,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { useTimezone } from "@/hooks/use-timezone"
 import type { Attachment, User } from "@/types"
 
 interface AttachmentListProps {
@@ -92,6 +93,7 @@ export function AttachmentList({
   users,
   onImageClick,
 }: AttachmentListProps) {
+  const { formatDate } = useTimezone()
   const [expandedVersionGroups, setExpandedVersionGroups] = React.useState<
     Set<string>
   >(new Set())
@@ -294,9 +296,7 @@ export function AttachmentList({
                                     <span>
                                       {" "}
                                       &bull;{" "}
-                                      {new Date(
-                                        att.created_at
-                                      ).toLocaleDateString()}
+                                      {formatDate(att.created_at)}
                                     </span>
                                   )}
                                 </p>
@@ -380,7 +380,7 @@ export function AttachmentList({
                           <span>
                             {" "}
                             &bull;{" "}
-                            {new Date(att.created_at).toLocaleDateString()}
+                            {formatDate(att.created_at)}
                           </span>
                         )}
                       </p>

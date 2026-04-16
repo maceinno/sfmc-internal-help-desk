@@ -3,9 +3,11 @@
 import { useRouter } from 'next/navigation'
 import { Bell, AlertTriangle } from 'lucide-react'
 import { useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead } from '@/hooks/use-notifications'
+import { useTimezone } from '@/hooks/use-timezone'
 import { useNotificationStore } from '@/stores/notification-store'
 
 export function NotificationPanel() {
+  const { formatRelative } = useTimezone()
   const router = useRouter()
   const { data: notifications = [] } = useNotifications()
   const markRead = useMarkNotificationRead()
@@ -64,7 +66,7 @@ export function NotificationPanel() {
                   </p>
                   <p className="text-xs text-slate-500 mt-1 truncate">{notif.ticket_title}</p>
                   <p className="text-[10px] text-slate-500 mt-1">
-                    {new Date(notif.created_at).toLocaleString()}
+                    {formatRelative(notif.created_at)}
                   </p>
                 </div>
               </button>

@@ -3,6 +3,7 @@
 import { useMemo } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useTimezone } from '@/hooks/use-timezone'
 import { ArrowRight, Loader2 } from 'lucide-react'
 import { useTickets } from '@/hooks/use-tickets'
 import { useSlaPolicies } from '@/hooks/use-admin-config'
@@ -17,6 +18,7 @@ export default function DashboardPage() {
   const { data: tickets = [], isLoading: ticketsLoading } = useTickets()
   const { data: policies = [] } = useSlaPolicies()
   const router = useRouter()
+  const { formatDate } = useTimezone()
 
   const stats = useMemo(() => {
     const newCount = tickets.filter((t) => t.status === 'new').length
@@ -158,7 +160,7 @@ export default function DashboardPage() {
                         <PriorityBadge priority={ticket.priority} />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(ticket.created_at).toLocaleDateString()}
+                        {formatDate(ticket.created_at)}
                       </td>
                     </tr>
                   )

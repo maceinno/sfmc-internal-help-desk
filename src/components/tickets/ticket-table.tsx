@@ -1,6 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { useTimezone } from '@/hooks/use-timezone'
 import { ArrowUpDown, Inbox } from 'lucide-react'
 import {
   Table,
@@ -65,6 +66,7 @@ export function TicketTable({
   onSort,
   searchTerm,
 }: TicketTableProps) {
+  const { formatDate } = useTimezone()
   const router = useRouter()
 
   const handleRowClick = (ticketId: string) => {
@@ -170,7 +172,7 @@ export function TicketTable({
                 )}
               </TableCell>
               <TableCell className="text-sm text-gray-500">
-                {new Date(ticket.created_at).toLocaleDateString()}
+                {formatDate(ticket.created_at)}
               </TableCell>
               <TableCell>
                 <SlaIndicator ticket={ticket} />
