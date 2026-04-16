@@ -205,16 +205,23 @@ export default function ReportsPage() {
   // ── Category breakdown table ──────────────────────────────────────────────
 
   const categoryBreakdown = useMemo(() => {
-    return ALL_CATEGORIES.map((cat) => {
-      const catTickets = tickets.filter((t) => t.category === cat)
+    // Group by ticket_type (the department), not category
+    const typeSet = new Set<string>()
+    tickets.forEach((t) => {
+      if (t.ticket_type) typeSet.add(t.ticket_type)
+    })
+    const types = Array.from(typeSet).sort()
+
+    return types.map((type) => {
+      const typeTickets = tickets.filter((t) => t.ticket_type === type)
       return {
-        category: cat,
-        new: catTickets.filter((t) => t.status === 'new').length,
-        open: catTickets.filter((t) => t.status === 'open').length,
-        pending: catTickets.filter((t) => t.status === 'pending').length,
-        onHold: catTickets.filter((t) => t.status === 'on_hold').length,
-        solved: catTickets.filter((t) => t.status === 'solved').length,
-        total: catTickets.length,
+        category: type,
+        new: typeTickets.filter((t) => t.status === 'new').length,
+        open: typeTickets.filter((t) => t.status === 'open').length,
+        pending: typeTickets.filter((t) => t.status === 'pending').length,
+        onHold: typeTickets.filter((t) => t.status === 'on_hold').length,
+        solved: typeTickets.filter((t) => t.status === 'solved').length,
+        total: typeTickets.length,
       }
     })
   }, [tickets])
