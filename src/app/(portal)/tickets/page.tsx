@@ -284,7 +284,16 @@ export default function TicketsPage() {
   }
 
   return (
-    <div className="-m-4 lg:-m-8 flex h-[calc(100vh-4rem)] lg:h-screen overflow-hidden">
+    <div className="-m-4 lg:-m-8 flex flex-col h-[calc(100vh-4rem)] lg:h-screen overflow-hidden">
+      {/* ── Page Header ───────────────────────────────────────── */}
+      <div className="flex-shrink-0 px-6 py-4 border-b border-gray-200 bg-white">
+        <h1 className="text-2xl font-bold text-gray-900">Agent Views</h1>
+        <p className="text-sm text-gray-500 mt-0.5">
+          {filteredTickets.length} ticket{filteredTickets.length !== 1 ? 's' : ''} in {activeView?.name ?? 'All Tickets'}
+        </p>
+      </div>
+
+      <div className="flex flex-1 overflow-hidden">
       {/* ── Views Sidebar ─────────────────────────────────────── */}
       <aside className="w-[240px] flex-shrink-0 bg-white border-r border-gray-200 flex flex-col overflow-hidden">
         <div className="px-3 py-2.5 border-b border-gray-100 bg-gray-50/50">
@@ -362,12 +371,14 @@ export default function TicketsPage() {
       </aside>
 
       {/* ── Main Ticket List ──────────────────────────────────── */}
+      {/* ── Main Ticket List ──────────────────────────────────── */}
       <div className="flex-1 overflow-hidden">
         <TicketList
           tickets={filteredTickets}
           title={activeView?.name ?? 'All Tickets'}
           users={users}
         />
+      </div>
       </div>
     </div>
   )
