@@ -148,6 +148,7 @@ export async function notifyNewReply(p: {
     }
 
     // All parties get every reply — including the author (for their records)
+    recipientIds.add(p.authorId)
 
     if (recipientIds.size === 0) {
       console.log(`[email] notifyNewReply: no recipients after filtering`)
