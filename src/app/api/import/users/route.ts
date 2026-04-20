@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { auth, clerkClient } from '@clerk/nextjs/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { notifyUserWelcome } from '@/lib/email'
+
+const PORTAL_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://help.sfmc.com'
 
 // ============================================================================
 // POST /api/import/users — Bulk upsert user profiles
@@ -50,6 +53,7 @@ export async function POST(request: Request) {
   }
 
   const supabase = createAdminClient()
+  const clerk = await clerkClient()
 
   // ── Resolve team, branch, region names to IDs ─────────────────────────────
   const [
@@ -142,13 +146,96 @@ export async function POST(request: Request) {
         updated++
       }
     } else {
-      // Insert
-      const { error } = await supabase.from('profiles').insert(profileData)
+      // Create Clerk user first — profiles.id is the Clerk user ID.
+      const nameParts = row.name.trim().split(/\s+/)
+      const firstName = nameParts[0]
+      const lastName =
+        nameParts.length > 1 ? nameParts.slice(1).join(' ') : undefined
+
+      let clerkUserId: string
+      let createdInClerk = false
+      try {
+        const clerkUser = await clerk.users.createUser({
+          emailAddress: [row.email.trim()],
+          firstName,
+          lastName,
+          publicMetadata: {
+            role: row.role || 'employee',
+            hasBranchAccess: false,
+            hasRegionalAccess: false,
+          },
+          skipPasswordRequirement: true,
+        })
+        clerkUserId = clerkUser.id
+        createdInClerk = true
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown error'
+
+        // Orphan case: Clerk account exists but no profile row. Reuse the Clerk id.
+        if (/already exists|taken/i.test(message)) {
+          try {
+            const existingClerk = await clerk.users.getUserList({
+              emailAddress: [row.email.trim()],
+            })
+            const hit = existingClerk.data[0]
+            if (!hit) throw new Error('Clerk reported duplicate but getUserList returned none')
+            clerkUserId = hit.id
+          } catch (lookupErr) {
+            const lookupMsg =
+              lookupErr instanceof Error ? lookupErr.message : 'Unknown error'
+            errors.push(
+              `Row ${i + 1} (${row.email}): Clerk lookup failed — ${lookupMsg}`,
+            )
+            continue
+          }
+        } else {
+          errors.push(`Row ${i + 1} (${row.email}): Clerk create failed — ${message}`)
+          continue
+        }
+      }
+
+      // Upsert on id — webhook may race with us on user.created insert.
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({ id: clerkUserId, ...profileData }, { onConflict: 'id' })
 
       if (error) {
+        // Supabase insert failed — only roll back the Clerk user if we just
+        // created it (don't delete pre-existing orphan accounts).
+        if (createdInClerk) {
+          try {
+            await clerk.users.deleteUser(clerkUserId)
+          } catch (cleanupErr) {
+            console.error(
+              `[import-users] Failed to clean up Clerk user ${clerkUserId}:`,
+              cleanupErr,
+            )
+          }
+        }
         errors.push(`Row ${i + 1} (${row.email}): ${error.message}`)
-      } else {
-        created++
+        continue
+      }
+
+      created++
+
+      // Send welcome email with a Clerk sign-in link. Non-fatal on failure.
+      try {
+        const token = await clerk.signInTokens.createSignInToken({
+          userId: clerkUserId,
+          expiresInSeconds: 60 * 60 * 24 * 7, // 7 days
+        })
+        const signInUrl = `${PORTAL_URL}/sign-in?__clerk_ticket=${token.token}`
+        await notifyUserWelcome({
+          email: row.email.trim(),
+          name: row.name,
+          role: row.role || 'employee',
+          signInUrl,
+        })
+      } catch (welcomeErr) {
+        console.error(
+          `[import-users] Failed to send welcome email to ${row.email}:`,
+          welcomeErr,
+        )
       }
     }
   }

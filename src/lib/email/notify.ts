@@ -295,6 +295,23 @@ export async function notifyUserTagged(p: {
 }
 
 /**
+ * Welcome email for a newly provisioned user (e.g. from bulk import).
+ * Sends a Clerk sign-in link so they can set a password on first login.
+ */
+export async function notifyUserWelcome(p: {
+  email: string
+  name: string
+  role: string
+  signInUrl: string
+}) {
+  await send(p.email, templates.welcomeUser({
+    name: p.name,
+    role: p.role,
+    signInUrl: p.signInUrl,
+  }))
+}
+
+/**
  * SLA alert — notify the assigned agent.
  */
 export async function notifySlaAlert(p: {

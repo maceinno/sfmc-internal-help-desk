@@ -311,6 +311,32 @@ export function ccNotification(p: {
   }
 }
 
+export function welcomeUser(p: {
+  name: string
+  role: string
+  signInUrl: string
+}) {
+  const firstName = p.name.split(/\s+/)[0] || p.name
+  return {
+    subject: 'Welcome to the SFMC Help Desk — set up your account',
+    html: layout(`
+      <h2 style="margin:0 0 8px;font-size:20px;color:#111827;">Welcome, ${firstName}</h2>
+      <p style="margin:0 0 16px;color:#374151;font-size:14px;">
+        An admin has created an account for you on the SFMC Help Desk portal.
+        Click the button below to sign in and set your password.
+      </p>
+      <table cellpadding="0" cellspacing="0" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+        <tr><td style="padding:12px 16px;background:#f9fafb;font-size:13px;color:#6b7280;width:100px;">Role</td>
+            <td style="padding:12px 16px;font-size:14px;color:#111827;text-transform:capitalize;">${p.role}</td></tr>
+      </table>
+      ${button(p.signInUrl, 'Sign In & Set Password')}
+      <p style="margin:24px 0 0;color:#6b7280;font-size:12px;">
+        This sign-in link expires in 7 days. If it expires, use "Forgot password?" on the sign-in page to recover your account.
+      </p>
+    `),
+  }
+}
+
 export function slaAlert(p: {
   ticketId: string
   title: string

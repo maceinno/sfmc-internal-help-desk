@@ -371,7 +371,11 @@ export default function UsersPage() {
         </div>
         <Select value={roleFilter} onValueChange={(val) => setRoleFilter(val ?? 'all')}>
           <SelectTrigger className="w-[160px]">
-            <SelectValue />
+            <SelectValue>
+              {(val: string) =>
+                ROLE_FILTER_OPTIONS.find((o) => o.value === val)?.label ?? 'All Roles'
+              }
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {ROLE_FILTER_OPTIONS.map((o) => (
@@ -552,7 +556,11 @@ export default function UsersPage() {
                   }
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue />
+                    <SelectValue>
+                      {(val: string) =>
+                        ROLE_OPTIONS.find((o) => o.value === val)?.label ?? val
+                      }
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {ROLE_OPTIONS.map((o) => (
@@ -640,7 +648,11 @@ export default function UsersPage() {
                   }
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Unassigned" />
+                    <SelectValue placeholder="Unassigned">
+                      {(val: string) =>
+                        !val || val === '__none__' ? 'Unassigned' : getBranchName(val)
+                      }
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">Unassigned</SelectItem>
@@ -667,7 +679,11 @@ export default function UsersPage() {
                   }
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Unassigned" />
+                    <SelectValue placeholder="Unassigned">
+                      {(val: string) =>
+                        !val || val === '__none__' ? 'Unassigned' : getRegionName(val)
+                      }
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">Unassigned</SelectItem>
@@ -722,7 +738,11 @@ export default function UsersPage() {
                     }
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select managed branch..." />
+                      <SelectValue placeholder="Select managed branch...">
+                        {(val: string) =>
+                          !val || val === '__none__' ? 'None' : getBranchName(val)
+                        }
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none__">None</SelectItem>
@@ -778,7 +798,11 @@ export default function UsersPage() {
                     }
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select managed region..." />
+                      <SelectValue placeholder="Select managed region...">
+                        {(val: string) =>
+                          !val || val === '__none__' ? 'None' : getRegionName(val)
+                        }
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none__">None</SelectItem>
@@ -900,7 +924,11 @@ export default function UsersPage() {
                   }
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue />
+                    <SelectValue>
+                      {(val: string) =>
+                        ROLE_OPTIONS.find((o) => o.value === val)?.label ?? val
+                      }
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {ROLE_OPTIONS.map((o) => (
@@ -923,7 +951,11 @@ export default function UsersPage() {
                   }
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Unassigned" />
+                    <SelectValue placeholder="Unassigned">
+                      {(val: string) =>
+                        !val || val === '__none__' ? 'Unassigned' : getRegionName(val)
+                      }
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">Unassigned</SelectItem>
@@ -950,7 +982,11 @@ export default function UsersPage() {
                 }
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Unassigned" />
+                  <SelectValue placeholder="Unassigned">
+                    {(val: string) =>
+                      !val || val === '__none__' ? 'Unassigned' : getBranchName(val)
+                    }
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">Unassigned</SelectItem>

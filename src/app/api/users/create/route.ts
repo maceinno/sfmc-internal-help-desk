@@ -1,6 +1,9 @@
 import { auth, clerkClient } from '@clerk/nextjs/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
+import { notifyUserWelcome } from '@/lib/email'
+
+const PORTAL_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://help.sfmc.com'
 
 /**
  * POST /api/users/create
@@ -99,21 +102,25 @@ export async function POST(request: Request) {
       skipPasswordRequirement: true,
     })
 
-    // Create profile in Supabase
-    const { error: profileError } = await supabase.from('profiles').insert({
-      id: clerkUser.id,
-      email: body.email.trim(),
-      name: body.name.trim(),
-      role: body.role,
-      department: body.department || null,
-      team_ids: body.teamIds?.length ? body.teamIds : null,
-      branch_id: body.branchId || null,
-      region_id: body.regionId || null,
-      has_branch_access: body.hasBranchAccess ?? false,
-      managed_branch_id: body.hasBranchAccess ? (body.managedBranchId || null) : null,
-      has_regional_access: body.hasRegionalAccess ?? false,
-      managed_region_id: body.hasRegionalAccess ? (body.managedRegionId || null) : null,
-    })
+    // Upsert profile in Supabase — the Clerk webhook (user.created) may race
+    // with us and insert the base row first. Upsert on `id` enriches either way.
+    const { error: profileError } = await supabase.from('profiles').upsert(
+      {
+        id: clerkUser.id,
+        email: body.email.trim(),
+        name: body.name.trim(),
+        role: body.role,
+        department: body.department || null,
+        team_ids: body.teamIds?.length ? body.teamIds : null,
+        branch_id: body.branchId || null,
+        region_id: body.regionId || null,
+        has_branch_access: body.hasBranchAccess ?? false,
+        managed_branch_id: body.hasBranchAccess ? (body.managedBranchId || null) : null,
+        has_regional_access: body.hasRegionalAccess ?? false,
+        managed_region_id: body.hasRegionalAccess ? (body.managedRegionId || null) : null,
+      },
+      { onConflict: 'id' },
+    )
 
     if (profileError) {
       console.error('[create-user] Failed to create Supabase profile:', profileError)
@@ -126,6 +133,26 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: 'Failed to create user profile' },
         { status: 500 },
+      )
+    }
+
+    // Send welcome email with a Clerk sign-in link. Non-fatal on failure.
+    try {
+      const token = await client.signInTokens.createSignInToken({
+        userId: clerkUser.id,
+        expiresInSeconds: 60 * 60 * 24 * 7, // 7 days
+      })
+      const signInUrl = `${PORTAL_URL}/sign-in?__clerk_ticket=${token.token}`
+      await notifyUserWelcome({
+        email: body.email.trim(),
+        name: body.name.trim(),
+        role: body.role,
+        signInUrl,
+      })
+    } catch (welcomeErr) {
+      console.error(
+        `[create-user] Failed to send welcome email to ${body.email}:`,
+        welcomeErr,
       )
     }
 
