@@ -108,7 +108,7 @@ export function MessageThread({
           </span>
         </div>
         <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 text-gray-800">
-          <p className="whitespace-pre-wrap">{ticketDescription}</p>
+          <p className="whitespace-pre-wrap break-words">{ticketDescription}</p>
         </div>
       </div>
     </div>
@@ -231,8 +231,8 @@ export function MessageThread({
                 {formatDateTime(message.created_at)}
               </span>
             </div>
-            <div className="text-gray-800">
-              <p className="whitespace-pre-wrap">{message.content}</p>
+            <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 text-gray-800">
+              <p className="whitespace-pre-wrap break-words">{message.content}</p>
             </div>
             {renderMessageAttachments(message.id)}
           </div>

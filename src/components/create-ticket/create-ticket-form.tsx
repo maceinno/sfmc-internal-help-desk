@@ -22,17 +22,16 @@ import { Card, CardContent } from '@/components/ui/card'
 import { UserAutocomplete } from '@/components/shared/user-autocomplete'
 import { FileUpload } from '@/components/shared/file-upload'
 import { CustomFieldRenderer } from '@/components/create-ticket/custom-field-renderer'
+import { evaluateConditions } from '@/lib/custom-fields/conditions'
 
 import { useCreateTicket, type CreateTicketPayload } from '@/hooks/use-tickets'
-import { useCustomFields } from '@/hooks/use-admin-config'
+import { useCustomFields, useDepartmentCategories } from '@/hooks/use-admin-config'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { useUsers } from '@/hooks/use-users'
 import { useTicket } from '@/hooks/use-tickets'
 import { useUIStore } from '@/stores/ui-store'
 
 import {
-  TICKET_TYPES,
-  DEPARTMENT_CATEGORIES,
   DEFAULT_TICKET_TYPE_FIELD_CONFIGS,
   US_STATES,
   type CategoryOption,
@@ -73,7 +72,18 @@ export function CreateTicketForm() {
   const { profile, isLoading: isUserLoading } = useCurrentUser()
   const { data: allUsers = [] } = useUsers()
   const { data: customFields = [] } = useCustomFields()
+  const { data: departmentGroups = [] } = useDepartmentCategories()
   const createTicket = useCreateTicket()
+
+  const ticketTypes = React.useMemo(
+    () => departmentGroups.map((g) => g.ticket_type),
+    [departmentGroups],
+  )
+  const departmentCategoriesMap = React.useMemo(() => {
+    const map: Record<string, CategoryOption[]> = {}
+    for (const g of departmentGroups) map[g.ticket_type] = g.categories
+    return map
+  }, [departmentGroups])
 
   // Follow-up mode
   const followUpFromTicketId = useUIStore((s) => s.followUpFromTicketId)
@@ -106,15 +116,17 @@ export function CreateTicketForm() {
     defaultValues: {
       title: '',
       description: '',
-      ticketType: TICKET_TYPES[0],
+      ticketType: '',
       category: '',
       subCategory: '',
-      priority: 'medium',
+      priority: 'low',
     },
   })
 
   const ticketType = watch('ticketType')
   const category = watch('category')
+  const subCategory = watch('subCategory')
+  const priority = watch('priority')
 
   // ── Follow-up pre-fill ───────────────────────────────────────
 
@@ -169,7 +181,7 @@ export function CreateTicketForm() {
   // ── Derived data ─────────────────────────────────────────────
 
   const departmentCategories: CategoryOption[] =
-    DEPARTMENT_CATEGORIES[ticketType] ?? []
+    departmentCategoriesMap[ticketType] ?? []
 
   const selectedCategoryOption = departmentCategories.find(
     (c) => c.name === category,
@@ -178,9 +190,12 @@ export function CreateTicketForm() {
 
   const showMailingAddress = category === 'New Hire'
 
-  // Filter custom fields based on user role and ticket type
+  // Filter custom fields based on user role, ticket type, and per-field
+  // display conditions. Conditions evaluate against the live form state so
+  // fields can appear/disappear as the user changes category, priority, etc.
   const visibleCustomFields = React.useMemo(() => {
     if (!profile) return []
+    const ctx = { ticketType, category, subCategory, priority }
     return customFields
       .filter((field) => {
         if (!field.enabled) return false
@@ -191,10 +206,11 @@ export function CreateTicketForm() {
         ) {
           if (!field.visible_to_departments.includes(ticketType)) return false
         }
+        if (!evaluateConditions(field.conditions, ctx)) return false
         return true
       })
       .sort((a, b) => a.sort_order - b.sort_order)
-  }, [customFields, profile, ticketType])
+  }, [customFields, profile, ticketType, category, subCategory, priority])
 
   // ── Custom field helpers ─────────────────────────────────────
 
@@ -248,6 +264,13 @@ export function CreateTicketForm() {
   // ── Submit ───────────────────────────────────────────────────
 
   const onSubmit = async (data: FormValues) => {
+    // Strip values for fields that are currently hidden by display conditions
+    // so we don't persist stale input from a prior category/priority choice.
+    const visibleFieldIds = new Set(visibleCustomFields.map((f) => f.id))
+    const submittedCustomFields = customFieldValues.filter((v) =>
+      visibleFieldIds.has(v.field_id),
+    )
+
     const payload: CreateTicketPayload = {
       title: data.title,
       description: data.description,
@@ -257,7 +280,7 @@ export function CreateTicketForm() {
       subCategory: data.subCategory || undefined,
       attachments: files.length > 0 ? files : undefined,
       cc: ccRecipientIds.length > 0 ? ccRecipientIds : undefined,
-      customFields: customFieldValues.length > 0 ? customFieldValues : undefined,
+      customFields: submittedCustomFields.length > 0 ? submittedCustomFields : undefined,
       mailingAddress: showMailingAddress && mailingAddress.street1
         ? mailingAddress
         : undefined,
@@ -386,7 +409,7 @@ export function CreateTicketForm() {
                       <SelectValue placeholder="Select department..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {TICKET_TYPES.map((type) => (
+                      {ticketTypes.map((type) => (
                         <SelectItem key={type} value={type}>
                           {type}
                         </SelectItem>

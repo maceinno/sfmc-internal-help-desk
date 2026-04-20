@@ -19,6 +19,7 @@ import {
   MapPin,
   Building2,
   LogOut,
+  Sparkles,
 } from 'lucide-react'
 import { useClerk } from '@clerk/nextjs'
 import { useQueryClient } from '@tanstack/react-query'
@@ -38,7 +39,7 @@ interface NavItem {
 
 export function Sidebar() {
   const pathname = usePathname()
-  const { profile, isAdmin, isAgent, isEmployee, isRealAdmin, isAssuming } = useCurrentUser()
+  const { profile, isAdmin, isAgent, isEmployee, isRealAdmin, isAssuming, isLoading } = useCurrentUser()
   const { data: branding } = useBranding()
   const { data: notifications = [] } = useNotifications()
   const { mobileMenuOpen, setMobileMenuOpen } = useUIStore()
@@ -66,23 +67,29 @@ export function Sidebar() {
     return () => { document.body.style.overflow = '' }
   }, [mobileMenuOpen])
 
-  // Build nav items based on role
-  const navItems: NavItem[] = isEmployee
-    ? [
-        { href: '/tickets/new', label: 'Create Ticket', icon: PlusCircle },
-        { href: '/my-tickets', label: 'My Tickets', icon: Ticket },
-        { href: '/cc-tickets', label: "CC'd Tickets", icon: AtSign },
-        ...(profile?.has_branch_access ? [{ href: '/branch', label: 'My Branch', icon: Building2 }] : []),
-        ...(profile?.has_regional_access ? [{ href: '/region', label: 'My Region', icon: MapPin }] : []),
-      ]
-    : [
-        { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-        { href: '/tickets', label: 'Agent Views', icon: Layers },
-        { href: '/my-tickets', label: 'My Tickets', icon: Ticket },
-        { href: '/cc-tickets', label: "CC'd Tickets", icon: AtSign },
-        { href: '/reports', label: 'Reports', icon: BarChart3 },
-        { href: '/tickets/new', label: 'Create Ticket', icon: PlusCircle },
-      ]
+  // Build nav items based on role. While the profile is still loading, show
+  // an empty list so we never flash the agent/admin nav to an employee
+  // before their role resolves (or vice versa).
+  const navItems: NavItem[] = isLoading || !profile
+    ? []
+    : isEmployee
+      ? [
+          { href: '/tickets/new', label: 'Create Ticket', icon: PlusCircle },
+          { href: '/my-tickets', label: 'My Tickets', icon: Ticket },
+          { href: '/cc-tickets', label: "CC'd Tickets", icon: AtSign },
+          ...(profile?.has_branch_access ? [{ href: '/branch', label: 'My Branch', icon: Building2 }] : []),
+          ...(profile?.has_regional_access ? [{ href: '/region', label: 'My Region', icon: MapPin }] : []),
+          { href: '/whats-new', label: "What's New", icon: Sparkles },
+        ]
+      : [
+          { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+          { href: '/tickets', label: 'Agent Views', icon: Layers },
+          { href: '/my-tickets', label: 'My Tickets', icon: Ticket },
+          { href: '/cc-tickets', label: "CC'd Tickets", icon: AtSign },
+          { href: '/reports', label: 'Reports', icon: BarChart3 },
+          { href: '/tickets/new', label: 'Create Ticket', icon: PlusCircle },
+          { href: '/whats-new', label: "What's New", icon: Sparkles },
+        ]
 
   const isActive = (href: string) => {
     if (href === '/dashboard') return pathname === '/dashboard'
@@ -192,6 +199,7 @@ export function Sidebar() {
         <div className="px-4 pb-2 relative">
           <NotificationPanel />
           <button
+            data-notification-toggle
             onClick={toggleNotifs}
             className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all duration-200 ${
               notifOpen ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'

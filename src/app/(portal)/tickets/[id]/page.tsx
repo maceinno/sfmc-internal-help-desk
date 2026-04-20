@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/tickets/status-badge"
 import { PriorityBadge } from "@/components/tickets/priority-badge"
 import { MessageThread } from "@/components/ticket-detail/message-thread"
-import { ReplyComposer } from "@/components/ticket-detail/reply-composer"
+import { ReplyComposer, type ReplyComposerHandle } from "@/components/ticket-detail/reply-composer"
 import { TicketSidebarPanel } from "@/components/ticket-detail/ticket-sidebar-panel"
 import { AttachmentList } from "@/components/ticket-detail/attachment-list"
 import { MergeModal } from "@/components/ticket-detail/merge-modal"
@@ -51,6 +51,37 @@ export default function TicketDetailPage({
 
   const [showMergeModal, setShowMergeModal] = React.useState(false)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const [isDropTargetActive, setIsDropTargetActive] = React.useState(false)
+  const replyComposerRef = React.useRef<ReplyComposerHandle>(null)
+  const dragCounter = React.useRef(0)
+
+  const handleConversationDragEnter = React.useCallback((e: React.DragEvent) => {
+    if (!Array.from(e.dataTransfer.types).includes('Files')) return
+    e.preventDefault()
+    dragCounter.current += 1
+    setIsDropTargetActive(true)
+  }, [])
+
+  const handleConversationDragLeave = React.useCallback((e: React.DragEvent) => {
+    if (!Array.from(e.dataTransfer.types).includes('Files')) return
+    e.preventDefault()
+    dragCounter.current = Math.max(0, dragCounter.current - 1)
+    if (dragCounter.current === 0) setIsDropTargetActive(false)
+  }, [])
+
+  const handleConversationDragOver = React.useCallback((e: React.DragEvent) => {
+    if (!Array.from(e.dataTransfer.types).includes('Files')) return
+    e.preventDefault()
+  }, [])
+
+  const handleConversationDrop = React.useCallback((e: React.DragEvent) => {
+    if (!Array.from(e.dataTransfer.types).includes('Files')) return
+    e.preventDefault()
+    dragCounter.current = 0
+    setIsDropTargetActive(false)
+    const files = Array.from(e.dataTransfer.files)
+    if (files.length > 0) replyComposerRef.current?.addFiles(files)
+  }, [])
 
   const isLoading = isTicketLoading || isUserLoading
 
@@ -249,6 +280,24 @@ export default function TicketDetailPage({
     window.print()
   }, [])
 
+  const handleBack = React.useCallback(() => {
+    const role = currentUser?.role
+    const fallback =
+      role === 'agent' || role === 'admin' ? '/tickets' : '/my-tickets'
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back()
+      // If history.back() lands outside the app (e.g., direct link open),
+      // fall back shortly after.
+      setTimeout(() => {
+        if (window.location.pathname.startsWith(`/tickets/${id}`)) {
+          router.push(fallback)
+        }
+      }, 100)
+    } else {
+      router.push(fallback)
+    }
+  }, [router, currentUser?.role, id])
+
   if (isLoading) {
     return (
       <div className="flex h-96 items-center justify-center">
@@ -304,11 +353,11 @@ export default function TicketDetailPage({
           <Button
             variant="ghost"
             size="icon-sm"
-            onClick={() => router.back()}
+            onClick={handleBack}
           >
             <ChevronLeft className="h-5 w-5" />
           </Button>
-          <div>
+          <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-bold text-gray-900">
                 #{ticket.id}
@@ -316,7 +365,7 @@ export default function TicketDetailPage({
               <StatusBadge status={ticket.status} />
               <PriorityBadge priority={ticket.priority} />
             </div>
-            <h2 className="mt-0.5 text-base text-gray-600">{ticket.title}</h2>
+            <h2 className="mt-0.5 text-base text-gray-600 break-words">{ticket.title}</h2>
           </div>
         </div>
 
@@ -404,7 +453,24 @@ export default function TicketDetailPage({
       {/* Main Layout */}
       <div className="flex flex-1 flex-col gap-6 overflow-hidden lg:flex-row">
         {/* Left: Conversation + Reply */}
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+        <div
+          className={`relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-white shadow-sm transition-colors ${
+            isDropTargetActive
+              ? 'border-blue-400 ring-2 ring-blue-200'
+              : 'border-gray-100'
+          }`}
+          onDragEnter={handleConversationDragEnter}
+          onDragLeave={handleConversationDragLeave}
+          onDragOver={handleConversationDragOver}
+          onDrop={handleConversationDrop}
+        >
+          {isDropTargetActive && (
+            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-blue-50/90">
+              <div className="rounded-lg border-2 border-dashed border-blue-400 bg-white px-6 py-4 text-sm font-medium text-blue-700 shadow-sm">
+                Drop files to attach to your reply
+              </div>
+            </div>
+          )}
           <MessageThread
             messages={visibleMessages}
             users={users}
@@ -417,7 +483,7 @@ export default function TicketDetailPage({
 
           {/* Attachments (shown between thread and composer) */}
           {ticket.attachments && ticket.attachments.length > 0 && (
-            <div className="border-t border-gray-100 px-6 py-4">
+            <div className="max-h-56 shrink-0 overflow-y-auto border-t border-gray-100 px-6 py-4">
               <AttachmentList
                 attachments={ticket.attachments}
                 users={users}
@@ -426,6 +492,7 @@ export default function TicketDetailPage({
           )}
 
           <ReplyComposer
+            ref={replyComposerRef}
             ticketId={ticket.id}
             ticketCreatedBy={ticket.created_by}
             ticketCc={ticket.cc}

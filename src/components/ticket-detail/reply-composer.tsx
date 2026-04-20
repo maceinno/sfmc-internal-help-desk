@@ -36,6 +36,10 @@ interface ReplyComposerProps {
   onCannedResponseSelect?: (response: CannedResponse) => void
 }
 
+export interface ReplyComposerHandle {
+  addFiles: (files: File[]) => void
+}
+
 function getInitials(name: string): string {
   return name
     .split(" ")
@@ -46,7 +50,10 @@ function getInitials(name: string): string {
     .toUpperCase()
 }
 
-export function ReplyComposer({
+export const ReplyComposer = React.forwardRef<
+  ReplyComposerHandle,
+  ReplyComposerProps
+>(function ReplyComposer({
   ticketId,
   ticketCreatedBy,
   ticketCc = [],
@@ -56,7 +63,7 @@ export function ReplyComposer({
   cannedResponses = [],
   onSubmit,
   onCannedResponseSelect,
-}: ReplyComposerProps) {
+}, ref) {
   const [replyText, setReplyText] = React.useState("")
   const [isInternalNote, setIsInternalNote] = React.useState(false)
   const [showMentionDropdown, setShowMentionDropdown] = React.useState(false)
@@ -175,6 +182,14 @@ export function ReplyComposer({
   const handleFilesSelected = (files: File[]) => {
     setSelectedFiles((prev) => [...prev, ...files])
   }
+
+  React.useImperativeHandle(ref, () => ({
+    addFiles: (files: File[]) => {
+      if (files.length === 0) return
+      setSelectedFiles((prev) => [...prev, ...files])
+      setShowFileUpload(true)
+    },
+  }))
 
   const handleRemoveFile = (index: number) => {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index))
@@ -399,7 +414,7 @@ export function ReplyComposer({
         )}
 
         {/* File Upload Zone (toggle) */}
-        {showFileUpload && selectedFiles.length === 0 && (
+        {showFileUpload && (
           <div className="border-t border-gray-100 px-3 py-2">
             <FileUpload
               onFilesSelected={handleFilesSelected}
@@ -475,4 +490,4 @@ export function ReplyComposer({
       )}
     </div>
   )
-}
+})

@@ -44,7 +44,14 @@ export function useTickets(filters: TicketFilters = {}) {
       if (!token) throw new Error('No auth token')
 
       const supabase = createClerkSupabaseClient(token)
-      let query = supabase.from('tickets').select('*, ticket_cc(user_id), ticket_collaborators(user_id)')
+      // Include a slim message projection so SLA calculations can detect the
+      // first agent reply and switch from "first reply" to "next reply" —
+      // otherwise the SLA clock keeps ticking against the original post.
+      let query = supabase
+        .from('tickets')
+        .select(
+          '*, ticket_cc(user_id), ticket_collaborators(user_id), messages(id, author_id, created_at, is_internal)',
+        )
 
       if (filters.status) {
         query = query.eq('status', filters.status)

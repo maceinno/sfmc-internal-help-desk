@@ -279,6 +279,37 @@ export interface RoutingRule {
 
 // ── Custom Fields ────────────────────────────────────────────
 
+/** Fields that a custom-field display rule can reference. */
+export type ConditionFieldKey =
+  | 'ticketType'
+  | 'category'
+  | 'subCategory'
+  | 'priority'
+
+/** How a single rule compares the live form value against the rule's value. */
+export type ConditionOperator =
+  | 'equals'
+  | 'notEquals'
+  | 'in'
+  | 'notIn'
+  | 'isEmpty'
+  | 'isNotEmpty'
+
+/** A single rule evaluated against the current ticket form state. */
+export interface FieldCondition {
+  field: ConditionFieldKey
+  operator: ConditionOperator
+  /** Unused for isEmpty/isNotEmpty. String for equals/notEquals, string[] for in/notIn. */
+  value?: string | string[] | null
+}
+
+/** Display-condition group attached to a custom field. */
+export interface CustomFieldConditions {
+  /** `all` = AND, `any` = OR. Ignored when `rules` is empty. */
+  mode: 'all' | 'any'
+  rules: FieldCondition[]
+}
+
 export interface CustomField {
   id: string
   name: string
@@ -291,6 +322,11 @@ export interface CustomField {
   placeholder?: string
   visible_to_roles: ('employee' | 'agent' | 'admin')[]
   visible_to_departments?: string[]
+  /**
+   * Optional display conditions. When null/undefined or `rules` is empty the
+   * field is always shown (subject to role / department filters).
+   */
+  conditions?: CustomFieldConditions | null
   sort_order: number
   enabled: boolean
   created_at?: string

@@ -131,7 +131,8 @@ export async function POST(request: Request) {
     users,
   )
 
-  // ── Insert ticket ──────────────────────────────────────────────────────────
+  // Tickets route to the department/team only — agents claim them from the
+  // queue. We deliberately drop any per-agent assignment that rules produced.
   const ticketRow: Record<string, unknown> = {
     title,
     description,
@@ -142,7 +143,7 @@ export async function POST(request: Request) {
     sub_category: body.subCategory ?? null,
     parent_ticket_id: body.parentTicketId ?? null,
     mailing_address: body.mailingAddress ?? null,
-    assigned_to: routingResult.assignedTo ?? null,
+    assigned_to: null,
     assigned_team: routingResult.assignedTeam ?? null,
   }
 
@@ -202,7 +203,7 @@ export async function POST(request: Request) {
     category: ticket.category,
     priority: ticket.priority,
     created_by: userId,
-    assigned_to: ticket.assigned_to,
+    assigned_to: null,
   })
 
   return NextResponse.json(ticket, { status: 201 })

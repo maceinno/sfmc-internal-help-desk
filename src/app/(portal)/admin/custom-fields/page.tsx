@@ -4,8 +4,9 @@ import { useState, useCallback } from 'react'
 import { useAuth } from '@clerk/nextjs'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClerkSupabaseClient } from '@/lib/supabase/client'
-import { useCustomFields } from '@/hooks/use-admin-config'
-import type { CustomField, CustomFieldType, TicketType } from '@/types'
+import { useCustomFields, useDepartmentCategories } from '@/hooks/use-admin-config'
+import type { CustomField, CustomFieldType, CustomFieldConditions } from '@/types'
+import { CustomFieldConditionsEditor } from '@/components/admin/custom-field-conditions-editor'
 import { toast } from 'sonner'
 import {
   Plus,
@@ -62,16 +63,6 @@ const FIELD_TYPE_OPTIONS: { value: CustomFieldType; label: string }[] = [
 
 const ROLES = ['employee', 'agent', 'admin'] as const
 
-const TICKET_TYPES: TicketType[] = [
-  'Closing Support',
-  'IT Support',
-  'Lending Support',
-  'Marketing Support',
-  'Payoff Request',
-  'Product Desk (Non-Agency Products)',
-  'Secondary Support',
-]
-
 // ── Helpers ─────────────────────────────────────────────────────
 
 function emptyField(): Partial<CustomField> {
@@ -96,6 +87,20 @@ export default function CustomFieldsPage() {
   const { getToken } = useAuth()
   const queryClient = useQueryClient()
   const { data: fields, isLoading } = useCustomFields()
+  const { data: departmentGroups = [] } = useDepartmentCategories()
+
+  const ticketTypes = departmentGroups.map((g) => g.ticket_type)
+
+  const categoriesByType: Record<string, string[]> = {}
+  const subCategoriesByKey: Record<string, string[]> = {}
+  for (const g of departmentGroups) {
+    categoriesByType[g.ticket_type] = g.categories.map((c) => c.name)
+    for (const c of g.categories) {
+      if (c.subCategories && c.subCategories.length > 0) {
+        subCategoriesByKey[`${g.ticket_type}::${c.name}`] = c.subCategories
+      }
+    }
+  }
 
   // Dialog state
   const [editField, setEditField] = useState<Partial<CustomField> | null>(null)
@@ -121,6 +126,7 @@ export default function CustomFieldsPage() {
         default_value: field.default_value,
         visible_to_roles: field.visible_to_roles,
         visible_to_departments: field.visible_to_departments,
+        conditions: field.conditions ?? null,
         enabled: field.enabled,
         sort_order: field.sort_order ?? 0,
       }
@@ -700,7 +706,7 @@ export default function CustomFieldsPage() {
                   </span>
                 </Label>
                 <div className="mt-1.5 grid grid-cols-2 gap-2 rounded-lg border bg-muted/30 p-3">
-                  {TICKET_TYPES.map((dept) => (
+                  {ticketTypes.map((dept) => (
                     <label
                       key={dept}
                       className="flex items-center gap-2 text-sm cursor-pointer"
@@ -718,6 +724,17 @@ export default function CustomFieldsPage() {
                   ))}
                 </div>
               </div>
+
+              {/* Display conditions */}
+              <CustomFieldConditionsEditor
+                value={editField.conditions ?? null}
+                onChange={(next: CustomFieldConditions | null) =>
+                  setEditField({ ...editField, conditions: next })
+                }
+                ticketTypes={ticketTypes}
+                categoriesByType={categoriesByType}
+                subCategoriesByKey={subCategoriesByKey}
+              />
 
               {/* Required + Enabled */}
               <div className="flex items-center gap-6 pt-2 border-t">

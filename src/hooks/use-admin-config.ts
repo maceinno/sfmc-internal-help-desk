@@ -100,6 +100,67 @@ export function useCustomFields() {
   )
 }
 
+// ── Department Categories ───────────────────────────────────────
+
+export interface DepartmentCategory {
+  name: string
+  subCategories?: string[]
+}
+
+export interface DepartmentCategoryGroup {
+  ticket_type: string
+  categories: DepartmentCategory[]
+}
+
+interface DbDepartmentCategoryRow {
+  id: string
+  ticket_type: string
+  category_name: string
+  sub_categories: string[] | null
+  sort_order: number | null
+}
+
+/**
+ * Returns admin-managed departments and categories, grouped by department
+ * name. Drives the Create Ticket form, SLA policies, routing rules, etc.,
+ * so everything reads from the same source of truth.
+ */
+export function useDepartmentCategories() {
+  const { getToken } = useAuth()
+
+  return useQuery<DepartmentCategoryGroup[]>({
+    queryKey: ['admin', 'departmentCategories'],
+    queryFn: async () => {
+      const token = await getToken({ template: 'supabase' })
+      if (!token) throw new Error('No auth token')
+
+      const supabase = createClerkSupabaseClient(token)
+      const { data, error } = await supabase
+        .from('department_categories')
+        .select('*')
+        .order('ticket_type', { ascending: true })
+        .order('sort_order', { ascending: true })
+      if (error) throw error
+
+      const grouped = new Map<string, DepartmentCategory[]>()
+      for (const row of (data ?? []) as DbDepartmentCategoryRow[]) {
+        if (!grouped.has(row.ticket_type)) grouped.set(row.ticket_type, [])
+        grouped.get(row.ticket_type)!.push({
+          name: row.category_name,
+          subCategories: row.sub_categories?.length
+            ? row.sub_categories
+            : undefined,
+        })
+      }
+
+      return Array.from(grouped.entries()).map(([ticket_type, categories]) => ({
+        ticket_type,
+        categories,
+      }))
+    },
+  })
+}
+
 // ── Department Schedules ────────────────────────────────────────
 
 export function useDepartmentSchedules() {

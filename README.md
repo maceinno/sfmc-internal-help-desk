@@ -66,7 +66,19 @@ Edit `.env.local` and fill in your Clerk and Supabase credentials:
 - `SUPABASE_SERVICE_ROLE_KEY` -- Supabase service role key
 - `CLERK_WEBHOOK_SECRET` -- Webhook secret for Clerk user sync
 
-### 4. Set up the database
+### 4. Configure Clerk session timeouts
+
+Session lifetime and inactivity timeout are configured in the Clerk Dashboard,
+not in code. In **Clerk Dashboard → Sessions**, set:
+
+- **Maximum session lifetime:** `7 days` — hard ceiling on any session.
+- **Inactivity timeout:** `3 days` — user is signed out if no activity for this
+  long, even if still within the 7-day ceiling. This gives a rolling window
+  that stays alive with regular use but drops idle sessions.
+
+(Inactivity timeout requires a Clerk Pro plan.)
+
+### 5. Set up the database
 
 Run the migration files in order against your Supabase project:
 
@@ -74,7 +86,7 @@ Run the migration files in order against your Supabase project:
 2. `supabase/migrations/002_rls_policies.sql` -- Row-level security policies
 3. `supabase/migrations/003_seed_data.sql` -- Development seed data
 
-### 5. Run the development server
+### 6. Run the development server
 
 ```bash
 npm run dev

@@ -1,5 +1,6 @@
 'use client'
 
+import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import { Bell, AlertTriangle } from 'lucide-react'
 import { useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead } from '@/hooks/use-notifications'
@@ -13,13 +14,30 @@ export function NotificationPanel() {
   const markRead = useMarkNotificationRead()
   const markAllRead = useMarkAllNotificationsRead()
   const { panelOpen, setPanelOpen } = useNotificationStore()
+  const panelRef = React.useRef<HTMLDivElement>(null)
 
   const unreadCount = notifications.filter((n) => !n.read).length
+
+  // Close panel when clicking outside. Ignore clicks on the bell toggle so it
+  // doesn't immediately re-open.
+  React.useEffect(() => {
+    if (!panelOpen) return
+    const handlePointerDown = (e: MouseEvent) => {
+      const target = e.target as Node | null
+      if (!target) return
+      if (panelRef.current?.contains(target)) return
+      const toggle = document.querySelector('[data-notification-toggle]')
+      if (toggle?.contains(target)) return
+      setPanelOpen(false)
+    }
+    document.addEventListener('mousedown', handlePointerDown)
+    return () => document.removeEventListener('mousedown', handlePointerDown)
+  }, [panelOpen, setPanelOpen])
 
   if (!panelOpen) return null
 
   return (
-    <div className="absolute bottom-full left-4 right-4 mb-2 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden z-50">
+    <div ref={panelRef} className="absolute bottom-full left-4 right-4 mb-2 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden z-50">
       <div className="px-4 py-3 border-b border-slate-700 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-white">Notifications</h3>
         {unreadCount > 0 && (

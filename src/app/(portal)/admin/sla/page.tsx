@@ -18,7 +18,7 @@ import {
   FileText,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { useSlaPolicies } from '@/hooks/use-admin-config'
+import { useSlaPolicies, useDepartmentCategories } from '@/hooks/use-admin-config'
 import { createClerkSupabaseClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -42,19 +42,7 @@ import type {
   TicketCategory,
   TicketPriority,
 } from '@/types'
-import { TICKET_TYPES } from '@/data/ticket-config'
-
 // ── Constants ──────────────────────────────────────────────────
-
-const TICKET_CATEGORIES: TicketCategory[] = [
-  'Loan Origination',
-  'Underwriting',
-  'Closing',
-  'Servicing',
-  'Compliance',
-  'IT Systems',
-  'General',
-]
 
 const PRIORITIES: { value: TicketPriority; label: string }[] = [
   { value: 'urgent', label: 'Urgent' },
@@ -82,6 +70,28 @@ export default function SlaAdminPage() {
   const { getToken } = useAuth()
   const queryClient = useQueryClient()
   const { data: slaPolicies = [], isLoading } = useSlaPolicies()
+  const { data: departmentGroups = [] } = useDepartmentCategories()
+
+  const ticketTypes = useMemo(
+    () => departmentGroups.map((g) => g.ticket_type),
+    [departmentGroups],
+  )
+
+  const categoriesByType = useMemo(() => {
+    const map: Record<string, string[]> = {}
+    for (const g of departmentGroups) {
+      map[g.ticket_type] = g.categories.map((c) => c.name)
+    }
+    return map
+  }, [departmentGroups])
+
+  const allCategoryNames = useMemo(() => {
+    const set = new Set<string>()
+    for (const g of departmentGroups) {
+      for (const c of g.categories) set.add(c.name)
+    }
+    return Array.from(set).sort()
+  }, [departmentGroups])
 
   const [localPolicies, setLocalPolicies] = useState<SlaPolicy[] | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -464,7 +474,7 @@ export default function SlaAdminPage() {
                               className="w-full h-8 px-2.5 text-sm border border-input rounded-lg bg-transparent focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 outline-none"
                             >
                               <option value="any">Any Type</option>
-                              {TICKET_TYPES.map((type) => (
+                              {ticketTypes.map((type) => (
                                 <option key={type} value={type}>
                                   {type}
                                 </option>
@@ -494,7 +504,10 @@ export default function SlaAdminPage() {
                               className="w-full h-8 px-2.5 text-sm border border-input rounded-lg bg-transparent focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 outline-none"
                             >
                               <option value="any">Any Category</option>
-                              {TICKET_CATEGORIES.map((cat) => (
+                              {(policy.conditions.ticketTypes === 'any'
+                                ? allCategoryNames
+                                : (categoriesByType[policy.conditions.ticketTypes[0]] ?? [])
+                              ).map((cat) => (
                                 <option key={cat} value={cat}>
                                   {cat}
                                 </option>
@@ -699,7 +712,7 @@ export default function SlaAdminPage() {
                   className="w-full h-8 px-2.5 text-sm border border-input rounded-lg bg-transparent focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 outline-none"
                 >
                   <option value="any">Any Type</option>
-                  {TICKET_TYPES.map((type) => (
+                  {ticketTypes.map((type) => (
                     <option key={type} value={type}>
                       {type}
                     </option>
@@ -728,7 +741,10 @@ export default function SlaAdminPage() {
                   className="w-full h-8 px-2.5 text-sm border border-input rounded-lg bg-transparent focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 outline-none"
                 >
                   <option value="any">Any Category</option>
-                  {TICKET_CATEGORIES.map((cat) => (
+                  {(newSlaConditions.ticketTypes === 'any'
+                    ? allCategoryNames
+                    : (categoriesByType[newSlaConditions.ticketTypes[0]] ?? [])
+                  ).map((cat) => (
                     <option key={cat} value={cat}>
                       {cat}
                     </option>
