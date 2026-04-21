@@ -30,6 +30,10 @@ This file mirrors the data rendered in-app at **/whats-new**
 
 - **CardHeader with `bg-muted/50` is now flush with the top of its Card.** The `Card` component had `py-4` that leaked through above a colored `CardHeader`, producing a half-gray / half-white header. Fixed at the component level (`has-data-[slot=card-header]:pt-0` on Card, `[.border-b]:py-4` on CardHeader), which also cleans up Admin → Categories, Branding, Regions & Branches, and Custom Fields.
 
+### Deployments
+
+- **"New version available" banner.** Added `GET /api/version` returning `VERCEL_GIT_COMMIT_SHA`. A client-side `<VersionBanner>` component polls it every 5 minutes and on window focus; when the returned version differs from the one first loaded, it shows a sticky blue banner with a Refresh button. Never fires in local dev (both sides return `dev`). Added to portal layout above the AssumeUserBanner; `/api/version` is in the middleware's public-route list so it works even if a session has expired.
+
 ## 2026-04-20
 
 ### Fixes

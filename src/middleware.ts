@@ -12,6 +12,7 @@ const isPublicRoute = createRouteMatcher([
   "/api/webhooks/clerk(.*)",
   "/api/webhooks/inbound-email(.*)",
   "/api/sla/check",
+  "/api/version",
 ]);
 
 /** Routes restricted to admin role only. */

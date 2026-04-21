@@ -4,6 +4,7 @@ import { Providers } from '@/components/providers'
 import { Sidebar } from '@/components/layout/sidebar'
 import { RealtimeProvider } from '@/components/layout/realtime-provider'
 import { AssumeUserBanner } from '@/components/layout/assume-user-banner'
+import { VersionBanner } from '@/components/layout/version-banner'
 
 export default async function PortalLayout({
   children,
@@ -19,6 +20,7 @@ export default async function PortalLayout({
   return (
     <Providers>
       <RealtimeProvider>
+        <VersionBanner />
         <AssumeUserBanner />
         <div className="min-h-screen bg-gray-50 flex font-sans text-gray-900">
           <Sidebar />

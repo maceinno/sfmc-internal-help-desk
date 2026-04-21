@@ -87,6 +87,15 @@ export const CHANGELOG: ChangelogEntry[] = [
           },
         ],
       },
+      {
+        heading: 'Deployments',
+        items: [
+          {
+            title: 'Automatic "new version available" banner',
+            body: 'When a new version is deployed, any open portal tab shows a blue banner at the top prompting you to refresh. The banner appears within 5 minutes of the deploy (or immediately if you switch back to the tab), and clicking Refresh reloads the page to the latest code.',
+          },
+        ],
+      },
     ],
   },
   {
