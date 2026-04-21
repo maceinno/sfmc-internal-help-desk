@@ -23,6 +23,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { UserAutocomplete } from "@/components/shared/user-autocomplete"
 import { SlaIndicator } from "@/components/tickets/sla-indicator"
 import { useTimezone } from "@/hooks/use-timezone"
+import { useDepartmentCategories } from "@/hooks/use-admin-config"
 import { canEditTicket, canViewInternalNotes } from "@/lib/permissions/policies"
 import type {
   Ticket,
@@ -74,16 +75,6 @@ const PRIORITY_OPTIONS: { value: TicketPriority; label: string }[] = [
   { value: "low", label: "Low" },
 ]
 
-const CATEGORY_OPTIONS: TicketCategory[] = [
-  "Loan Origination",
-  "Underwriting",
-  "Closing",
-  "Servicing",
-  "Compliance",
-  "IT Systems",
-  "General",
-]
-
 export function TicketSidebarPanel({
   ticket,
   currentUser,
@@ -100,6 +91,25 @@ export function TicketSidebarPanel({
   const isEditable = canEditTicket(currentUser, ticket)
   const isAgentOrAdmin =
     currentUser.role === "agent" || currentUser.role === "admin"
+
+  // DB-backed department/category taxonomy — same source as the create form.
+  const { data: departmentGroups = [] } = useDepartmentCategories()
+  const ticketTypes = React.useMemo(
+    () => departmentGroups.map((g) => g.ticket_type),
+    [departmentGroups],
+  )
+  const categoriesForCurrentType = React.useMemo(() => {
+    const match = departmentGroups.find(
+      (g) => g.ticket_type === ticket.ticket_type,
+    )
+    return match?.categories ?? []
+  }, [departmentGroups, ticket.ticket_type])
+  const subCategoriesForCurrentCategory = React.useMemo(() => {
+    const match = categoriesForCurrentType.find(
+      (c) => c.name === ticket.category,
+    )
+    return match?.subCategories ?? []
+  }, [categoriesForCurrentType, ticket.category])
 
   const getUser = React.useCallback(
     (userId: string) => users.find((u) => u.id === userId),
@@ -281,6 +291,40 @@ export function TicketSidebarPanel({
             )
           )}
 
+          {/* Department (ticket_type) */}
+          {isAgentOrAdmin ? (
+            <div>
+              <label className="mb-1 block text-xs font-medium uppercase text-muted-foreground">
+                Department
+              </label>
+              <Select
+                value={ticket.ticket_type ?? ""}
+                onValueChange={(val) => {
+                  if (!val || val === ticket.ticket_type) return
+                  onUpdateField("ticketType", val)
+                  // Department changed — the current category probably doesn't
+                  // belong to the new department. Clear it so the user must
+                  // re-pick and we don't persist a mismatched value.
+                  onUpdateField("category", "")
+                  onUpdateField("subCategory", null)
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select department..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {ticketTypes.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            ticket.ticket_type && renderReadOnly("Department", ticket.ticket_type)
+          )}
+
           {/* Category */}
           {isAgentOrAdmin ? (
             <div>
@@ -288,18 +332,23 @@ export function TicketSidebarPanel({
                 Category
               </label>
               <Select
-                value={ticket.category}
+                value={ticket.category ?? ""}
                 onValueChange={(val) => {
-                  if (val) onUpdateField("category", val)
+                  if (!val) return
+                  onUpdateField("category", val)
+                  // Different category → reset sub-category since the prior
+                  // sub-category probably doesn't belong to the new parent.
+                  onUpdateField("subCategory", null)
                 }}
+                disabled={categoriesForCurrentType.length === 0}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue />
+                  <SelectValue placeholder="Select category..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {CATEGORY_OPTIONS.map((cat) => (
-                    <SelectItem key={cat} value={cat}>
-                      {cat}
+                  {categoriesForCurrentType.map((cat) => (
+                    <SelectItem key={cat.name} value={cat.name}>
+                      {cat.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -307,6 +356,32 @@ export function TicketSidebarPanel({
             </div>
           ) : (
             renderReadOnly("Category", ticket.category)
+          )}
+
+          {/* Sub-category */}
+          {isAgentOrAdmin && subCategoriesForCurrentCategory.length > 0 && (
+            <div>
+              <label className="mb-1 block text-xs font-medium uppercase text-muted-foreground">
+                Sub-Category
+              </label>
+              <Select
+                value={ticket.sub_category ?? ""}
+                onValueChange={(val) => {
+                  onUpdateField("subCategory", val || null)
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="None" />
+                </SelectTrigger>
+                <SelectContent>
+                  {subCategoriesForCurrentCategory.map((sub) => (
+                    <SelectItem key={sub} value={sub}>
+                      {sub}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           )}
 
           {/* Assignee */}
@@ -364,12 +439,9 @@ export function TicketSidebarPanel({
             </div>
           )}
 
-          {/* Read-only fields for employees */}
+          {/* Read-only sub-category for employees */}
           {!isAgentOrAdmin && ticket.sub_category && (
             renderReadOnly("Sub-Category", ticket.sub_category)
-          )}
-          {!isAgentOrAdmin && ticket.ticket_type && (
-            renderReadOnly("Department", ticket.ticket_type)
           )}
         </div>
 

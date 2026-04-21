@@ -247,14 +247,14 @@ export const ReplyComposer = React.forwardRef<
   return (
     <div className="border-t border-gray-100 bg-gray-50 p-4">
       <div
-        className={`overflow-hidden rounded-lg border bg-white shadow-sm transition-all focus-within:ring-2 ${
+        className={`relative rounded-lg border bg-white shadow-sm transition-all focus-within:ring-2 ${
           isInternalNote
             ? "border-amber-300 focus-within:ring-amber-200"
             : "border-gray-300 focus-within:ring-blue-500"
         }`}
       >
         {/* Toggle Tabs */}
-        <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/50 px-3 py-2">
+        <div className="flex items-center justify-between rounded-t-lg border-b border-gray-100 bg-gray-50/50 px-3 py-2">
           <div className="flex items-center gap-1">
             <button
               type="button"
@@ -425,7 +425,7 @@ export const ReplyComposer = React.forwardRef<
         )}
 
         {/* Bottom Bar */}
-        <div className="flex items-center justify-between border-t border-gray-100 bg-gray-50/50 px-3 py-2">
+        <div className="flex items-center justify-between rounded-b-lg border-t border-gray-100 bg-gray-50/50 px-3 py-2">
           <div className="flex items-center gap-1">
             <Button
               type="button"

@@ -47,7 +47,7 @@ export function FileUpload({
   onFilesSelected,
   existingFiles = [],
   onRemoveFile,
-  maxSizeMB = 10,
+  maxSizeMB = 20,
   accept,
   multiple = true,
 }: FileUploadProps) {

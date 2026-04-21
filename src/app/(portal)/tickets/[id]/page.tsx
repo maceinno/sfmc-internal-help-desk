@@ -4,6 +4,9 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 import {
   ChevronLeft,
+  ChevronDown,
+  ChevronUp,
+  Paperclip,
   Printer,
   GitMerge,
   CornerDownRight,
@@ -52,6 +55,8 @@ export default function TicketDetailPage({
   const [showMergeModal, setShowMergeModal] = React.useState(false)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [isDropTargetActive, setIsDropTargetActive] = React.useState(false)
+  const [isAttachmentsExpanded, setIsAttachmentsExpanded] =
+    React.useState(false)
   const replyComposerRef = React.useRef<ReplyComposerHandle>(null)
   const dragCounter = React.useRef(0)
 
@@ -92,6 +97,17 @@ export default function TicketDetailPage({
     return [currentUser]
   }, [allUsers, currentUser])
 
+  // Human-friendly labels for the auto-save toast.
+  const FIELD_LABELS: Record<string, string> = {
+    status: 'Status',
+    priority: 'Priority',
+    category: 'Category',
+    subCategory: 'Sub-category',
+    ticketType: 'Department',
+    assignedTo: 'Assignee',
+    assignedTeam: 'Team',
+  }
+
   const handleUpdateField = React.useCallback(
     (field: string, value: unknown) => {
       if (!ticket) return
@@ -105,6 +121,11 @@ export default function TicketDetailPage({
         } as Parameters<typeof updateTicket.mutate>[0],
         {
           onSuccess: () => {
+            // Surface the auto-save so the user isn't left wondering whether
+            // the change stuck. Skip clear-only edits (empty → empty).
+            const label = FIELD_LABELS[field] ?? field
+            toast.success(`${label} saved`, { duration: 1500 })
+
             // Fire email notifications for status and assignment changes
             if (field === 'status' && oldValue !== value) {
               fetch(`/api/tickets/${ticket.id}/notify`, {
@@ -131,6 +152,9 @@ export default function TicketDetailPage({
                 }),
               }).catch(() => {})
             }
+          },
+          onError: () => {
+            toast.error('Could not save change. Please try again.')
           },
         }
       )
@@ -348,8 +372,8 @@ export default function TicketDetailPage({
   return (
     <div className="flex h-[calc(100vh-6rem)] flex-col animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Header */}
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
+      <div className="mb-4 flex flex-col gap-3 min-w-0 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
           <Button
             variant="ghost"
             size="icon-sm"
@@ -454,7 +478,7 @@ export default function TicketDetailPage({
       <div className="flex flex-1 flex-col gap-6 overflow-hidden lg:flex-row">
         {/* Left: Conversation + Reply */}
         <div
-          className={`relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-white shadow-sm transition-colors ${
+          className={`relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border bg-white shadow-sm transition-colors ${
             isDropTargetActive
               ? 'border-blue-400 ring-2 ring-blue-200'
               : 'border-gray-100'
@@ -481,13 +505,34 @@ export default function TicketDetailPage({
             attachments={ticket.attachments}
           />
 
-          {/* Attachments (shown between thread and composer) */}
+          {/* Attachments (shown between thread and composer). Collapsed by
+              default so the conversation is never buried; user can expand to
+              see the full list (with its own scroll cap). */}
           {ticket.attachments && ticket.attachments.length > 0 && (
-            <div className="max-h-56 shrink-0 overflow-y-auto border-t border-gray-100 px-6 py-4">
-              <AttachmentList
-                attachments={ticket.attachments}
-                users={users}
-              />
+            <div className="shrink-0 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => setIsAttachmentsExpanded((v) => !v)}
+                className="flex w-full items-center justify-between px-6 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                <span className="flex items-center gap-2">
+                  <Paperclip className="h-4 w-4 text-muted-foreground" />
+                  Attachments ({ticket.attachments.length})
+                </span>
+                {isAttachmentsExpanded ? (
+                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                )}
+              </button>
+              {isAttachmentsExpanded && (
+                <div className="max-h-56 overflow-y-auto border-t border-gray-100 px-6 py-4">
+                  <AttachmentList
+                    attachments={ticket.attachments}
+                    users={users}
+                  />
+                </div>
+              )}
             </div>
           )}
 

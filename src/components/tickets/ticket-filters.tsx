@@ -1,6 +1,6 @@
 'use client'
 
-import { Search, ArrowUpDown } from 'lucide-react'
+import { Search } from 'lucide-react'
 import type { TicketStatus, TicketPriority, TicketCategory, Ticket } from '@/types/ticket'
 
 // ── Filter / Sort value types ──────────────────────────────────
@@ -45,13 +45,6 @@ const CATEGORY_OPTIONS: { value: CategoryFilterValue; label: string }[] = [
   { value: 'General', label: 'General' },
 ]
 
-const SORT_OPTIONS: { value: SortField; label: string }[] = [
-  { value: 'updated_at', label: 'Last Updated' },
-  { value: 'created_at', label: 'Created' },
-  { value: 'priority', label: 'Priority' },
-  { value: 'status', label: 'Status' },
-]
-
 // ── Props ──────────────────────────────────────────────────────
 
 interface TicketFiltersProps {
@@ -63,10 +56,6 @@ interface TicketFiltersProps {
   onPriorityFilterChange: (value: PriorityFilterValue) => void
   categoryFilter: CategoryFilterValue
   onCategoryFilterChange: (value: CategoryFilterValue) => void
-  sortField: SortField
-  onSortFieldChange: (value: SortField) => void
-  sortDirection: SortDirection
-  onSortDirectionChange: (value: SortDirection) => void
 }
 
 // ── Component ──────────────────────────────────────────────────
@@ -80,10 +69,6 @@ export function TicketFilters({
   onPriorityFilterChange,
   categoryFilter,
   onCategoryFilterChange,
-  sortField,
-  onSortFieldChange,
-  sortDirection,
-  onSortDirectionChange,
 }: TicketFiltersProps) {
   return (
     <div className="flex flex-wrap items-center gap-2 px-6 py-3 border-b border-gray-200 bg-gray-50/50">
@@ -141,32 +126,6 @@ export function TicketFilters({
           </option>
         ))}
       </select>
-
-      {/* Sort */}
-      <div className="flex items-center gap-1 ml-auto">
-        <ArrowUpDown className="w-3.5 h-3.5 text-gray-400" />
-        <select
-          value={sortField}
-          onChange={(e) => onSortFieldChange(e.target.value as SortField)}
-          className="h-8 text-sm border border-gray-300 rounded-md px-2 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-        >
-          {SORT_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          onClick={() =>
-            onSortDirectionChange(sortDirection === 'asc' ? 'desc' : 'asc')
-          }
-          className="h-8 px-2 text-xs font-medium border border-gray-300 rounded-md bg-white hover:bg-gray-50 transition-colors"
-          title={sortDirection === 'asc' ? 'Ascending' : 'Descending'}
-        >
-          {sortDirection === 'asc' ? 'ASC' : 'DESC'}
-        </button>
-      </div>
     </div>
   )
 }

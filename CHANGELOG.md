@@ -7,6 +7,29 @@ Newest entries go on top.
 This file mirrors the data rendered in-app at **/whats-new**
 (source: `src/data/changelog.ts`). When you add a fix, update both files.
 
+## 2026-04-21
+
+### Ticket list
+
+- **Column headers drive sorting — dropdown and ASC/DESC button removed.** Click a column to sort ascending, click again for descending, click a third time to clear the sort and return to the default order.
+
+### Ticket detail
+
+- **Attachments section is collapsible.** Tickets with many attachments no longer hide the conversation. Starts collapsed with a count; click to expand.
+- **Long unbroken strings no longer stretch the page.** Added `min-w-0` on the portal `<main>` and the conversation pane, plus header flex containers, so a 300-char no-space string wraps instead of forcing a horizontal scroll.
+- **Admins can change a ticket's Department from the sidebar.** New Department dropdown (sourced from Admin → Departments & Categories). Changing department clears the category so you must pick one that belongs to the new department. Requires `useUpdateTicket` payload to accept `ticketType` and `subCategory` — added.
+- **Sidebar Category/Sub-category dropdowns use admin-managed taxonomy.** Previously the sidebar had its own hard-coded `CATEGORY_OPTIONS` (Loan Origination, Underwriting, etc.) that didn't match real ticket data. Replaced with `useDepartmentCategories()`, filtered by the ticket's current department.
+- **Auto-save toast on sidebar field changes.** Status/priority/department/category/assignee/team edits were already auto-saving; now a 1.5 s confirmation toast fires on success (and an error toast on failure) so admins aren't guessing whether the change stuck.
+
+### Reply composer
+
+- **@mention dropdown no longer clips avatars.** Replaced the inner `overflow-hidden` with explicit `rounded-t-lg` / `rounded-b-lg` on the composer's top/bottom strips so the mention popover (positioned `bottom-full`) isn't clipped by the composer bounds.
+- **Attachment size limit raised to 20 MB.** Updated `FileUpload` default, create-ticket form override, and the `/api/upload` server-side cap + error message. Matches the Supabase Storage bucket limit.
+
+### Profile page / Admin cards
+
+- **CardHeader with `bg-muted/50` is now flush with the top of its Card.** The `Card` component had `py-4` that leaked through above a colored `CardHeader`, producing a half-gray / half-white header. Fixed at the component level (`has-data-[slot=card-header]:pt-0` on Card, `[.border-b]:py-4` on CardHeader), which also cleans up Admin → Categories, Branding, Regions & Branches, and Custom Fields.
+
 ## 2026-04-20
 
 ### Fixes

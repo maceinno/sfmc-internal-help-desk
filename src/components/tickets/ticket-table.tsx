@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useTimezone } from '@/hooks/use-timezone'
-import { ArrowUpDown, Inbox } from 'lucide-react'
+import { ArrowUp, ArrowDown, Inbox } from 'lucide-react'
 import {
   Table,
   TableHeader,
@@ -43,7 +43,7 @@ const COLUMNS: Column[] = [
 interface TicketTableProps {
   tickets: Ticket[]
   users: User[]
-  sortField: SortField
+  sortField: SortField | null
   sortDirection: SortDirection
   onSort: (field: SortField) => void
   searchTerm?: string
@@ -96,9 +96,17 @@ export function TicketTable({
         <TableRow className="bg-gray-50/80">
           {COLUMNS.map((col) => {
             const isSorted = col.sortable && col.sortKey === sortField
+            const sortTitle = col.sortable
+              ? isSorted && sortDirection === 'asc'
+                ? 'Click to sort descending'
+                : isSorted && sortDirection === 'desc'
+                  ? 'Click to clear sort'
+                  : 'Click to sort ascending'
+              : undefined
             return (
               <TableHead
                 key={col.key}
+                title={sortTitle}
                 className={`text-xs uppercase tracking-wider ${
                   col.sortable
                     ? 'cursor-pointer select-none hover:bg-gray-100 transition-colors'
@@ -112,20 +120,12 @@ export function TicketTable({
               >
                 <div className="flex items-center gap-1">
                   <span>{col.label}</span>
-                  {col.sortable && (
-                    <ArrowUpDown
-                      className={`w-3 h-3 ${
-                        isSorted
-                          ? 'text-blue-500'
-                          : 'text-gray-300'
-                      }`}
-                    />
-                  )}
-                  {isSorted && (
-                    <span className="text-[10px] text-blue-500 font-normal normal-case">
-                      {sortDirection === 'asc' ? 'asc' : 'desc'}
-                    </span>
-                  )}
+                  {isSorted &&
+                    (sortDirection === 'asc' ? (
+                      <ArrowUp className="h-3 w-3 text-blue-500" />
+                    ) : (
+                      <ArrowDown className="h-3 w-3 text-blue-500" />
+                    ))}
                 </div>
               </TableHead>
             )

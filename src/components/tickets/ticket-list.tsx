@@ -49,17 +49,24 @@ export function TicketList({ tickets, title, users }: TicketListProps) {
   const [categoryFilter, setCategoryFilter] =
     useState<CategoryFilterValue>('all')
 
-  // Sort state
-  const [sortField, setSortField] = useState<SortField>('updated_at')
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+  // Sort state — null means "no user-applied sort" (natural query order).
+  // Column header click cycles: null → asc → desc → null.
+  const [sortField, setSortField] = useState<SortField | null>(null)
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
 
   const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
-    } else {
+    if (sortField !== field) {
       setSortField(field)
-      setSortDirection('desc')
+      setSortDirection('asc')
+      return
     }
+    if (sortDirection === 'asc') {
+      setSortDirection('desc')
+      return
+    }
+    // Third click — clear the sort and fall back to natural order.
+    setSortField(null)
+    setSortDirection('asc')
   }
 
   // Filtered + sorted tickets
@@ -96,7 +103,9 @@ export function TicketList({ tickets, title, users }: TicketListProps) {
       filtered = filtered.filter((t) => t.category === categoryFilter)
     }
 
-    // Sort
+    // No sort applied → preserve the query's natural order.
+    if (sortField === null) return filtered
+
     return [...filtered].sort((a, b) => {
       let aVal: number | string | undefined
       let bVal: number | string | undefined
@@ -152,10 +161,6 @@ export function TicketList({ tickets, title, users }: TicketListProps) {
         onPriorityFilterChange={setPriorityFilter}
         categoryFilter={categoryFilter}
         onCategoryFilterChange={setCategoryFilter}
-        sortField={sortField}
-        onSortFieldChange={setSortField}
-        sortDirection={sortDirection}
-        onSortDirectionChange={setSortDirection}
       />
 
       {/* Table */}

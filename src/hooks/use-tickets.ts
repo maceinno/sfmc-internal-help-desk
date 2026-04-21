@@ -176,6 +176,8 @@ export interface UpdateTicketPayload {
   status?: TicketStatus
   priority?: TicketPriority
   category?: TicketCategory
+  ticketType?: string
+  subCategory?: string | null
   assignedTo?: string | null
   assignedTeam?: string | null
   internalNotes?: string
@@ -266,6 +268,8 @@ export function useUpdateTicket() {
       if (updates.status !== undefined) dbUpdates.status = updates.status
       if (updates.priority !== undefined) dbUpdates.priority = updates.priority
       if (updates.category !== undefined) dbUpdates.category = updates.category
+      if (updates.ticketType !== undefined) dbUpdates.ticket_type = updates.ticketType
+      if (updates.subCategory !== undefined) dbUpdates.sub_category = updates.subCategory
       if (updates.assignedTo !== undefined) dbUpdates.assigned_to = updates.assignedTo
       if (updates.assignedTeam !== undefined) dbUpdates.assigned_team = updates.assignedTeam
       if (updates.internalNotes !== undefined) dbUpdates.internal_notes = updates.internalNotes

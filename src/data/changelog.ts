@@ -29,6 +29,67 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-04-21',
+    sections: [
+      {
+        heading: 'Ticket list',
+        items: [
+          {
+            title: 'Column headers drive sorting — dropdown and ASC/DESC button removed',
+            body: 'Click a column header to sort. Click again to flip direction. Click a third time to clear the sort and return to the default order. Cleaner and less redundant than the previous dropdown + toggle button combo.',
+          },
+        ],
+      },
+      {
+        heading: 'Ticket detail',
+        items: [
+          {
+            title: 'Attachments section is collapsible',
+            body: "Tickets with lots of attachments no longer hide the conversation. The attachments row starts collapsed with a count; click to expand and review.",
+          },
+          {
+            title: 'Long strings stop stretching the page horizontally',
+            body: 'An unbroken 300-character string in a title or message body now wraps instead of forcing a horizontal scrollbar on the whole portal.',
+          },
+          {
+            title: 'Admins can now change a ticket\'s Department',
+            body: 'Previously only Category and Team were editable from the ticket sidebar. Added a Department dropdown (sourced from Admin → Departments & Categories). Changing department clears the category so you must re-pick a matching one.',
+          },
+          {
+            title: 'Category and Sub-category dropdowns use real admin data',
+            body: 'The sidebar category picker no longer uses a separate hard-coded list. It reads from Admin → Departments & Categories, filtered by the ticket\'s current department, and a Sub-category picker appears automatically when the chosen category has sub-options.',
+          },
+          {
+            title: 'Sidebar edits auto-save with a confirmation toast',
+            body: "Status, priority, department, category, assignee, and team changes save as soon as you pick them — and you'll see a small confirmation toast so you know it stuck. No need to send a reply to persist.",
+          },
+        ],
+      },
+      {
+        heading: 'Reply composer',
+        items: [
+          {
+            title: '@mention dropdown no longer clips user avatars',
+            body: 'The user picker that pops up when you type "@" now renders the full avatar and name for every suggestion.',
+          },
+          {
+            title: 'Attachment limit raised from 10 MB to 20 MB',
+            body: 'You can now upload files up to 20 MB per attachment. Drop zone helper text updated to match.',
+          },
+        ],
+      },
+      {
+        heading: 'Profile page',
+        items: [
+          {
+            title: 'Profile Details header background is consistent',
+            body: 'The employee Profile Details card header no longer shows as half-gray, half-white. Same fix applies anywhere a gray header sat inside a padded card (admin Categories, Branding, Regions & Branches, Custom Fields).',
+          },
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-04-20',
     sections: [
       {

@@ -564,7 +564,7 @@ export function CreateTicketForm() {
                 onFilesSelected={handleFilesSelected}
                 existingFiles={existingFiles}
                 onRemoveFile={handleRemoveFile}
-                maxSizeMB={10}
+                maxSizeMB={20}
                 multiple
               />
             </div>

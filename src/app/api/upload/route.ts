@@ -8,7 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // Storage, creates an attachment record, and returns it with a signed URL.
 // ---------------------------------------------------------------------------
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
 
 export async function POST(request: Request) {
   // ── Authenticate ──────────────────────────────────────────────────────────
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
   if (file.size > MAX_FILE_SIZE) {
     return Response.json(
       {
-        error: `File size exceeds the 10 MB limit. Received ${(file.size / (1024 * 1024)).toFixed(2)} MB.`,
+        error: `File size exceeds the 20 MB limit. Received ${(file.size / (1024 * 1024)).toFixed(2)} MB.`,
       },
       { status: 413 },
     );
