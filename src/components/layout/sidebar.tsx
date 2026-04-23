@@ -257,8 +257,8 @@ export function Sidebar() {
                       </p>
                       <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
                         {profile?.is_out_of_office
-                          ? 'You will be available for ticket assignment again.'
-                          : 'All your open tickets will be unassigned and returned to the group queue.'}
+                          ? 'You will be available for new ticket assignments again.'
+                          : 'New tickets will route to your team but skip you. Your current tickets stay assigned to you.'}
                       </p>
                     </div>
                   </div>

@@ -9,6 +9,14 @@ This file mirrors the data rendered in-app at **/whats-new**
 
 ## 2026-04-22
 
+### Ticket replies by email
+
+- **You can now reply to a ticket by email and the ticket updates instantly for everyone watching.** When a notification email arrives, hitting Reply in Gmail/Outlook/phone sends your response straight to the ticket — no login needed. Quoted history and signatures are cleaned up automatically. If the ticket was already marked solved, it reopens. Agents looking at the ticket see the new reply appear live, no refresh.
+
+### Out of Office
+
+- **Toggling OOO on no longer unassigns your open tickets.** Your current tickets stay assigned to you so you can pick them back up when you return. New tickets that come in while you're OOO route to your team but skip past you — the next available teammate gets them.
+
 ### Create a ticket
 
 - **Agents and admins can submit on behalf of another user.** New optional "Requester" field on the Create Ticket form, visible only to agents and admins. Leave it blank to submit as yourself (unchanged default). Pick a user to attribute the ticket to them — the selected requester shows as the ticket creator, receives the creation email, and the agent who hit submit is no longer in the loop unless they CC themselves. The chosen requester is automatically excluded from the CC picker. Server-side (`POST /api/tickets`) validates that the caller is an agent or admin and that the requester exists before overriding `created_by`; employees cannot override the requester.

@@ -32,6 +32,24 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: '2026-04-22',
     sections: [
       {
+        heading: 'Ticket replies by email',
+        items: [
+          {
+            title: 'Reply to tickets by email — and watch it appear live',
+            body: 'When a notification email arrives, hitting Reply sends your response straight to the ticket — no login needed. Quoted history and signatures are trimmed automatically. Solved tickets reopen when a user replies. Agents viewing the ticket see new replies appear instantly without refreshing.',
+          },
+        ],
+      },
+      {
+        heading: 'Out of Office',
+        items: [
+          {
+            title: 'OOO no longer unassigns your open tickets',
+            body: 'Turning on Out of Office used to dump all your open tickets back into the group queue. It now leaves your current tickets assigned to you so you can pick up where you left off when you return. New tickets route to your team but skip past you while OOO — the next available teammate gets them.',
+          },
+        ],
+      },
+      {
         heading: 'Create a ticket',
         items: [
           {
