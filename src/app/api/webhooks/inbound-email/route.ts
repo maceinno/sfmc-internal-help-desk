@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { Webhook } from 'svix'
 import { headers } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { parseReplyContent, extractTicketId } from '@/lib/email/parse-reply'
+import { parseHtmlReply, parseReplyContent, extractTicketId } from '@/lib/email/parse-reply'
 import { notifyNewReply } from '@/lib/email/notify'
 import { resend } from '@/lib/email/resend'
 
@@ -127,13 +127,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Failed to fetch email body' }, { status: 500 })
   }
 
-  // Prefer plain text; fall back to HTML with a naive tag strip if text is missing.
-  const rawText =
-    fullEmail.text ??
-    (fullEmail.html
-      ? fullEmail.html.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ')
-      : '')
-  const replyContent = parseReplyContent(rawText)
+  // Prefer the HTML part: Gmail/Outlook/Apple wrap quoted history and signatures
+  // in predictable HTML containers that we can reliably strip. The plain-text
+  // alternative is lossy (asterisk-bolding, soft-wrapped "On ... wrote:" lines)
+  // and harder to parse.
+  const replyContent = fullEmail.html
+    ? parseHtmlReply(fullEmail.html)
+    : parseReplyContent(fullEmail.text ?? '')
 
   if (!replyContent) {
     console.log(`[inbound-email] Empty reply after parsing for ticket ${ticketId}`)
