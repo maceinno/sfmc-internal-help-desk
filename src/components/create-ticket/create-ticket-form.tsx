@@ -92,6 +92,7 @@ export function CreateTicketForm() {
 
   // Local state for fields not covered by react-hook-form
   const [ccRecipientIds, setCcRecipientIds] = React.useState<string[]>([])
+  const [requesterId, setRequesterId] = React.useState<string | null>(null)
   const [files, setFiles] = React.useState<File[]>([])
   const [customFieldValues, setCustomFieldValues] = React.useState<CustomFieldValue[]>([])
   const [mailingAddress, setMailingAddress] = React.useState({
@@ -263,6 +264,21 @@ export function CreateTicketForm() {
 
   // ── Submit ───────────────────────────────────────────────────
 
+  const canCreateOnBehalf =
+    profile?.role === 'agent' || profile?.role === 'admin'
+  const effectiveRequesterId =
+    canCreateOnBehalf && requesterId ? requesterId : profile?.id ?? null
+
+  // Keep CC list in sync with the requester — a user can't be both.
+  React.useEffect(() => {
+    if (!effectiveRequesterId) return
+    setCcRecipientIds((prev) =>
+      prev.includes(effectiveRequesterId)
+        ? prev.filter((id) => id !== effectiveRequesterId)
+        : prev,
+    )
+  }, [effectiveRequesterId])
+
   const onSubmit = async (data: FormValues) => {
     // Strip values for fields that are currently hidden by display conditions
     // so we don't persist stale input from a prior category/priority choice.
@@ -285,6 +301,10 @@ export function CreateTicketForm() {
         ? mailingAddress
         : undefined,
       parentTicketId: followUpFromTicketId || undefined,
+      requesterId:
+        canCreateOnBehalf && requesterId && requesterId !== profile?.id
+          ? requesterId
+          : undefined,
     }
 
     const newTicket = await createTicket.mutateAsync(payload)
@@ -391,6 +411,24 @@ export function CreateTicketForm() {
                 </p>
               )}
             </div>
+
+            {/* Requester (agents/admins only) */}
+            {canCreateOnBehalf && (
+              <div className="space-y-1.5">
+                <Label>Requester</Label>
+                <UserAutocomplete
+                  users={allUsers}
+                  selectedIds={requesterId ? [requesterId] : []}
+                  onSelect={(id) => setRequesterId(id)}
+                  onRemove={() => setRequesterId(null)}
+                  placeholder="Submitting as yourself — search to create on behalf of another user..."
+                />
+                <p className="text-xs text-muted-foreground">
+                  Defaults to you. Pick a user to create this ticket on their
+                  behalf.
+                </p>
+              </div>
+            )}
 
             {/* 3. Ticket Type / Department */}
             <div className="space-y-1.5">
@@ -532,7 +570,9 @@ export function CreateTicketForm() {
                 onRemove={handleCcRemove}
                 placeholder="Search users to CC..."
                 multiple
-                excludeIds={profile ? [profile.id] : []}
+                excludeIds={
+                  effectiveRequesterId ? [effectiveRequesterId] : []
+                }
               />
               <p className="text-xs text-muted-foreground">
                 Select users who should receive updates on this ticket.

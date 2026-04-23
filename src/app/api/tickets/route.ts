@@ -33,6 +33,7 @@ interface CreateTicketBody {
     zip: string
   }
   parentTicketId?: string
+  requesterId?: string
 }
 
 export async function POST(request: Request) {
@@ -62,6 +63,45 @@ export async function POST(request: Request) {
   }
 
   const supabase = createAdminClient()
+
+  // ── Resolve requester (agent/admin creating on behalf of a user) ──────────
+  // When requesterId is supplied by an agent or admin, the ticket is attributed
+  // to that user instead of the caller. Employees cannot override this.
+  let createdBy = userId
+  if (body.requesterId && body.requesterId !== userId) {
+    const { data: callerProfile, error: callerError } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .single()
+
+    if (callerError || !callerProfile) {
+      console.error('[create-ticket] Failed to fetch caller profile:', callerError)
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    if (callerProfile.role !== 'agent' && callerProfile.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Only agents and admins can create tickets on behalf of another user' },
+        { status: 403 },
+      )
+    }
+
+    const { data: requester, error: requesterError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', body.requesterId)
+      .single()
+
+    if (requesterError || !requester) {
+      return NextResponse.json(
+        { error: 'Requester not found' },
+        { status: 400 },
+      )
+    }
+
+    createdBy = requester.id
+  }
 
   // ── Apply routing rules ────────────────────────────────────────────────────
   // 1. Fetch enabled routing rules, sorted by priority_order
@@ -138,7 +178,7 @@ export async function POST(request: Request) {
     description,
     category,
     priority,
-    created_by: userId,
+    created_by: createdBy,
     ticket_type: body.ticketType ?? null,
     sub_category: body.subCategory ?? null,
     parent_ticket_id: body.parentTicketId ?? null,
@@ -202,7 +242,7 @@ export async function POST(request: Request) {
     title: ticket.title,
     category: ticket.category,
     priority: ticket.priority,
-    created_by: userId,
+    created_by: createdBy,
     assigned_to: null,
   })
 

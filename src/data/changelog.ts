@@ -29,6 +29,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-04-22',
+    sections: [
+      {
+        heading: 'Create a ticket',
+        items: [
+          {
+            title: 'Agents and admins can submit on behalf of another user',
+            body: 'The Create Ticket form has a new Requester field visible only to agents and admins. Leave it blank to submit as yourself (unchanged behavior), or pick a user to attribute the ticket to them. The chosen requester shows as the ticket creator, receives the confirmation email, and can reply like any other end user.',
+          },
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-04-21',
     sections: [
       {

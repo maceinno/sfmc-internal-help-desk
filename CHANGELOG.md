@@ -7,6 +7,12 @@ Newest entries go on top.
 This file mirrors the data rendered in-app at **/whats-new**
 (source: `src/data/changelog.ts`). When you add a fix, update both files.
 
+## 2026-04-22
+
+### Create a ticket
+
+- **Agents and admins can submit on behalf of another user.** New optional "Requester" field on the Create Ticket form, visible only to agents and admins. Leave it blank to submit as yourself (unchanged default). Pick a user to attribute the ticket to them — the selected requester shows as the ticket creator, receives the creation email, and the agent who hit submit is no longer in the loop unless they CC themselves. The chosen requester is automatically excluded from the CC picker. Server-side (`POST /api/tickets`) validates that the caller is an agent or admin and that the requester exists before overriding `created_by`; employees cannot override the requester.
+
 ## 2026-04-21
 
 ### Ticket list

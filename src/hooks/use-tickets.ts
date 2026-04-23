@@ -169,6 +169,7 @@ export interface CreateTicketPayload {
     zip: string
   }
   parentTicketId?: string
+  requesterId?: string
 }
 
 export interface UpdateTicketPayload {
@@ -220,6 +221,7 @@ export function useCreateTicket() {
           customFields: payload.customFields,
           mailingAddress: payload.mailingAddress,
           parentTicketId: payload.parentTicketId,
+          requesterId: payload.requesterId,
         }),
       })
 
