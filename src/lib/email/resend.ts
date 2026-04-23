@@ -11,7 +11,7 @@ export const INBOUND_DOMAIN = process.env.INBOUND_EMAIL_DOMAIN ?? 'reply.sfmc.co
 
 /**
  * Generate the Reply-To address for a ticket.
- * Format: ticket+T-1064@support.sfmc.com
+ * Format: ticket+T-1064@reply.sfmc.com
  * The webhook parses the ticket ID from the + segment.
  */
 export function ticketReplyTo(ticketId: string): string {

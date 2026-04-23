@@ -4,26 +4,23 @@ import { headers } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { parseReplyContent, extractTicketId } from '@/lib/email/parse-reply'
 import { notifyNewReply } from '@/lib/email/notify'
+import { resend } from '@/lib/email/resend'
 
 /**
  * POST /api/webhooks/inbound-email
  *
  * Receives inbound emails from Resend (via Svix webhook).
- * Verifies the webhook signature, then:
- * 1. Extracts the ticket ID from the To address
- * 2. Looks up the sender by email → Supabase profile
- * 3. Strips quoted text to get only the new reply
- * 4. Inserts a message on the ticket
- * 5. Triggers reply notifications to other parties
+ * The webhook payload is metadata-only by design — the body must be fetched
+ * separately via resend.emails.receiving.get(email_id). This keeps the webhook
+ * small enough for serverless payload limits.
  */
 
 interface InboundEmailPayload {
+  email_id: string
   from: string
   to: string | string[]
   cc?: string | string[]
   subject: string
-  text?: string
-  html?: string
 }
 
 export async function POST(request: Request) {
@@ -115,9 +112,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Ticket not found' }, { status: 200 })
   }
 
-  // ── Parse the reply content ───────────────────────────────────────────────
-  // Prefer plain text over HTML for cleaner parsing
-  const rawText = body.text ?? ''
+  // ── Fetch the full email body from Resend ────────────────────────────────
+  // The email.received webhook only includes metadata; the text/html body must
+  // be retrieved separately via the Received Emails API.
+  if (!body.email_id) {
+    console.error('[inbound-email] Webhook payload missing email_id')
+    return NextResponse.json({ error: 'Missing email_id' }, { status: 400 })
+  }
+
+  const { data: fullEmail, error: fetchError } = await resend.emails.receiving.get(body.email_id)
+
+  if (fetchError || !fullEmail) {
+    console.error('[inbound-email] Failed to fetch received email:', fetchError)
+    return NextResponse.json({ error: 'Failed to fetch email body' }, { status: 500 })
+  }
+
+  // Prefer plain text; fall back to HTML with a naive tag strip if text is missing.
+  const rawText =
+    fullEmail.text ??
+    (fullEmail.html
+      ? fullEmail.html.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ')
+      : '')
   const replyContent = parseReplyContent(rawText)
 
   if (!replyContent) {
