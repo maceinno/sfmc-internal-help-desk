@@ -1,4 +1,5 @@
 import { auth, clerkClient } from '@clerk/nextjs/server'
+import { isClerkAPIResponseError } from '@clerk/backend/errors'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { notifyUserWelcome } from '@/lib/email'
@@ -87,27 +88,62 @@ export async function POST(request: Request) {
     const nameParts = body.name.trim().split(/\s+/)
     const firstName = nameParts[0]
     const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : undefined
+    const email = body.email.trim()
 
-    // Create user in Clerk
+    // Create user in Clerk — if Clerk already has this email (orphan from a
+    // prior failed attempt or a missed webhook), reuse the existing id.
     const client = await clerkClient()
-    const clerkUser = await client.users.createUser({
-      emailAddress: [body.email.trim()],
-      firstName,
-      lastName,
-      publicMetadata: {
-        role: body.role,
-        hasBranchAccess: body.hasBranchAccess ?? false,
-        hasRegionalAccess: body.hasRegionalAccess ?? false,
-      },
-      skipPasswordRequirement: true,
-    })
+    let clerkUser
+    try {
+      clerkUser = await client.users.createUser({
+        emailAddress: [email],
+        firstName,
+        lastName,
+        publicMetadata: {
+          role: body.role,
+          hasBranchAccess: body.hasBranchAccess ?? false,
+          hasRegionalAccess: body.hasRegionalAccess ?? false,
+        },
+        skipPasswordRequirement: true,
+      })
+    } catch (clerkErr) {
+      if (
+        isClerkAPIResponseError(clerkErr) &&
+        clerkErr.errors.some(
+          (e) => e.code === 'form_identifier_exists' || e.code === 'identification_exists',
+        )
+      ) {
+        const existing = await client.users.getUserList({ emailAddress: [email] })
+        const hit = existing.data[0]
+        if (!hit) {
+          return NextResponse.json(
+            { error: 'Clerk reported duplicate email but no matching user was found' },
+            { status: 500 },
+          )
+        }
+        const { data: existingProfile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', hit.id)
+          .maybeSingle()
+        if (existingProfile) {
+          return NextResponse.json(
+            { error: 'A user with this email already exists' },
+            { status: 409 },
+          )
+        }
+        clerkUser = hit
+      } else {
+        throw clerkErr
+      }
+    }
 
     // Upsert profile in Supabase — the Clerk webhook (user.created) may race
     // with us and insert the base row first. Upsert on `id` enriches either way.
     const { error: profileError } = await supabase.from('profiles').upsert(
       {
         id: clerkUser.id,
-        email: body.email.trim(),
+        email,
         name: body.name.trim(),
         role: body.role,
         department: body.department || null,
@@ -144,38 +180,46 @@ export async function POST(request: Request) {
       })
       const signInUrl = `${PORTAL_URL}/sign-in?__clerk_ticket=${token.token}`
       await notifyUserWelcome({
-        email: body.email.trim(),
+        email,
         name: body.name.trim(),
         role: body.role,
         signInUrl,
       })
     } catch (welcomeErr) {
       console.error(
-        `[create-user] Failed to send welcome email to ${body.email}:`,
+        `[create-user] Failed to send welcome email to ${email}:`,
         welcomeErr,
       )
     }
 
     return NextResponse.json({
       id: clerkUser.id,
-      email: body.email.trim(),
+      email,
       name: body.name.trim(),
     }, { status: 201 })
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Unknown error'
-    console.error('[create-user] Error:', message)
-
-    // Clerk-specific error messages
-    if (message.includes('already exists') || message.includes('taken')) {
+    if (isClerkAPIResponseError(err)) {
+      const first = err.errors[0]
+      console.error('[create-user] Clerk API error:', {
+        status: err.status,
+        clerkTraceId: err.clerkTraceId,
+        errors: err.errors,
+      })
+      const status = err.status === 422 ? 400 : err.status || 500
       return NextResponse.json(
-        { error: 'A user with this email already exists' },
-        { status: 409 },
+        {
+          error: first?.longMessage || first?.message || 'Clerk rejected the request',
+          code: first?.code,
+          paramName: first?.meta?.paramName,
+          clerkErrors: err.errors,
+          clerkTraceId: err.clerkTraceId,
+        },
+        { status },
       )
     }
 
-    return NextResponse.json(
-      { error: message },
-      { status: 500 },
-    )
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    console.error('[create-user] Error:', err)
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
