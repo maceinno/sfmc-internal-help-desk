@@ -169,10 +169,29 @@ export async function POST(request: Request) {
         clerkUserId = clerkUser.id
         createdInClerk = true
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Unknown error'
+        // Clerk SDK errors carry their detailed reason in err.errors[0] —
+        // the bare err.message is usually just the HTTP status text
+        // ("Forbidden"). Log the raw object so we can see code +
+        // longMessage in Vercel logs, and surface the longMessage to the
+        // import UI so admins know whether it's an allowlist hit, an
+        // existing user, a misconfigured Clerk instance, etc.
+        console.error('[import-users] Clerk createUser failed:', err)
+        const clerkErr = err as {
+          errors?: Array<{ code?: string; longMessage?: string; message?: string }>
+          message?: string
+        }
+        const detail = clerkErr.errors?.[0]
+        const message =
+          detail?.longMessage ||
+          detail?.message ||
+          clerkErr.message ||
+          'Unknown error'
 
         // Orphan case: Clerk account exists but no profile row. Reuse the Clerk id.
-        if (/already exists|taken/i.test(message)) {
+        if (
+          detail?.code === 'form_identifier_exists' ||
+          /already exists|taken/i.test(message)
+        ) {
           try {
             const existingClerk = await clerk.users.getUserList({
               emailAddress: [row.email.trim()],
