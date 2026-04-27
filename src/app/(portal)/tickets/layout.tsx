@@ -356,6 +356,7 @@ export default function TicketsLayout({
           <div className="flex-1 overflow-hidden">
             <TicketList
               tickets={filteredTickets}
+              allTickets={tickets}
               title={activeView?.name ?? 'All Tickets'}
               users={users}
             />
