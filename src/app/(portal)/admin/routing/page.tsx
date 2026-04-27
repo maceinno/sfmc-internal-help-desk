@@ -38,18 +38,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-// ── Constants ──────────────────────────────────────────────────
-
-const CATEGORY_OPTIONS: string[] = [
-  'Loan Origination',
-  'Underwriting',
-  'Closing',
-  'Servicing',
-  'Compliance',
-  'IT Systems',
-  'General',
-]
-
 // ── Types ──────────────────────────────────────────────────────
 
 interface RuleFormState {
@@ -113,6 +101,26 @@ export default function RoutingPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [form, setForm] = useState<RuleFormState>(emptyForm)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  // Categories for the rule — scoped to the selected department, or the
+  // union of all categories when "Any Type" is chosen.
+  const categoryOptions = useMemo(() => {
+    if (!form.ticketType || form.ticketType === 'any') {
+      const seen = new Set<string>()
+      const all: string[] = []
+      for (const g of departmentGroups) {
+        for (const c of g.categories) {
+          if (!seen.has(c.name)) {
+            seen.add(c.name)
+            all.push(c.name)
+          }
+        }
+      }
+      return all.sort()
+    }
+    const match = departmentGroups.find((g) => g.ticket_type === form.ticketType)
+    return match?.categories.map((c) => c.name) ?? []
+  }, [departmentGroups, form.ticketType])
 
   // Sorted rules
   const sorted = useMemo(
@@ -507,7 +515,7 @@ export default function RoutingPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="any">Any Category</SelectItem>
-                  {CATEGORY_OPTIONS.map((c) => (
+                  {categoryOptions.map((c) => (
                     <SelectItem key={c} value={c}>
                       {c}
                     </SelectItem>

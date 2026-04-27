@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import { useTickets } from '@/hooks/use-tickets'
 import { useUsers } from '@/hooks/use-users'
-import { useViewConfigs } from '@/hooks/use-admin-config'
+import { useViewConfigs, useDepartmentCategories } from '@/hooks/use-admin-config'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { useUIStore } from '@/stores/ui-store'
 import { getSlaStatus } from '@/lib/sla'
@@ -21,16 +21,6 @@ import type {
   User,
   ViewConfig,
 } from '@/types/ticket'
-
-const TICKET_CATEGORIES: readonly string[] = [
-  'Loan Origination',
-  'Underwriting',
-  'Closing',
-  'Servicing',
-  'Compliance',
-  'IT Systems',
-  'General',
-]
 
 interface ViewEntry {
   id: string
@@ -44,14 +34,15 @@ interface ViewGroup {
 
 function buildViewGroups(
   configs: ViewConfig[],
+  departmentNames: string[],
   userDepartments: string[],
   isAdmin: boolean,
 ): ViewGroup[] {
   const enabled = configs.filter((v) => v.enabled)
 
   const deptGroups = isAdmin
-    ? TICKET_CATEGORIES
-    : TICKET_CATEGORIES.filter((cat) => userDepartments.includes(cat))
+    ? departmentNames
+    : departmentNames.filter((cat) => userDepartments.includes(cat))
 
   const orderedGroupNames: string[] = [
     'My Queue',
@@ -166,16 +157,26 @@ export default function TicketsLayout({
     }
   }, [searchParams, setActiveViewId])
 
+  const { data: departmentGroups = [] } = useDepartmentCategories()
+  const departmentNames = useMemo(
+    () => departmentGroups.map((g) => g.ticket_type),
+    [departmentGroups],
+  )
+
+  // Department groups start collapsed; system groups (My Queue, By Status,
+  // Other) stay open. Newly-added departments default to collapsed too.
   const [collapsedGroups, setCollapsedGroups] = useState<
     Record<string, boolean>
-  >(() => {
-    const initial: Record<string, boolean> = {}
-    for (const cat of TICKET_CATEGORIES) {
-      initial[cat] = true
-    }
-    initial['Other'] = true
-    return initial
-  })
+  >({ Other: true })
+  useEffect(() => {
+    setCollapsedGroups((prev) => {
+      const next = { ...prev }
+      for (const dept of departmentNames) {
+        if (next[dept] === undefined) next[dept] = true
+      }
+      return next
+    })
+  }, [departmentNames])
 
   const toggleGroup = (groupName: string) => {
     setCollapsedGroups((prev) => ({
@@ -192,8 +193,8 @@ export default function TicketsLayout({
   )
 
   const viewGroups = useMemo(
-    () => buildViewGroups(viewConfigs, userDepartments, isAdmin),
-    [viewConfigs, userDepartments, isAdmin],
+    () => buildViewGroups(viewConfigs, departmentNames, userDepartments, isAdmin),
+    [viewConfigs, departmentNames, userDepartments, isAdmin],
   )
 
   const allViews = useMemo(

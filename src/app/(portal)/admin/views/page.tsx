@@ -15,7 +15,7 @@ import {
   Loader2,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { useViewConfigs } from '@/hooks/use-admin-config'
+import { useViewConfigs, useDepartmentCategories } from '@/hooks/use-admin-config'
 import { createClerkSupabaseClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -59,35 +59,15 @@ const ASSIGNEE_OPTIONS: {
   { value: 'assigned', label: 'Any Assigned Agent' },
 ]
 
-const CATEGORY_OPTIONS: { value: TicketCategory | 'any'; label: string }[] = [
-  { value: 'any', label: 'Any Category' },
-  { value: 'Loan Origination', label: 'Loan Origination' },
-  { value: 'Underwriting', label: 'Underwriting' },
-  { value: 'Closing', label: 'Closing' },
-  { value: 'Servicing', label: 'Servicing' },
-  { value: 'Compliance', label: 'Compliance' },
-  { value: 'IT Systems', label: 'IT Systems' },
-  { value: 'General', label: 'General' },
-]
-
 const SLA_OPTIONS: { value: ViewFilterConfig['slaFilter']; label: string }[] = [
   { value: 'any', label: 'Any SLA Status' },
   { value: 'at-risk', label: 'SLA At Risk' },
   { value: 'breached', label: 'SLA Breached Only' },
 ]
 
-const VIEW_GROUPS = [
-  'Global',
-  'My Queue',
-  'By Status',
-  'Loan Origination',
-  'Underwriting',
-  'Closing',
-  'Servicing',
-  'Compliance',
-  'IT Systems',
-  'General',
-]
+// System groups always shown (in this order). Department groups are
+// appended after these from the live Admin → Categories list.
+const SYSTEM_VIEW_GROUPS = ['Global', 'My Queue', 'By Status'] as const
 
 // ── Helpers ────────────────────────────────────────────────────
 
@@ -122,6 +102,22 @@ export default function ViewsAdminPage() {
   const { getToken } = useAuth()
   const queryClient = useQueryClient()
   const { data: viewConfigs = [], isLoading } = useViewConfigs()
+  const { data: departmentGroups = [] } = useDepartmentCategories()
+  const departmentNames = useMemo(
+    () => departmentGroups.map((g) => g.ticket_type),
+    [departmentGroups],
+  )
+  const VIEW_GROUPS = useMemo(
+    () => [...SYSTEM_VIEW_GROUPS, ...departmentNames],
+    [departmentNames],
+  )
+  const CATEGORY_OPTIONS = useMemo(
+    () => [
+      { value: 'any', label: 'Any Category' } as const,
+      ...departmentNames.map((name) => ({ value: name, label: name })),
+    ],
+    [departmentNames],
+  )
 
   const [localConfigs, setLocalConfigs] = useState<ViewConfig[] | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -503,9 +499,7 @@ export default function ViewsAdminPage() {
                               onChange={(e) =>
                                 updateViewFilter(view.id, {
                                   ...view.filter_config,
-                                  categoryFilter: e.target.value as
-                                    | TicketCategory
-                                    | 'any',
+                                  categoryFilter: e.target.value as TicketCategory | 'any',
                                 })
                               }
                               className="w-full h-8 px-2.5 text-sm border border-input rounded-lg bg-transparent focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 outline-none"

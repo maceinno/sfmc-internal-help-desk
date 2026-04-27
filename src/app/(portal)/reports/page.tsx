@@ -18,7 +18,6 @@ import {
 import { useTickets } from '@/hooks/use-tickets'
 import { useUsers } from '@/hooks/use-users'
 import { SLA_CONFIG } from '@/lib/sla'
-import type { TicketCategory } from '@/types/ticket'
 
 // ============================================================================
 // Color constants matching the app design system
@@ -47,16 +46,6 @@ const CATEGORY_COLORS = [
   '#22c55e', // green-500
   '#06b6d4', // cyan-500
   '#6b7280', // gray-500
-]
-
-const ALL_CATEGORIES: TicketCategory[] = [
-  'Loan Origination',
-  'Underwriting',
-  'Closing',
-  'Servicing',
-  'Compliance',
-  'IT Systems',
-  'General',
 ]
 
 // ============================================================================

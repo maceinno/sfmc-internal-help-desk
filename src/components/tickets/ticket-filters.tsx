@@ -1,6 +1,8 @@
 'use client'
 
+import { useMemo } from 'react'
 import { Search } from 'lucide-react'
+import { useDepartmentCategories } from '@/hooks/use-admin-config'
 import type { TicketStatus, TicketPriority, TicketCategory, Ticket } from '@/types/ticket'
 
 // ── Filter / Sort value types ──────────────────────────────────
@@ -34,16 +36,8 @@ const PRIORITY_OPTIONS: { value: PriorityFilterValue; label: string }[] = [
   { value: 'low', label: 'Low' },
 ]
 
-const CATEGORY_OPTIONS: { value: CategoryFilterValue; label: string }[] = [
-  { value: 'all', label: 'All Categories' },
-  { value: 'Loan Origination', label: 'Loan Origination' },
-  { value: 'Underwriting', label: 'Underwriting' },
-  { value: 'Closing', label: 'Closing' },
-  { value: 'Servicing', label: 'Servicing' },
-  { value: 'Compliance', label: 'Compliance' },
-  { value: 'IT Systems', label: 'IT Systems' },
-  { value: 'General', label: 'General' },
-]
+// Category options come from Admin → Categories at runtime; see the
+// CATEGORY_OPTIONS useMemo inside the component below.
 
 // ── Props ──────────────────────────────────────────────────────
 
@@ -70,6 +64,17 @@ export function TicketFilters({
   categoryFilter,
   onCategoryFilterChange,
 }: TicketFiltersProps) {
+  const { data: departmentGroups = [] } = useDepartmentCategories()
+  const CATEGORY_OPTIONS = useMemo(
+    () => [
+      { value: 'all' as const, label: 'All Categories' },
+      ...departmentGroups.map((g) => ({
+        value: g.ticket_type as TicketCategory,
+        label: g.ticket_type,
+      })),
+    ],
+    [departmentGroups],
+  )
   return (
     <div className="flex flex-wrap items-center gap-2 px-6 py-3 border-b border-gray-200 bg-gray-50/50">
       {/* Search */}
