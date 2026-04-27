@@ -17,9 +17,9 @@ import {
   useTeams,
   useBranches,
   useRegions,
+  useDepartmentCategories,
 } from '@/hooks/use-admin-config'
 import type { User, TicketType } from '@/types'
-import { TICKET_TYPES } from '@/data/ticket-config'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -113,6 +113,11 @@ export default function UsersPage() {
   const { data: teams = [] } = useTeams()
   const { data: branches = [] } = useBranches()
   const { data: regions = [] } = useRegions()
+  const { data: departmentGroups = [] } = useDepartmentCategories()
+  const departmentNames = useMemo(
+    () => departmentGroups.map((g) => g.ticket_type),
+    [departmentGroups],
+  )
 
   const [searchQuery, setSearchQuery] = useState('')
   const [roleFilter, setRoleFilter] = useState('all')
@@ -301,16 +306,16 @@ export default function UsersPage() {
     })
   }
 
-  function toggleTicketType(tt: TicketType) {
+  function toggleTicketType(tt: string) {
     if (!form) return
     setForm((f) => {
       if (!f) return f
       const current = f.ticketTypesHandled
       return {
         ...f,
-        ticketTypesHandled: current.includes(tt)
+        ticketTypesHandled: current.includes(tt as TicketType)
           ? current.filter((t) => t !== tt)
-          : [...current, tt],
+          : [...current, tt as TicketType],
       }
     })
   }
@@ -590,7 +595,7 @@ export default function UsersPage() {
               <div className="grid gap-1.5">
                 <Label>Departments (multi)</Label>
                 <div className="flex flex-wrap gap-1.5 p-2 border rounded-lg min-h-[42px]">
-                  {TICKET_TYPES.map((dept) => {
+                  {departmentNames.map((dept) => {
                     const selected = form.departments.includes(dept)
                     return (
                       <button
@@ -820,8 +825,8 @@ export default function UsersPage() {
               <div className="grid gap-1.5">
                 <Label>Ticket Types Handled</Label>
                 <div className="flex flex-wrap gap-1.5 p-2 border rounded-lg min-h-[42px]">
-                  {TICKET_TYPES.map((tt) => {
-                    const selected = form.ticketTypesHandled.includes(tt)
+                  {departmentNames.map((tt) => {
+                    const selected = form.ticketTypesHandled.includes(tt as TicketType)
                     return (
                       <button
                         key={tt}

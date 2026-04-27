@@ -14,9 +14,8 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClerkSupabaseClient } from '@/lib/supabase/client'
-import { useRoutingRules, useTeams } from '@/hooks/use-admin-config'
+import { useRoutingRules, useTeams, useDepartmentCategories } from '@/hooks/use-admin-config'
 import type { RoutingRule, TicketCategory, User } from '@/types'
-import { TICKET_TYPES } from '@/data/ticket-config'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -104,6 +103,11 @@ export default function RoutingPage() {
   const { data: rules = [], isLoading } = useRoutingRules()
   const { data: teams = [] } = useTeams()
   const { data: agentUsers = [] } = useAgentUsers()
+  const { data: departmentGroups = [] } = useDepartmentCategories()
+  const departmentNames = useMemo(
+    () => departmentGroups.map((g) => g.ticket_type),
+    [departmentGroups],
+  )
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -480,7 +484,7 @@ export default function RoutingPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="any">Any Type</SelectItem>
-                  {TICKET_TYPES.map((t) => (
+                  {departmentNames.map((t) => (
                     <SelectItem key={t} value={t}>
                       {t}
                     </SelectItem>
