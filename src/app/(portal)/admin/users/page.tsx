@@ -10,6 +10,8 @@ import {
   Users,
   UserPlus,
   Eye,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClerkSupabaseClient } from '@/lib/supabase/client'
@@ -51,6 +53,8 @@ import {
 } from '@/components/ui/select'
 
 // ── Constants ──────────────────────────────────────────────────
+
+const ROWS_PER_PAGE = 15
 
 const ROLE_OPTIONS: { value: User['role']; label: string }[] = [
   { value: 'employee', label: 'Employee' },
@@ -121,6 +125,7 @@ export default function UsersPage() {
 
   const [searchQuery, setSearchQuery] = useState('')
   const [roleFilter, setRoleFilter] = useState('all')
+  const [currentPage, setCurrentPage] = useState(1)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [form, setForm] = useState<UserFormState | null>(null)
   const [addDialogOpen, setAddDialogOpen] = useState(false)
@@ -155,6 +160,19 @@ export default function UsersPage() {
     }
     return list
   }, [users, searchQuery, roleFilter])
+
+  // Reset to page 1 when filters change
+  useMemo(() => {
+    setCurrentPage(1)
+  }, [searchQuery, roleFilter])
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ROWS_PER_PAGE))
+  const safePage = Math.min(currentPage, totalPages)
+  const paginatedUsers = useMemo(() => {
+    const start = (safePage - 1) * ROWS_PER_PAGE
+    return filtered.slice(start, start + ROWS_PER_PAGE)
+  }, [filtered, safePage])
 
   // ── Mutation ───────────────────────────────────────────────
 
@@ -406,6 +424,7 @@ export default function UsersPage() {
               </p>
             </div>
           ) : (
+            <>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -421,7 +440,7 @@ export default function UsersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((u) => (
+                {paginatedUsers.map((u) => (
                   <TableRow key={u.id}>
                     <TableCell className="font-medium">{u.name}</TableCell>
                     <TableCell className="text-muted-foreground">
@@ -516,6 +535,49 @@ export default function UsersPage() {
                 ))}
               </TableBody>
             </Table>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between border-t px-4 py-3">
+                <p className="text-sm text-muted-foreground">
+                  Showing {(safePage - 1) * ROWS_PER_PAGE + 1}–{Math.min(safePage * ROWS_PER_PAGE, filtered.length)} of {filtered.length} users
+                </p>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={safePage <= 1}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  >
+                    <ChevronLeft className="w-4 h-4 mr-1" />
+                    Previous
+                  </Button>
+                  <div className="flex items-center gap-1 mx-2">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                      <Button
+                        key={page}
+                        variant={page === safePage ? 'default' : 'outline'}
+                        size="sm"
+                        className="w-8 h-8 p-0"
+                        onClick={() => setCurrentPage(page)}
+                      >
+                        {page}
+                      </Button>
+                    ))}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={safePage >= totalPages}
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  >
+                    Next
+                    <ChevronRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
+            )}
+            </>
           )}
         </CardContent>
       </Card>
