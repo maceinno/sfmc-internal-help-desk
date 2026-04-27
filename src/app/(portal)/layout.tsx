@@ -5,6 +5,7 @@ import { Sidebar } from '@/components/layout/sidebar'
 import { RealtimeProvider } from '@/components/layout/realtime-provider'
 import { AssumeUserBanner } from '@/components/layout/assume-user-banner'
 import { VersionBanner } from '@/components/layout/version-banner'
+import { TicketTabs } from '@/components/layout/ticket-tabs'
 
 export default async function PortalLayout({
   children,
@@ -24,9 +25,12 @@ export default async function PortalLayout({
         <AssumeUserBanner />
         <div className="min-h-screen bg-gray-50 flex font-sans text-gray-900">
           <Sidebar />
-          <main className="flex-1 min-w-0 ml-0 lg:ml-64 p-4 pt-16 lg:pt-8 lg:pr-8 lg:pb-8 lg:pl-12 overflow-x-hidden">
-            {children}
-          </main>
+          <div className="flex-1 min-w-0 ml-0 lg:ml-64 flex flex-col">
+            <TicketTabs />
+            <main className="flex-1 min-w-0 p-4 pt-16 lg:pt-8 lg:pr-8 lg:pb-8 lg:pl-12 overflow-x-hidden">
+              {children}
+            </main>
+          </div>
         </div>
       </RealtimeProvider>
     </Providers>

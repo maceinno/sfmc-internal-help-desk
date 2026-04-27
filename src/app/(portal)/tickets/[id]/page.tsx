@@ -27,6 +27,7 @@ import { useAuth } from "@clerk/nextjs"
 import { createClerkSupabaseClient } from "@/lib/supabase/client"
 import { useCannedResponses, useTeams, useCustomFields } from "@/hooks/use-admin-config"
 import { useUIStore } from "@/stores/ui-store"
+import { useTabStore } from "@/stores/tab-store"
 import { canViewInternalNotes } from "@/lib/permissions/policies"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
@@ -51,6 +52,7 @@ export default function TicketDetailPage({
   const updateTicket = useUpdateTicket()
   const queryClient = useQueryClient()
   const { setFollowUpFromTicketId } = useUIStore()
+  const openTab = useTabStore((s) => s.openTab)
 
   const [showMergeModal, setShowMergeModal] = React.useState(false)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
@@ -96,6 +98,21 @@ export default function TicketDetailPage({
     if (!currentUser) return []
     return [currentUser]
   }, [allUsers, currentUser])
+
+  // Open this ticket as a tab once it loads. Depends on primitives so it
+  // doesn't refire when `users` keeps a fresh reference each render.
+  const requesterName = React.useMemo(
+    () => users.find((u) => u.id === ticket?.created_by)?.name,
+    [users, ticket?.created_by],
+  )
+  React.useEffect(() => {
+    if (!ticket) return
+    openTab({
+      id: ticket.id,
+      title: ticket.title,
+      requesterName,
+    })
+  }, [ticket?.id, ticket?.title, requesterName, openTab])
 
   // Human-friendly labels for the auto-save toast.
   const FIELD_LABELS: Record<string, string> = {
