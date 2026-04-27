@@ -4,9 +4,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import {
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   Globe,
   Loader2,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react'
 import { useTickets } from '@/hooks/use-tickets'
 import { useUsers } from '@/hooks/use-users'
@@ -186,6 +189,28 @@ export default function TicketsLayout({
     })
   }, [departmentNames])
 
+  // Column collapse state for the master-detail layout. Persisted in
+  // localStorage so an agent who prefers a wide ticket pane keeps that
+  // preference across reloads.
+  const [viewsCollapsed, setViewsCollapsedState] = useState(false)
+  const [queueCollapsed, setQueueCollapsedState] = useState(false)
+  useEffect(() => {
+    setViewsCollapsedState(
+      localStorage.getItem('tickets-views-collapsed') === '1',
+    )
+    setQueueCollapsedState(
+      localStorage.getItem('tickets-queue-collapsed') === '1',
+    )
+  }, [])
+  const setViewsCollapsed = (v: boolean) => {
+    setViewsCollapsedState(v)
+    localStorage.setItem('tickets-views-collapsed', v ? '1' : '0')
+  }
+  const setQueueCollapsed = (v: boolean) => {
+    setQueueCollapsedState(v)
+    localStorage.setItem('tickets-queue-collapsed', v ? '1' : '0')
+  }
+
   const toggleGroup = (groupName: string) => {
     setCollapsedGroups((prev) => ({
       ...prev,
@@ -259,12 +284,33 @@ export default function TicketsLayout({
     )
   }
 
-  const viewsAside = (
+  const viewsAside = viewsCollapsed ? (
+    <aside className="hidden lg:flex w-[28px] flex-shrink-0 bg-white border-r border-gray-200 flex-col items-center pt-2">
+      <button
+        type="button"
+        onClick={() => setViewsCollapsed(false)}
+        className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+        title="Show views"
+        aria-label="Show views"
+      >
+        <PanelLeftOpen className="w-4 h-4" />
+      </button>
+    </aside>
+  ) : (
     <aside className="hidden lg:flex w-[240px] flex-shrink-0 bg-white border-r border-gray-200 flex-col overflow-hidden">
-      <div className="px-3 py-2.5 border-b border-gray-100 bg-gray-50/50">
+      <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-100 bg-gray-50/50">
         <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
           Views
         </h2>
+        <button
+          type="button"
+          onClick={() => setViewsCollapsed(true)}
+          className="rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+          title="Hide views"
+          aria-label="Hide views"
+        >
+          <PanelLeftClose className="w-3.5 h-3.5" />
+        </button>
       </div>
       <nav className="flex-1 overflow-y-auto py-1">
         {viewGroups.map((group, idx) => {
@@ -334,13 +380,36 @@ export default function TicketsLayout({
 
       {isDetail ? (
         <>
-          <aside className="hidden md:flex w-[280px] xl:w-[320px] flex-shrink-0 flex-col overflow-hidden">
-            <TicketQueueList
-              tickets={filteredTickets}
-              users={users}
-              title={activeView?.name ?? 'All Tickets'}
-            />
-          </aside>
+          {queueCollapsed ? (
+            <aside className="hidden md:flex w-[28px] flex-shrink-0 bg-white border-r border-gray-200 flex-col items-center pt-2">
+              <button
+                type="button"
+                onClick={() => setQueueCollapsed(false)}
+                className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                title="Show ticket list"
+                aria-label="Show ticket list"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </aside>
+          ) : (
+            <aside className="relative hidden md:flex w-[280px] xl:w-[320px] flex-shrink-0 flex-col overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setQueueCollapsed(true)}
+                className="absolute right-1 top-1.5 z-10 rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                title="Hide ticket list"
+                aria-label="Hide ticket list"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+              <TicketQueueList
+                tickets={filteredTickets}
+                users={users}
+                title={activeView?.name ?? 'All Tickets'}
+              />
+            </aside>
+          )}
           <div className="flex-1 min-w-0 overflow-hidden">{children}</div>
         </>
       ) : (

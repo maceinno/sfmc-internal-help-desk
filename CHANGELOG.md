@@ -47,6 +47,10 @@ This file mirrors the data rendered in-app at **/whats-new**
 
 - **Clicking an inline image thumbnail now opens a preview.** Previously only the thumbnails in the bottom Attachments section opened the lightbox; thumbnails inside the message thread silently did nothing.
 
+### Tickets workspace
+
+- **Views and ticket-list columns can now be collapsed.** Click the small panel icon in the Views header (or the chevron at the top of the ticket-list column) to hide it; click again on the thin strip to bring it back. Each column's collapsed state is remembered across reloads.
+
 ## 2026-04-22
 
 ### Ticket replies by email

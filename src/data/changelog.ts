@@ -120,6 +120,15 @@ export const CHANGELOG: ChangelogEntry[] = [
           },
         ],
       },
+      {
+        heading: 'Tickets workspace',
+        items: [
+          {
+            title: 'Collapse the Views and ticket-list columns to widen the active ticket',
+            body: 'A small panel icon in the Views header hides that column; a chevron at the top of the ticket-list column hides that one. A thin strip stays in place so you can re-expand with a click. Each column remembers its state across reloads, per browser.',
+          },
+        ],
+      },
     ],
   },
   {
