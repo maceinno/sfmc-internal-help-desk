@@ -84,6 +84,33 @@ export const CHANGELOG: ChangelogEntry[] = [
           },
         ],
       },
+      {
+        heading: 'Ticket list',
+        items: [
+          {
+            title: 'Search by ticket ID finds tickets outside your current view',
+            body: "Searching for a ticket ID like T-1093 now searches across all tickets you have access to, not just the current view. Useful when you know the ID but don't remember which queue the ticket lives in. Title/keyword search still scopes to the current view.",
+          },
+        ],
+      },
+      {
+        heading: 'Create a ticket',
+        items: [
+          {
+            title: 'Pasted screenshots attach as files',
+            body: 'Pasting an image into the description now attaches it (matching how the reply composer already worked). The image shows up in the Attachments list rather than being dropped or stuffed inline as a multi-megabyte data URL.',
+          },
+        ],
+      },
+      {
+        heading: 'Inbound email',
+        items: [
+          {
+            title: 'Embedded images in email replies display in the conversation',
+            body: 'External-image URLs are kept so company logos and screenshots render, but they load with no-referrer + lazy hints to limit tracking. Inline data-URI images are still stripped to keep ticket rows from ballooning.',
+          },
+        ],
+      },
     ],
   },
   {

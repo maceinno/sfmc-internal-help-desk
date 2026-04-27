@@ -2,8 +2,11 @@ import DOMPurify from 'dompurify'
 
 /**
  * Allowed tags / attributes for rich-text we accept from the editor and
- * render back into the UI. Intentionally small — no scripts, no styles. Inline images are
- * allowed so pasted screenshots render correctly. Mirrors what the Tiptap toolbar can produce.
+ * render back into the UI. Intentionally small — no scripts, no styles.
+ * <img> is permitted so embedded images in inbound emails render and so
+ * future Storage-hosted attachments can be inlined; src URIs are
+ * restricted to http(s) by ALLOWED_URI_REGEXP below to keep data:/javascript:
+ * out and to prevent multi-MB clipboard data URIs from bloating ticket rows.
  */
 const ALLOWED_TAGS = [
   'p',
@@ -27,7 +30,34 @@ const ALLOWED_TAGS = [
   'img',
 ]
 
-const ALLOWED_ATTRS = ['href', 'target', 'rel', 'src', 'alt', 'width', 'height']
+const ALLOWED_ATTRS = [
+  'href',
+  'target',
+  'rel',
+  'src',
+  'alt',
+  'width',
+  'height',
+  'loading',
+  'referrerpolicy',
+]
+
+// http(s), mailto, tel, cid (email-embedded images), or scheme-less
+// (relative/anchor) refs. Blocks data: and javascript:.
+const SAFE_URI_REGEXP = /^(?:https?:|mailto:|tel:|cid:|#|\/|[^a-z]|$)/i
+
+let imgHookRegistered = false
+function ensureImgHook() {
+  if (imgHookRegistered) return
+  // Force tracking-pixel mitigations on every <img> we render.
+  DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+    if ((node as Element).tagName === 'IMG') {
+      ;(node as Element).setAttribute('loading', 'lazy')
+      ;(node as Element).setAttribute('referrerpolicy', 'no-referrer')
+    }
+  })
+  imgHookRegistered = true
+}
 
 /**
  * Sanitize HTML coming from a rich-text editor or pasted source. Client
@@ -43,9 +73,11 @@ export function sanitizeRichHtml(html: string): string {
     // accidental rendering can't execute anything.
     return html.replace(/<[^>]*>/g, '')
   }
+  ensureImgHook()
   const clean = DOMPurify.sanitize(html, {
     ALLOWED_TAGS,
     ALLOWED_ATTR: ALLOWED_ATTRS,
+    ALLOWED_URI_REGEXP: SAFE_URI_REGEXP,
   })
   // Force safe link rels via a quick post-process so external links
   // open in a new tab without sharing the opener.

@@ -31,6 +31,18 @@ This file mirrors the data rendered in-app at **/whats-new**
 
 - **Users table now paginates at 15 per page** with Previous/Next and page-number buttons. The page resets to 1 when you change the search box or role filter.
 
+### Ticket list
+
+- **Searching by ticket ID (e.g. `T-1093`) now finds tickets outside your current view.** If you're on Open Tickets and search for a ticket that's been Solved, it'll still surface. Title/keyword search still scopes to the current view.
+
+### Create a ticket
+
+- **Pasted screenshots in the description now attach as files** (same behavior the reply box already had). They show up in the Attachments list instead of being dropped silently or bloating the ticket body.
+
+### Inbound email
+
+- **Embedded images in email replies now display in the conversation.** Previously the sanitizer stripped them. External image URLs are kept (so logos and screenshots render) but are loaded with `referrerpolicy="no-referrer"` and `loading="lazy"` to limit tracking. Inline `data:` URIs are still blocked to prevent oversized rows.
+
 ## 2026-04-22
 
 ### Ticket replies by email

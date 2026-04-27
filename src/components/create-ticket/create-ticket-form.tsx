@@ -241,6 +241,13 @@ export function CreateTicketForm() {
     setFiles((prev) => [...prev, ...newFiles])
   }
 
+  // Pasted screenshots from the description editor land here as
+  // attachments, matching the reply-composer behavior. Keeps inline
+  // data: URIs out of the description body.
+  const handleEditorPasteFiles = React.useCallback((pasted: File[]) => {
+    setFiles((prev) => [...prev, ...pasted])
+  }, [])
+
   const handleRemoveFile = (index: number) => {
     setFiles((prev) => prev.filter((_, i) => i !== index))
   }
@@ -408,6 +415,7 @@ export function CreateTicketForm() {
                     onChange={field.onChange}
                     placeholder="Include loan file numbers, borrower names, system error messages, or any relevant details..."
                     ariaInvalid={!!errors.description}
+                    onPasteFiles={handleEditorPasteFiles}
                   />
                 )}
               />
