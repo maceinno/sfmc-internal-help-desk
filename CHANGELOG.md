@@ -7,6 +7,12 @@ Newest entries go on top.
 This file mirrors the data rendered in-app at **/whats-new**
 (source: `src/data/changelog.ts`). When you add a fix, update both files.
 
+## 2026-04-27
+
+### Ticket replies
+
+- **Changing status from the right-hand panel now sends your typed reply too.** If you've typed a reply (or internal note) in the composer and then click a status — Solved, Pending, Open, etc. — in the Ticket Details panel, the reply posts along with the status change as one action. Works for internal notes too: typed note + status change saves both. The Submit-as-&lt;status&gt; split button on the composer still works exactly as before.
+
 ## 2026-04-22
 
 ### Ticket replies by email

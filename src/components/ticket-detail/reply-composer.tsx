@@ -87,6 +87,15 @@ interface ReplyComposerProps {
 
 export interface ReplyComposerHandle {
   addFiles: (files: File[]) => void
+  /** True when the composer has any non-whitespace content typed. */
+  hasDraft: () => boolean
+  /**
+   * Send the current draft (if any) with the given status change. Used
+   * when an agent triggers a status change from the right sidebar while a
+   * reply is typed — Zendesk-style atomic "post + status" in one action.
+   * No-op if the composer is empty.
+   */
+  submitDraft: (nextStatus: TicketStatus | null) => Promise<void>
 }
 
 function getInitials(name: string): string {
@@ -193,18 +202,34 @@ export const ReplyComposer = React.forwardRef<
     setTaggedInMessage(taggedInMessage.filter((id) => id !== userId))
   }
 
-  const handleSend = async () => {
+  // Single send path. `source` decides how nextStatus is resolved:
+  //   - 'button' (the Submit button): pendingStatus from the dropdown,
+  //     forced to null in internal-note mode (notes never auto-change
+  //     status from a button click).
+  //   - 'sidebar' (status change in TicketSidebarPanel with a typed
+  //     draft): always honor the override the sidebar passed in,
+  //     including for internal notes — the user explicitly clicked a
+  //     status while typing, so they want both.
+  const sendInternal = async (
+    source: 'button' | 'sidebar',
+    overrideStatus?: TicketStatus | null,
+  ) => {
     if (!replyText.trim() || isSending) return
     setIsSending(true)
     try {
+      const finalNextStatus =
+        source === 'sidebar'
+          ? overrideStatus ?? null
+          : isInternalNote
+          ? null
+          : pendingStatus
       await onSubmit({
         content: replyText,
         isInternal: isInternalNote,
         taggedAgents: taggedInMessage.length > 0 ? taggedInMessage : undefined,
         attachments: selectedFiles.length > 0 ? selectedFiles : undefined,
         cannedResponseId: pendingCannedResponseId,
-        // Internal notes never change status.
-        nextStatus: isInternalNote ? null : pendingStatus,
+        nextStatus: finalNextStatus,
       })
       setReplyText("")
       setTaggedInMessage([])
@@ -215,6 +240,8 @@ export const ReplyComposer = React.forwardRef<
       setIsSending(false)
     }
   }
+
+  const handleSend = () => sendInternal('button')
 
   const handleCannedResponseSelect = (response: CannedResponse) => {
     const processedContent = response.content
@@ -258,6 +285,9 @@ export const ReplyComposer = React.forwardRef<
       setSelectedFiles((prev) => [...prev, ...files])
       setShowFileUpload(true)
     },
+    hasDraft: () => replyText.trim().length > 0,
+    submitDraft: (nextStatus: TicketStatus | null) =>
+      sendInternal('sidebar', nextStatus),
   }))
 
   const handleRemoveFile = (index: number) => {

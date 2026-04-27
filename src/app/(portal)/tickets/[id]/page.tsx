@@ -61,6 +61,11 @@ export default function TicketDetailPage({
     React.useState(false)
   const replyComposerRef = React.useRef<ReplyComposerHandle>(null)
   const dragCounter = React.useRef(0)
+  // Set while we're forwarding a sidebar status change through the composer
+  // (so the typed reply gets sent alongside the status change). Stops the
+  // status update path inside handleReplySubmit from re-entering this same
+  // forward path and looping.
+  const isFlushingDraftRef = React.useRef(false)
 
   const handleConversationDragEnter = React.useCallback((e: React.DragEvent) => {
     if (!Array.from(e.dataTransfer.types).includes('Files')) return
@@ -128,6 +133,24 @@ export default function TicketDetailPage({
   const handleUpdateField = React.useCallback(
     (field: string, value: unknown) => {
       if (!ticket) return
+
+      // Status change initiated from the sidebar while a reply is typed:
+      // forward to the composer so the draft + status change post as one
+      // atomic action (Zendesk parity). The composer's onSubmit will route
+      // back here with the status update — the ref guard prevents looping.
+      if (
+        field === 'status' &&
+        !isFlushingDraftRef.current &&
+        replyComposerRef.current?.hasDraft()
+      ) {
+        isFlushingDraftRef.current = true
+        Promise.resolve(
+          replyComposerRef.current.submitDraft(value as TicketStatus),
+        ).finally(() => {
+          isFlushingDraftRef.current = false
+        })
+        return
+      }
 
       const oldValue = (ticket as unknown as Record<string, unknown>)[field === 'assignedTo' ? 'assigned_to' : field]
 

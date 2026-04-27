@@ -29,6 +29,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-04-27',
+    sections: [
+      {
+        heading: 'Ticket replies',
+        items: [
+          {
+            title: 'Changing status while a reply is typed sends the reply too',
+            body: "If you've typed a reply in the composer and then click a status (Solved, Pending, etc.) in the right-hand Ticket Details panel, the reply now sends along with the status change as a single action — same as Zendesk. Works for internal notes too: typed note + status change posts both. The Submit-as-&lt;status&gt; split button continues to work as before.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-04-22',
     sections: [
       {
