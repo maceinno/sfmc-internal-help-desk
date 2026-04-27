@@ -34,13 +34,14 @@ const STATUS_ORDER: Record<string, number> = {
 
 interface TicketListProps {
   tickets: Ticket[]
+  allTickets?: Ticket[]
   title: string
   users: User[]
 }
 
 // ── Component ──────────────────────────────────────────────────
 
-export function TicketList({ tickets, title, users }: TicketListProps) {
+export function TicketList({ tickets, allTickets, title, users }: TicketListProps) {
   // Filter state
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilterValue>('all')
@@ -73,10 +74,14 @@ export function TicketList({ tickets, title, users }: TicketListProps) {
   const displayTickets = useMemo(() => {
     let filtered = tickets
 
-    // Search
+    // Search — when the term looks like a ticket ID (e.g. "T-1093"),
+    // search across ALL tickets so agents can find tickets outside the
+    // current view. Otherwise search within the current view only.
     if (searchTerm) {
       const term = searchTerm.toLowerCase()
-      filtered = filtered.filter(
+      const isTicketIdSearch = /^t-\d+$/i.test(searchTerm.trim())
+      const pool = isTicketIdSearch && allTickets ? allTickets : filtered
+      filtered = pool.filter(
         (t) =>
           t.title.toLowerCase().includes(term) ||
           t.id.toLowerCase().includes(term),
