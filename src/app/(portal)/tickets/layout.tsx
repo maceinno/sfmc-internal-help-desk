@@ -138,7 +138,11 @@ export default function TicketsLayout({
   const { activeViewId, setActiveViewId } = useUIStore()
   const searchParams = useSearchParams()
   const pathname = usePathname() ?? ''
-  const isDetail = /^\/tickets\/T-/.test(pathname)
+  // Anything inside /tickets other than /tickets itself is a "detail-like"
+  // route (T-xxx, /tickets/new, etc.) and should render its own children
+  // with the queue list on the left rather than being eaten by the master
+  // ticket list.
+  const isDetail = pathname !== '/tickets' && pathname.startsWith('/tickets')
 
   useEffect(() => {
     const status = searchParams.get('status')
