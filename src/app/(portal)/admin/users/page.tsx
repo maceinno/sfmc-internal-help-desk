@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useAuth } from '@clerk/nextjs'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -162,7 +162,7 @@ export default function UsersPage() {
   }, [users, searchQuery, roleFilter])
 
   // Reset to page 1 when filters change
-  useMemo(() => {
+  useEffect(() => {
     setCurrentPage(1)
   }, [searchQuery, roleFilter])
 

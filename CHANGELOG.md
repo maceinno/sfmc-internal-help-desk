@@ -27,6 +27,10 @@ This file mirrors the data rendered in-app at **/whats-new**
 - **"New Ticket" works again** after the master-detail tickets layout regression earlier today.
 - **Bulleted and numbered list markers now display.** Lists you create in the editor — and lists in messages already in the system — now render with proper bullets/numbers in both the editor and the conversation view.
 
+### Admin · Users
+
+- **Users table now paginates at 15 per page** with Previous/Next and page-number buttons. The page resets to 1 when you change the search box or role filter.
+
 ## 2026-04-22
 
 ### Ticket replies by email

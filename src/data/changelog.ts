@@ -75,6 +75,15 @@ export const CHANGELOG: ChangelogEntry[] = [
           },
         ],
       },
+      {
+        heading: 'Admin · Users',
+        items: [
+          {
+            title: 'Users table now paginates at 15 per page',
+            body: 'Previous/Next plus per-page buttons. The page resets to 1 when you change the search box or role filter so you stay on results that exist.',
+          },
+        ],
+      },
     ],
   },
   {
