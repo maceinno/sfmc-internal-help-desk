@@ -111,6 +111,15 @@ export const CHANGELOG: ChangelogEntry[] = [
           },
         ],
       },
+      {
+        heading: 'Ticket detail',
+        items: [
+          {
+            title: 'Inline image thumbnails open a preview when clicked',
+            body: 'Thumbnails inside the message thread now open the same lightbox that the bottom Attachments section already used. Previously they were silently inert.',
+          },
+        ],
+      },
     ],
   },
   {

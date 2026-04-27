@@ -43,6 +43,10 @@ This file mirrors the data rendered in-app at **/whats-new**
 
 - **Embedded images in email replies now display in the conversation.** Previously the sanitizer stripped them. External image URLs are kept (so logos and screenshots render) but are loaded with `referrerpolicy="no-referrer"` and `loading="lazy"` to limit tracking. Inline `data:` URIs are still blocked to prevent oversized rows.
 
+### Ticket detail
+
+- **Clicking an inline image thumbnail now opens a preview.** Previously only the thumbnails in the bottom Attachments section opened the lightbox; thumbnails inside the message thread silently did nothing.
+
 ## 2026-04-22
 
 ### Ticket replies by email

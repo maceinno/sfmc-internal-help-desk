@@ -13,6 +13,12 @@ import {
   Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { StatusBadge } from "@/components/tickets/status-badge"
 import { PriorityBadge } from "@/components/tickets/priority-badge"
 import { MessageThread } from "@/components/ticket-detail/message-thread"
@@ -59,6 +65,14 @@ export default function TicketDetailPage({
   const [isDropTargetActive, setIsDropTargetActive] = React.useState(false)
   const [isAttachmentsExpanded, setIsAttachmentsExpanded] =
     React.useState(false)
+  const [lightboxImage, setLightboxImage] = React.useState<{
+    url: string
+    fileName: string
+  } | null>(null)
+  const handleImageClick = React.useCallback(
+    (url: string, fileName: string) => setLightboxImage({ url, fileName }),
+    [],
+  )
   const replyComposerRef = React.useRef<ReplyComposerHandle>(null)
   const dragCounter = React.useRef(0)
   // Set while we're forwarding a sidebar status change through the composer
@@ -566,6 +580,7 @@ export default function TicketDetailPage({
             ticketCreatedBy={ticket.created_by}
             ticketCreatedAt={ticket.created_at}
             attachments={ticket.attachments}
+            onImageClick={handleImageClick}
           />
 
           {/* Attachments (shown between thread and composer). Collapsed by
@@ -593,6 +608,7 @@ export default function TicketDetailPage({
                   <AttachmentList
                     attachments={ticket.attachments}
                     users={users}
+                    onImageClick={handleImageClick}
                   />
                 </div>
               )}
@@ -634,6 +650,26 @@ export default function TicketDetailPage({
         allTickets={allTickets.filter((t) => t.id !== ticket.id && t.status !== "solved" && !t.merged_into_id)}
         onConfirm={handleMergeConfirm}
       />
+
+      <Dialog
+        open={!!lightboxImage}
+        onOpenChange={(open) => !open && setLightboxImage(null)}
+      >
+        <DialogContent className="sm:max-w-3xl p-0 overflow-hidden">
+          <DialogHeader className="px-4 pt-4 pb-0">
+            <DialogTitle>{lightboxImage?.fileName ?? ""}</DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center justify-center p-4">
+            {lightboxImage && (
+              <img
+                src={lightboxImage.url}
+                alt={lightboxImage.fileName}
+                className="max-h-[70vh] max-w-full rounded-lg object-contain"
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
