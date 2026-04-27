@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import { RichTextEditor } from '@/components/shared/rich-text-editor'
 import {
   Select,
   SelectContent,
@@ -397,12 +398,18 @@ export function CreateTicketForm() {
               <Label htmlFor="description">
                 Description <span className="text-destructive">*</span>
               </Label>
-              <Textarea
-                id="description"
-                rows={6}
-                placeholder="Include loan file numbers, borrower names, system error messages, or any relevant details..."
-                aria-invalid={!!errors.description}
-                {...register('description')}
+              <Controller
+                control={control}
+                name="description"
+                render={({ field }) => (
+                  <RichTextEditor
+                    id="description"
+                    value={field.value ?? ''}
+                    onChange={field.onChange}
+                    placeholder="Include loan file numbers, borrower names, system error messages, or any relevant details..."
+                    ariaInvalid={!!errors.description}
+                  />
+                )}
               />
               {errors.description && (
                 <p className="flex items-center gap-1 text-sm text-destructive">

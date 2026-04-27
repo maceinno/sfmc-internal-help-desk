@@ -3,6 +3,8 @@
  * All templates follow a consistent branded layout.
  */
 
+import { htmlToPlainText } from '@/lib/html/to-plain-text'
+
 const PORTAL_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://help.sfmc.com'
 
 function ticketUrl(ticketId: string) {
@@ -168,10 +170,12 @@ export function newReply(p: {
       </div>`
   }
 
-  // Include original ticket description at the bottom
+  // Include original ticket description at the bottom. Tiptap-stored
+  // HTML gets reduced to readable plain text so the email stays consistent.
   let descriptionHtml = ''
   if (p.description) {
-    const descPreview = p.description.length > 300 ? p.description.slice(0, 300) + '...' : p.description
+    const descText = htmlToPlainText(p.description)
+    const descPreview = descText.length > 300 ? descText.slice(0, 300) + '...' : descText
     descriptionHtml = `
       <div style="margin-top:16px;padding-top:16px;border-top:1px dashed #d1d5db;">
         <p style="margin:0 0 8px;font-size:12px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">

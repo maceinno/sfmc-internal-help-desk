@@ -6,7 +6,18 @@ import { useTimezone } from "@/hooks/use-timezone"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { sanitizeRichHtml } from "@/lib/html/sanitize"
 import type { Message, Attachment, User } from "@/types"
+
+/**
+ * Heuristic: descriptions stored before the rich-text editor was rolled
+ * out are plain text. After rollout they're HTML produced by Tiptap.
+ * If the value contains an HTML tag we treat it as HTML; otherwise we
+ * preserve the legacy whitespace-pre-wrap rendering.
+ */
+function looksLikeHtml(s: string): boolean {
+  return /<[a-z][\s\S]*?>/i.test(s)
+}
 
 interface MessageThreadProps {
   messages: Message[]
@@ -108,7 +119,16 @@ export function MessageThread({
           </span>
         </div>
         <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 text-gray-800">
-          <p className="whitespace-pre-wrap break-words">{ticketDescription}</p>
+          {looksLikeHtml(ticketDescription) ? (
+            <div
+              className="prose prose-sm max-w-none break-words [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1"
+              dangerouslySetInnerHTML={{
+                __html: sanitizeRichHtml(ticketDescription),
+              }}
+            />
+          ) : (
+            <p className="whitespace-pre-wrap break-words">{ticketDescription}</p>
+          )}
         </div>
       </div>
     </div>

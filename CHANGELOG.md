@@ -13,6 +13,14 @@ This file mirrors the data rendered in-app at **/whats-new**
 
 - **Changing status from the right-hand panel now sends your typed reply too.** If you've typed a reply (or internal note) in the composer and then click a status — Solved, Pending, Open, etc. — in the Ticket Details panel, the reply posts along with the status change as one action. Works for internal notes too: typed note + status change saves both. The Submit-as-&lt;status&gt; split button on the composer still works exactly as before.
 
+### Ticket detail
+
+- **Assignee dropdown only shows agents who handle this department.** Admins plus any agent whose department list includes the ticket's department. Falls back to the full list when nothing matches so you can always pick someone.
+
+### Create a ticket
+
+- **Description box now supports formatting.** Toolbar with bold, italic, underline, strikethrough, bulleted/numbered lists, and links. Pasting from Word, Google Docs, or other rich sources keeps the formatting (including bullets) instead of dropping it. Detail view renders descriptions with the same formatting.
+
 ## 2026-04-22
 
 ### Ticket replies by email

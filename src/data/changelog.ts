@@ -40,6 +40,24 @@ export const CHANGELOG: ChangelogEntry[] = [
           },
         ],
       },
+      {
+        heading: 'Ticket detail',
+        items: [
+          {
+            title: 'Assignee dropdown only shows agents who handle this department',
+            body: "The assignee picker no longer lists every agent across the company. It now shows admins plus agents whose department list includes the ticket's department, which keeps the menu manageable as the team grows. If no agent matches, it falls back to the full list so you can still pick someone.",
+          },
+        ],
+      },
+      {
+        heading: 'Create a ticket',
+        items: [
+          {
+            title: 'Description box now supports formatting (bold, bullets, links)',
+            body: 'The description field is now a rich-text editor with a toolbar for bold, italic, underline, strikethrough, bulleted/numbered lists, and links. Pasting from Word, Google Docs, or other rich sources keeps the formatting (including bullets) instead of dropping it. The detail view renders descriptions with the same formatting.',
+          },
+        ],
+      },
     ],
   },
   {
