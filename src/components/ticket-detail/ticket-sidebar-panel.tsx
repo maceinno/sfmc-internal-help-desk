@@ -116,6 +116,23 @@ export function TicketSidebarPanel({
     [users]
   )
 
+  // Restrict the assignee dropdown to people who actually handle this
+  // department: admins (always) plus agents whose `departments` array
+  // includes the ticket's ticket_type. Falls back to all agents/admins if
+  // either the ticket has no department yet or no agent matches it, so
+  // the dropdown is never empty.
+  const assignableUsers = React.useMemo(() => {
+    const allowed = users.filter((u) => u.role !== "employee")
+    const dept = ticket.ticket_type
+    if (!dept) return allowed
+    const matched = allowed.filter(
+      (u) =>
+        u.role === "admin" ||
+        (u.departments ?? []).includes(dept),
+    )
+    return matched.length > 0 ? matched : allowed
+  }, [users, ticket.ticket_type])
+
   const creator = getUser(ticket.created_by)
 
   // CC list resolved to users (cc contains user IDs from ticket_cc join)
@@ -391,7 +408,7 @@ export function TicketSidebarPanel({
                 Assignee
               </label>
               <UserAutocomplete
-                users={users.filter((u) => u.role !== "employee")}
+                users={assignableUsers}
                 selectedIds={ticket.assigned_to ? [ticket.assigned_to] : []}
                 onSelect={handleAssigneeSelect}
                 onRemove={() => onUpdateField("assignedTo", null)}
