@@ -30,7 +30,7 @@ import { useUIStore } from "@/stores/ui-store"
 import { canViewInternalNotes } from "@/lib/permissions/policies"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import type { Ticket, Message } from "@/types"
+import type { Ticket, Message, TicketStatus } from "@/types"
 
 export default function TicketDetailPage({
   params,
@@ -152,6 +152,18 @@ export default function TicketDetailPage({
                 }),
               }).catch(() => {})
             }
+
+            // Solving from the detail view returns the agent to /tickets so
+            // their previously-active view (held in Zustand) restores.
+            const role = currentUser?.role
+            if (
+              field === 'status' &&
+              value === 'solved' &&
+              oldValue !== 'solved' &&
+              (role === 'agent' || role === 'admin')
+            ) {
+              router.push('/tickets')
+            }
           },
           onError: () => {
             toast.error('Could not save change. Please try again.')
@@ -159,7 +171,7 @@ export default function TicketDetailPage({
         }
       )
     },
-    [ticket, updateTicket]
+    [ticket, updateTicket, currentUser?.role, router]
   )
 
   const handleCcAdd = React.useCallback(
@@ -209,6 +221,7 @@ export default function TicketDetailPage({
       taggedAgents?: string[]
       attachments?: File[]
       cannedResponseId?: string
+      nextStatus?: TicketStatus | null
     }) => {
       if (!ticket || !currentUser) return
       setIsSubmitting(true)
@@ -255,13 +268,23 @@ export default function TicketDetailPage({
         queryClient.invalidateQueries({ queryKey: ["tickets", "detail", ticket.id] })
         queryClient.invalidateQueries({ queryKey: ["tickets"] })
         toast.success(message.isInternal ? "Internal note added" : "Reply sent")
+
+        // Apply Submit-as-<status> after the reply lands. Routes through
+        // handleUpdateField so notify hooks + the solved-redirect fire too.
+        if (
+          !message.isInternal &&
+          message.nextStatus &&
+          message.nextStatus !== ticket.status
+        ) {
+          handleUpdateField('status', message.nextStatus)
+        }
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Failed to submit reply")
       } finally {
         setIsSubmitting(false)
       }
     },
-    [ticket, currentUser, queryClient]
+    [ticket, currentUser, queryClient, handleUpdateField]
   )
 
   const handleMergeConfirm = React.useCallback(
@@ -542,6 +565,7 @@ export default function TicketDetailPage({
             ticketCreatedBy={ticket.created_by}
             ticketCc={ticket.cc}
             ticketCollaborators={ticket.collaborators}
+            currentStatus={ticket.status}
             users={users}
             currentUser={currentUser}
             cannedResponses={cannedResponses ?? []}

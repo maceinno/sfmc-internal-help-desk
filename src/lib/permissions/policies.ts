@@ -143,14 +143,12 @@ export function canViewTicket(
  *
  * Rules:
  *   - Admin: always.
- *   - Agent: when they are the assignee or the creator.
+ *   - Agent: any ticket they can see (Zendesk-style — agents own the queue).
  *   - Employee: when they are the creator.
  */
 export function canEditTicket(user: User, ticket: Ticket): boolean {
   if (user.role === ADMIN) return true
-  if (user.role === AGENT) {
-    return ticket.assigned_to === user.id || ticket.created_by === user.id
-  }
+  if (user.role === AGENT) return true
   return ticket.created_by === user.id
 }
 

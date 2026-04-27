@@ -9,20 +9,68 @@ import {
   X,
   FileText,
   Loader2,
-  ImageIcon,
+  ChevronUp,
+  Check,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { CannedResponsePicker } from "@/components/shared/canned-response-picker"
 import { FileUpload } from "@/components/shared/file-upload"
-import type { User, CannedResponse, Message } from "@/types"
+import type { User, CannedResponse, TicketStatus } from "@/types"
+
+const STATUS_DOT: Record<TicketStatus, string> = {
+  new: "bg-yellow-500",
+  open: "bg-red-500",
+  pending: "bg-blue-500",
+  on_hold: "bg-gray-700",
+  solved: "bg-gray-400",
+}
+
+const STATUS_LABEL: Record<TicketStatus, string> = {
+  new: "New",
+  open: "Open",
+  pending: "Pending",
+  on_hold: "On Hold",
+  solved: "Solved",
+}
+
+const STATUS_OPTIONS: TicketStatus[] = [
+  "new",
+  "open",
+  "pending",
+  "on_hold",
+  "solved",
+]
+
+// Default "next" status when an agent replies. Mirrors Zendesk: replying to a
+// new ticket moves it into the open queue; replying to an open ticket marks
+// it pending on the user; everything else stays put.
+function defaultNextStatus(current: TicketStatus): TicketStatus {
+  switch (current) {
+    case "new":
+      return "open"
+    case "open":
+      return "pending"
+    case "solved":
+      return "open"
+    default:
+      return current
+  }
+}
 
 interface ReplyComposerProps {
   ticketId: string
   ticketCreatedBy: string
   ticketCc?: string[]
   ticketCollaborators?: string[]
+  currentStatus: TicketStatus
   users: User[]
   currentUser: User
   cannedResponses?: CannedResponse[]
@@ -32,6 +80,7 @@ interface ReplyComposerProps {
     taggedAgents?: string[]
     attachments?: File[]
     cannedResponseId?: string
+    nextStatus?: TicketStatus | null
   }) => void | Promise<void>
   onCannedResponseSelect?: (response: CannedResponse) => void
 }
@@ -58,6 +107,7 @@ export const ReplyComposer = React.forwardRef<
   ticketCreatedBy,
   ticketCc = [],
   ticketCollaborators = [],
+  currentStatus,
   users,
   currentUser,
   cannedResponses = [],
@@ -74,10 +124,27 @@ export const ReplyComposer = React.forwardRef<
   const [showFileUpload, setShowFileUpload] = React.useState(false)
   const [pendingCannedResponseId, setPendingCannedResponseId] = React.useState<string | undefined>()
   const [isSending, setIsSending] = React.useState(false)
+  // null = "Send (no status change)"; otherwise the status the reply will commit.
+  const [pendingStatus, setPendingStatus] = React.useState<TicketStatus | null>(
+    () => defaultNextStatus(currentStatus),
+  )
   const textareaRef = React.useRef<HTMLTextAreaElement>(null)
 
   const isAgentOrAdmin =
     currentUser.role === "agent" || currentUser.role === "admin"
+
+  // Re-baseline the suggested next-status when the ticket's current status
+  // changes from outside (e.g., assignee changed status via the sidebar).
+  // Skip if the user has explicitly chosen "no status change" (null).
+  const lastCurrentStatusRef = React.useRef(currentStatus)
+  React.useEffect(() => {
+    if (lastCurrentStatusRef.current !== currentStatus) {
+      lastCurrentStatusRef.current = currentStatus
+      setPendingStatus((prev) =>
+        prev === null ? null : defaultNextStatus(currentStatus),
+      )
+    }
+  }, [currentStatus])
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value
@@ -136,6 +203,8 @@ export const ReplyComposer = React.forwardRef<
         taggedAgents: taggedInMessage.length > 0 ? taggedInMessage : undefined,
         attachments: selectedFiles.length > 0 ? selectedFiles : undefined,
         cannedResponseId: pendingCannedResponseId,
+        // Internal notes never change status.
+        nextStatus: isInternalNote ? null : pendingStatus,
       })
       setReplyText("")
       setTaggedInMessage([])
@@ -455,28 +524,98 @@ export const ReplyComposer = React.forwardRef<
               </Button>
             )}
           </div>
-          <Button
-            onClick={handleSend}
-            disabled={!replyText.trim() || isSending}
-            size="default"
-            className={
-              isInternalNote && replyText.trim()
-                ? "bg-amber-600 hover:bg-amber-700"
-                : ""
-            }
-          >
-            {isSending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Sending...
-              </>
-            ) : (
-              <>
-                <Send className="mr-2 h-4 w-4" />
-                {isInternalNote ? "Add Note" : "Send Reply"}
-              </>
-            )}
-          </Button>
+          {isInternalNote ? (
+            <Button
+              onClick={handleSend}
+              disabled={!replyText.trim() || isSending}
+              size="default"
+              className={
+                replyText.trim() ? "bg-amber-600 hover:bg-amber-700" : ""
+              }
+            >
+              {isSending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="mr-2 h-4 w-4" />
+                  Add Note
+                </>
+              )}
+            </Button>
+          ) : (
+            <div className="inline-flex rounded-md shadow-sm">
+              <Button
+                onClick={handleSend}
+                disabled={!replyText.trim() || isSending}
+                size="default"
+                className="rounded-r-none border-r border-blue-700/40"
+              >
+                {isSending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : pendingStatus === null ? (
+                  <>
+                    <Send className="mr-2 h-4 w-4" />
+                    Send Reply
+                  </>
+                ) : (
+                  <>
+                    <span
+                      className={`mr-2 h-2 w-2 rounded-full ${STATUS_DOT[pendingStatus]}`}
+                    />
+                    Submit as <span className="ml-1 font-semibold">{STATUS_LABEL[pendingStatus]}</span>
+                  </>
+                )}
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  disabled={isSending}
+                  aria-label="Choose status to submit as"
+                  render={
+                    <Button
+                      size="default"
+                      className="rounded-l-none px-2"
+                    />
+                  }
+                >
+                  <ChevronUp className="h-4 w-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" side="top" className="w-56">
+                  {STATUS_OPTIONS.map((status) => (
+                    <DropdownMenuItem
+                      key={status}
+                      onSelect={() => setPendingStatus(status)}
+                      className="flex items-center gap-2"
+                    >
+                      <span
+                        className={`h-2 w-2 rounded-full ${STATUS_DOT[status]}`}
+                      />
+                      <span className="flex-1">{STATUS_LABEL[status]}</span>
+                      {pendingStatus === status && (
+                        <Check className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onSelect={() => setPendingStatus(null)}
+                    className="flex items-center gap-2"
+                  >
+                    <Send className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="flex-1">Send (no status change)</span>
+                    {pendingStatus === null && (
+                      <Check className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
         </div>
       </div>
 

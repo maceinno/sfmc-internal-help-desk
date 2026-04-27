@@ -227,17 +227,11 @@ describe('canEditTicket', () => {
     expect(canEditTicket(adminUser, ticketByEmp2)).toBe(true)
   })
 
-  it('agent can edit ticket they are assigned to', () => {
+  it('agent can edit any ticket', () => {
     expect(canEditTicket(agent1, ticketByEmp1)).toBe(true)
-  })
-
-  it('agent can edit ticket they created', () => {
+    expect(canEditTicket(agent1, ticketByEmp2)).toBe(true)
     const agentTicket = makeTicket({ id: 'T-8000', created_by: 'agent-1' })
     expect(canEditTicket(agent1, agentTicket)).toBe(true)
-  })
-
-  it('agent cannot edit unrelated ticket', () => {
-    expect(canEditTicket(agent1, ticketByEmp2)).toBe(false)
   })
 
   it('employee can edit their own ticket', () => {
