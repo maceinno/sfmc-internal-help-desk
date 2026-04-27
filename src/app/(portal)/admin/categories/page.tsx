@@ -4,6 +4,11 @@ import { useState, useCallback } from 'react'
 import { useAuth } from '@clerk/nextjs'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClerkSupabaseClient } from '@/lib/supabase/client'
+import {
+  seedDepartmentViews,
+  renameDepartmentViews,
+  deleteDepartmentViews,
+} from '@/lib/views/department-views'
 import { toast } from 'sonner'
 import {
   Plus,
@@ -128,8 +133,11 @@ export default function CategoriesPage() {
 
   // ── Mutations ───────────────────────────────────────────────
 
-  const invalidate = () =>
+  const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['admin', 'departmentCategories'] })
+    // Department views are derived from departments; refresh them too.
+    queryClient.invalidateQueries({ queryKey: ['admin', 'viewConfigs'] })
+  }
 
   const getSupabase = async () => {
     const token = await getToken({ template: 'supabase' })
@@ -221,6 +229,14 @@ export default function CategoriesPage() {
         ticket_type: name,
         category_name: 'General',
       })
+      // Seed the per-department template views (best-effort; don't roll
+      // back the department add if this fails).
+      try {
+        const supabase = await getSupabase()
+        await seedDepartmentViews(supabase, name)
+      } catch (err) {
+        console.error('Failed to seed views for new department', err)
+      }
       toast.success(`Department "${name}" added`)
       setNewDeptName('')
       setShowAddDept(false)
@@ -233,6 +249,13 @@ export default function CategoriesPage() {
     async (row: DepartmentCategoryRow) => {
       try {
         await deleteDepartment.mutateAsync(row.ticket_type)
+        // Tear down the department's views alongside it.
+        try {
+          const supabase = await getSupabase()
+          await deleteDepartmentViews(supabase, row.ticket_type)
+        } catch (err) {
+          console.error('Failed to delete views for department', err)
+        }
         toast.success(`Department "${row.ticket_type}" deleted`)
       } catch {
         toast.error('Failed to delete department')
@@ -257,6 +280,13 @@ export default function CategoriesPage() {
           oldName: row.ticket_type,
           newName: trimmed,
         })
+        // Keep the department's views aligned with the new name.
+        try {
+          const supabase = await getSupabase()
+          await renameDepartmentViews(supabase, row.ticket_type, trimmed)
+        } catch (err) {
+          console.error('Failed to rename views for department', err)
+        }
         toast.success('Department renamed')
         setEditingDeptId(null)
       } catch {

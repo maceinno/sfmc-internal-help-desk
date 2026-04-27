@@ -104,6 +104,10 @@ function applyViewFilter(
         break
     }
 
+    if (fc.ticketTypeFilter && fc.ticketTypeFilter !== 'any') {
+      if (t.ticket_type !== fc.ticketTypeFilter) return false
+    }
+
     if (fc.categoryFilter !== 'any') {
       if (t.category !== fc.categoryFilter) return false
     }

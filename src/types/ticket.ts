@@ -181,6 +181,9 @@ export interface ViewFilterConfig {
   assigneeFilter: 'me' | 'unassigned' | 'assigned' | 'any'
   categoryFilter: TicketCategory | 'any'
   slaFilter: 'breached' | 'at-risk' | 'any'
+  // Optional. Filters tickets by department (ticket_type). Used by the
+  // per-department template views; older views omit it and default to 'any'.
+  ticketTypeFilter?: string | 'any'
 }
 
 /** A saved ticket view with ordering and filter configuration. */
