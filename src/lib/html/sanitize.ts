@@ -2,8 +2,8 @@ import DOMPurify from 'dompurify'
 
 /**
  * Allowed tags / attributes for rich-text we accept from the editor and
- * render back into the UI. Intentionally small — no media tags, no
- * scripts, no styles. Mirrors what the Tiptap toolbar can produce.
+ * render back into the UI. Intentionally small — no scripts, no styles. Inline images are
+ * allowed so pasted screenshots render correctly. Mirrors what the Tiptap toolbar can produce.
  */
 const ALLOWED_TAGS = [
   'p',
@@ -24,9 +24,10 @@ const ALLOWED_TAGS = [
   'h1',
   'h2',
   'h3',
+  'img',
 ]
 
-const ALLOWED_ATTRS = ['href', 'target', 'rel']
+const ALLOWED_ATTRS = ['href', 'target', 'rel', 'src', 'alt', 'width', 'height']
 
 /**
  * Sanitize HTML coming from a rich-text editor or pasted source. Client
