@@ -25,6 +25,7 @@ This file mirrors the data rendered in-app at **/whats-new**
 
 - **Reply box now supports formatting too.** Same toolbar as the new-ticket description. Pasted bullets and links survive the round-trip. Old plain-text replies render the same as before. @-mention autocomplete is temporarily off while we wire it into the rich editor — you can still type @Name as text.
 - **"New Ticket" works again** after the master-detail tickets layout regression earlier today.
+- **Bulleted and numbered list markers now display.** Lists you create in the editor — and lists in messages already in the system — now render with proper bullets/numbers in both the editor and the conversation view.
 
 ## 2026-04-22
 

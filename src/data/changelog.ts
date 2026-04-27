@@ -69,6 +69,10 @@ export const CHANGELOG: ChangelogEntry[] = [
             title: '"New Ticket" works again from the new tickets layout',
             body: "Quick fix to a regression introduced earlier today: the master-detail tickets layout was treating /tickets/new as the no-detail branch and rendering the ticket list instead of the form. The form is back.",
           },
+          {
+            title: 'Bulleted and numbered list markers now display',
+            body: 'Lists created with the toolbar — or pasted in from Word/Google Docs/Slack — now render with bullets and numbers in both the editor and the conversation view. Same fix applies to ticket descriptions.',
+          },
         ],
       },
     ],

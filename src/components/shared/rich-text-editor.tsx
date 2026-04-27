@@ -83,6 +83,7 @@ export function RichTextEditor({
         class: cn(
           "prose prose-sm max-w-none px-3 py-2 outline-none focus:outline-none",
           "[&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1",
+          "[&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6",
         ),
         "data-placeholder": placeholder ?? "",
         "aria-invalid": ariaInvalid ? "true" : "false",
