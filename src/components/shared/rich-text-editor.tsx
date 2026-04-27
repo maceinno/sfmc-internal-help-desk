@@ -26,6 +26,13 @@ interface RichTextEditorProps {
   id?: string
   /** Roughly the visible height in lines; passes through to min-h on the editor area. */
   minRows?: number
+  /**
+   * If provided, image files pasted into the editor are intercepted and
+   * forwarded here instead of being inserted inline. Used by the reply
+   * composer to attach pasted screenshots as files rather than embedding
+   * them in the message HTML.
+   */
+  onPasteFiles?: (files: File[]) => void
 }
 
 /**
@@ -42,7 +49,15 @@ export function RichTextEditor({
   ariaInvalid,
   id,
   minRows = 6,
+  onPasteFiles,
 }: RichTextEditorProps) {
+  // Keep the latest paste-handler in a ref so the editor's options object
+  // doesn't have to re-init when callers pass an unstable callback.
+  const pasteFilesRef = React.useRef(onPasteFiles)
+  React.useEffect(() => {
+    pasteFilesRef.current = onPasteFiles
+  }, [onPasteFiles])
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -71,6 +86,29 @@ export function RichTextEditor({
         ),
         "data-placeholder": placeholder ?? "",
         "aria-invalid": ariaInvalid ? "true" : "false",
+      },
+      handlePaste: (_view, event) => {
+        const handler = pasteFilesRef.current
+        if (!handler) return false
+        const items = event.clipboardData?.items
+        if (!items) return false
+        const files: File[] = []
+        for (const item of Array.from(items)) {
+          if (item.type.startsWith("image/")) {
+            const file = item.getAsFile()
+            if (file) {
+              const ext = file.type.split("/")[1] ?? "png"
+              files.push(
+                new File([file], `pasted-image-${Date.now()}.${ext}`, {
+                  type: file.type,
+                }),
+              )
+            }
+          }
+        }
+        if (files.length === 0) return false
+        handler(files)
+        return true
       },
     },
     onUpdate: ({ editor }) => {

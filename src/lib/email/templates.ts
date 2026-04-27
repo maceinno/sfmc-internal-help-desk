@@ -138,7 +138,11 @@ export function newReply(p: {
   description?: string
   conversation?: ConversationMessage[]
 }) {
-  const preview = p.content.length > 500 ? p.content.slice(0, 500) + '...' : p.content
+  // Replies may be HTML (rich-text composer) or plain text (legacy /
+  // email-inbound). Strip to plain text for the email so list bullets
+  // and links survive but tags don't show through.
+  const contentText = htmlToPlainText(p.content)
+  const preview = contentText.length > 500 ? contentText.slice(0, 500) + '...' : contentText
   const label = p.isInternal ? 'New Internal Note' : 'New Reply'
 
   // Build conversation thread (most recent messages, excluding the new one)
@@ -154,7 +158,8 @@ export function newReply(p: {
           const date = new Date(msg.createdAt).toLocaleString('en-US', {
             month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
           })
-          const msgPreview = msg.content.length > 300 ? msg.content.slice(0, 300) + '...' : msg.content
+          const msgText = htmlToPlainText(msg.content)
+          const msgPreview = msgText.length > 300 ? msgText.slice(0, 300) + '...' : msgText
           const borderColor = msg.isInternal ? '#fbbf24' : '#e5e7eb'
           const bgColor = msg.isInternal ? '#fffbeb' : '#ffffff'
           const badge = msg.isInternal ? '<span style="display:inline-block;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-left:6px;">Internal</span>' : ''

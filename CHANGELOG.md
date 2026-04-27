@@ -21,6 +21,11 @@ This file mirrors the data rendered in-app at **/whats-new**
 
 - **Description box now supports formatting.** Toolbar with bold, italic, underline, strikethrough, bulleted/numbered lists, and links. Pasting from Word, Google Docs, or other rich sources keeps the formatting (including bullets) instead of dropping it. Detail view renders descriptions with the same formatting.
 
+### Replies + internal notes
+
+- **Reply box now supports formatting too.** Same toolbar as the new-ticket description. Pasted bullets and links survive the round-trip. Old plain-text replies render the same as before. @-mention autocomplete is temporarily off while we wire it into the rich editor — you can still type @Name as text.
+- **"New Ticket" works again** after the master-detail tickets layout regression earlier today.
+
 ## 2026-04-22
 
 ### Ticket replies by email

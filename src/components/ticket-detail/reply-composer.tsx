@@ -5,7 +5,6 @@ import {
   Send,
   Lock,
   Paperclip,
-  AtSign,
   X,
   FileText,
   Loader2,
@@ -13,7 +12,6 @@ import {
   Check,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,6 +21,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { CannedResponsePicker } from "@/components/shared/canned-response-picker"
 import { FileUpload } from "@/components/shared/file-upload"
+import { RichTextEditor } from "@/components/shared/rich-text-editor"
+import { cn } from "@/lib/utils"
 import type { User, CannedResponse, TicketStatus } from "@/types"
 
 const STATUS_DOT: Record<TicketStatus, string> = {
@@ -98,15 +98,6 @@ export interface ReplyComposerHandle {
   submitDraft: (nextStatus: TicketStatus | null) => Promise<void>
 }
 
-function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .map((part) => part[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toUpperCase()
-}
 
 export const ReplyComposer = React.forwardRef<
   ReplyComposerHandle,
@@ -123,11 +114,10 @@ export const ReplyComposer = React.forwardRef<
   onSubmit,
   onCannedResponseSelect,
 }, ref) {
+  // replyText now holds HTML produced by the rich-text editor. Empty
+  // editor maps to "" (Tiptap's empty-doc marker is replaced upstream).
   const [replyText, setReplyText] = React.useState("")
   const [isInternalNote, setIsInternalNote] = React.useState(false)
-  const [showMentionDropdown, setShowMentionDropdown] = React.useState(false)
-  const [mentionSearch, setMentionSearch] = React.useState("")
-  const [taggedInMessage, setTaggedInMessage] = React.useState<string[]>([])
   const [showCannedPicker, setShowCannedPicker] = React.useState(false)
   const [selectedFiles, setSelectedFiles] = React.useState<File[]>([])
   const [showFileUpload, setShowFileUpload] = React.useState(false)
@@ -137,10 +127,16 @@ export const ReplyComposer = React.forwardRef<
   const [pendingStatus, setPendingStatus] = React.useState<TicketStatus | null>(
     () => defaultNextStatus(currentStatus),
   )
-  const textareaRef = React.useRef<HTMLTextAreaElement>(null)
 
   const isAgentOrAdmin =
     currentUser.role === "agent" || currentUser.role === "admin"
+
+  // True when the editor has any non-whitespace content. Strip tags, then
+  // check for printable characters.
+  const hasContent = React.useMemo(() => {
+    if (!replyText) return false
+    return replyText.replace(/<[^>]*>/g, "").trim().length > 0
+  }, [replyText])
 
   // Re-baseline the suggested next-status when the ticket's current status
   // changes from outside (e.g., assignee changed status via the sidebar).
@@ -155,52 +151,11 @@ export const ReplyComposer = React.forwardRef<
     }
   }, [currentStatus])
 
-  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value
-    setReplyText(value)
-
-    const cursorPosition = e.target.selectionStart
-    const textBeforeCursor = value.slice(0, cursorPosition)
-    const match = textBeforeCursor.match(/@(\w*)$/)
-
-    if (match) {
-      setShowMentionDropdown(true)
-      setMentionSearch(match[1].toLowerCase())
-    } else {
-      setShowMentionDropdown(false)
-    }
-  }
-
-  const handleSelectMention = (user: User) => {
-    if (!textareaRef.current) return
-
-    const cursorPosition = textareaRef.current.selectionStart
-    const textBeforeCursor = replyText.slice(0, cursorPosition)
-    const textAfterCursor = replyText.slice(cursorPosition)
-
-    const newTextBeforeCursor = textBeforeCursor.replace(
-      /@\w*$/,
-      `@${user.name} `
-    )
-    setReplyText(newTextBeforeCursor + textAfterCursor)
-
-    if (!taggedInMessage.includes(user.id)) {
-      setTaggedInMessage([...taggedInMessage, user.id])
-    }
-    setShowMentionDropdown(false)
-
-    setTimeout(() => {
-      if (textareaRef.current) {
-        textareaRef.current.focus()
-        const newCursorPos = newTextBeforeCursor.length
-        textareaRef.current.setSelectionRange(newCursorPos, newCursorPos)
-      }
-    }, 0)
-  }
-
-  const handleRemoveTag = (userId: string) => {
-    setTaggedInMessage(taggedInMessage.filter((id) => id !== userId))
-  }
+  // @-mention autocomplete is temporarily not wired into the rich-text
+  // editor — agents can still type @Name as plain text but the popup is
+  // disabled while we move the composer to Tiptap. Mentions auto-derived
+  // from message content can be re-introduced as a Tiptap suggestion in
+  // a follow-up.
 
   // Single send path. `source` decides how nextStatus is resolved:
   //   - 'button' (the Submit button): pendingStatus from the dropdown,
@@ -214,7 +169,7 @@ export const ReplyComposer = React.forwardRef<
     source: 'button' | 'sidebar',
     overrideStatus?: TicketStatus | null,
   ) => {
-    if (!replyText.trim() || isSending) return
+    if (!hasContent || isSending) return
     setIsSending(true)
     try {
       const finalNextStatus =
@@ -226,13 +181,11 @@ export const ReplyComposer = React.forwardRef<
       await onSubmit({
         content: replyText,
         isInternal: isInternalNote,
-        taggedAgents: taggedInMessage.length > 0 ? taggedInMessage : undefined,
         attachments: selectedFiles.length > 0 ? selectedFiles : undefined,
         cannedResponseId: pendingCannedResponseId,
         nextStatus: finalNextStatus,
       })
       setReplyText("")
-      setTaggedInMessage([])
       setSelectedFiles([])
       setShowFileUpload(false)
       setPendingCannedResponseId(undefined)
@@ -244,40 +197,34 @@ export const ReplyComposer = React.forwardRef<
   const handleSend = () => sendInternal('button')
 
   const handleCannedResponseSelect = (response: CannedResponse) => {
+    // Canned responses are stored as plain text. Wrap each line in a <p>
+    // so it slots into the rich-text editor cleanly without losing line
+    // breaks. Templates can be migrated to HTML later if needed.
     const processedContent = response.content
       .replace(/\{\{requester_name\}\}/g, users.find((u) => u.id === ticketCreatedBy)?.name || "Customer")
       .replace(/\{\{agent_name\}\}/g, currentUser.name)
       .replace(/\{\{ticket_id\}\}/g, ticketId)
 
-    setReplyText((prev) =>
-      prev ? prev + "\n\n" + processedContent : processedContent
-    )
+    const asHtml = processedContent
+      .split(/\n/)
+      .map((line) => `<p>${line.length > 0 ? line : "<br />"}</p>`)
+      .join("")
+
+    setReplyText((prev) => (prev ? prev + asHtml : asHtml))
     setShowCannedPicker(false)
     setPendingCannedResponseId(response.id)
     onCannedResponseSelect?.(response)
   }
 
-  const filteredMentionUsers = React.useMemo(() => {
-    return users
-      .filter((u) => {
-        if (u.id === currentUser.id) return false
-        if (isInternalNote) return u.role !== "employee"
-        if (u.role !== "employee") return true
-        const isCreator = u.id === ticketCreatedBy
-        const isCcd = ticketCc.includes(u.id)
-        const isCollaborator = ticketCollaborators.includes(u.id)
-        return isCreator || isCcd || isCollaborator
-      })
-      .filter(
-        (u) =>
-          u.name.toLowerCase().includes(mentionSearch) ||
-          u.email.toLowerCase().includes(mentionSearch)
-      )
-  }, [users, currentUser.id, isInternalNote, mentionSearch, ticketCreatedBy, ticketCc, ticketCollaborators])
-
   const handleFilesSelected = (files: File[]) => {
     setSelectedFiles((prev) => [...prev, ...files])
   }
+
+  const handleEditorPasteFiles = React.useCallback((files: File[]) => {
+    if (files.length === 0) return
+    setSelectedFiles((prev) => [...prev, ...files])
+    setShowFileUpload(true)
+  }, [])
 
   React.useImperativeHandle(ref, () => ({
     addFiles: (files: File[]) => {
@@ -285,7 +232,7 @@ export const ReplyComposer = React.forwardRef<
       setSelectedFiles((prev) => [...prev, ...files])
       setShowFileUpload(true)
     },
-    hasDraft: () => replyText.trim().length > 0,
+    hasDraft: () => hasContent,
     submitDraft: (nextStatus: TicketStatus | null) =>
       sendInternal('sidebar', nextStatus),
   }))
@@ -293,37 +240,6 @@ export const ReplyComposer = React.forwardRef<
   const handleRemoveFile = (index: number) => {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index))
   }
-
-  const handlePaste = React.useCallback(
-    (e: React.ClipboardEvent) => {
-      const items = e.clipboardData?.items
-      if (!items) return
-
-      const imageFiles: File[] = []
-      for (const item of Array.from(items)) {
-        if (item.type.startsWith("image/")) {
-          const file = item.getAsFile()
-          if (file) {
-            // Give pasted images a readable name
-            const ext = file.type.split("/")[1] ?? "png"
-            const named = new File(
-              [file],
-              `pasted-image-${Date.now()}.${ext}`,
-              { type: file.type }
-            )
-            imageFiles.push(named)
-          }
-        }
-      }
-
-      if (imageFiles.length > 0) {
-        e.preventDefault()
-        setSelectedFiles((prev) => [...prev, ...imageFiles])
-        setShowFileUpload(true)
-      }
-    },
-    []
-  )
 
   // Generate thumbnail previews for image files
   const filePreviews = React.useMemo(() => {
@@ -382,96 +298,26 @@ export const ReplyComposer = React.forwardRef<
           </div>
         </div>
 
-        {/* Textarea */}
-        <div className="relative">
-          <textarea
-            ref={textareaRef}
+        {/* Editor */}
+        <div
+          className={cn(
+            isInternalNote && "[&_.tiptap]:bg-amber-50/30",
+            "[&_.rte-wrapper]:rounded-none [&_.rte-wrapper]:border-0",
+          )}
+        >
+          <RichTextEditor
             value={replyText}
-            onChange={handleTextChange}
-            onPaste={handlePaste}
+            onChange={setReplyText}
             placeholder={
               isInternalNote
-                ? "Add an internal note... (Type @ to tag an agent)"
-                : "Type your reply... (Type @ to tag a user, paste images)"
+                ? "Add an internal note..."
+                : "Type your reply..."
             }
-            className={`min-h-[120px] w-full resize-none p-3 outline-none text-sm ${
-              isInternalNote ? "bg-amber-50/30" : "bg-white"
-            }`}
+            onPasteFiles={handleEditorPasteFiles}
+            minRows={5}
+            className="rte-wrapper border-0 rounded-none focus-within:ring-0"
           />
-
-          {/* Mention Dropdown */}
-          {showMentionDropdown && (
-            <div className="absolute bottom-full left-4 z-10 mb-2 w-64 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl">
-              <div className="max-h-48 overflow-y-auto py-1">
-                {filteredMentionUsers.length > 0 ? (
-                  filteredMentionUsers.map((user) => (
-                    <button
-                      key={user.id}
-                      type="button"
-                      onClick={() => handleSelectMention(user)}
-                      className="flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-gray-50"
-                    >
-                      <Avatar size="sm">
-                        {user.avatar_url && (
-                          <AvatarImage src={user.avatar_url} alt="" />
-                        )}
-                        <AvatarFallback>
-                          {getInitials(user.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-gray-900">
-                          {user.name}
-                        </p>
-                        <p className="truncate text-xs text-muted-foreground capitalize">
-                          {user.role}
-                        </p>
-                      </div>
-                    </button>
-                  ))
-                ) : (
-                  <div className="px-3 py-2 text-center text-sm text-muted-foreground">
-                    {isInternalNote ? "No agents found" : "No users found"}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
         </div>
-
-        {/* Tagged Users Chips */}
-        {taggedInMessage.length > 0 && (
-          <div className="flex flex-wrap gap-2 border-t border-gray-100 bg-white px-3 py-2">
-            {taggedInMessage.map((userId) => {
-              const user = users.find((u) => u.id === userId)
-              if (!user) return null
-              return (
-                <div
-                  key={userId}
-                  className="flex items-center gap-1.5 rounded-md border border-blue-100 bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700"
-                >
-                  <AtSign className="h-3 w-3 text-blue-500" />
-                  <Avatar size="sm" className="h-4 w-4">
-                    {user.avatar_url && (
-                      <AvatarImage src={user.avatar_url} alt="" />
-                    )}
-                    <AvatarFallback className="text-[8px]">
-                      {getInitials(user.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  {user.name}
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveTag(userId)}
-                    className="ml-1 text-blue-400 hover:text-blue-600"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              )
-            })}
-          </div>
-        )}
 
         {/* Attached Files Preview */}
         {selectedFiles.length > 0 && (
@@ -557,10 +403,10 @@ export const ReplyComposer = React.forwardRef<
           {isInternalNote ? (
             <Button
               onClick={handleSend}
-              disabled={!replyText.trim() || isSending}
+              disabled={!hasContent || isSending}
               size="default"
               className={
-                replyText.trim() ? "bg-amber-600 hover:bg-amber-700" : ""
+                hasContent ? "bg-amber-600 hover:bg-amber-700" : ""
               }
             >
               {isSending ? (
@@ -579,7 +425,7 @@ export const ReplyComposer = React.forwardRef<
             <div className="inline-flex rounded-md shadow-sm">
               <Button
                 onClick={handleSend}
-                disabled={!replyText.trim() || isSending}
+                disabled={!hasContent || isSending}
                 size="default"
                 className="rounded-r-none border-r border-blue-700/40"
               >

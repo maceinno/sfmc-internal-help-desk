@@ -252,7 +252,16 @@ export function MessageThread({
               </span>
             </div>
             <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 text-gray-800">
-              <p className="whitespace-pre-wrap break-words">{message.content}</p>
+              {looksLikeHtml(message.content) ? (
+                <div
+                  className="prose prose-sm max-w-none break-words [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1"
+                  dangerouslySetInnerHTML={{
+                    __html: sanitizeRichHtml(message.content),
+                  }}
+                />
+              ) : (
+                <p className="whitespace-pre-wrap break-words">{message.content}</p>
+              )}
             </div>
             {renderMessageAttachments(message.id)}
           </div>

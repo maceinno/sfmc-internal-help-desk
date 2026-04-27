@@ -58,6 +58,19 @@ export const CHANGELOG: ChangelogEntry[] = [
           },
         ],
       },
+      {
+        heading: 'Replies + internal notes',
+        items: [
+          {
+            title: 'Reply box now supports formatting too',
+            body: "Same toolbar as the new-ticket description — bold/italic/underline/strikethrough/bulleted/numbered/link. Pasted formatting is preserved. Past plain-text replies render the same as before; new replies render with their formatting in the conversation. @-mention autocomplete is temporarily off while we wire it into the rich editor; you can still type @Name as text.",
+          },
+          {
+            title: '"New Ticket" works again from the new tickets layout',
+            body: "Quick fix to a regression introduced earlier today: the master-detail tickets layout was treating /tickets/new as the no-detail branch and rendering the ticket list instead of the form. The form is back.",
+          },
+        ],
+      },
     ],
   },
   {
