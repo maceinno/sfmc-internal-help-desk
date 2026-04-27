@@ -129,6 +129,19 @@ export const CHANGELOG: ChangelogEntry[] = [
           },
         ],
       },
+      {
+        heading: 'Reply composer',
+        items: [
+          {
+            title: 'Submit-as button mirrors the right-sidebar status',
+            body: 'Picking a status in the Ticket Details panel (Solved, Pending, On Hold, etc.) now updates the Submit-as button to match. Previously the button could be saying "Submit as Open" while the sidebar showed Solved, which led to accidental re-opens.',
+          },
+          {
+            title: 'Solved tickets accept replies without auto-reopening',
+            body: 'You can still type a reply, attach images, and submit on an already-solved ticket. The Submit-as button now defaults to "Submit as Solved" so a clarifying follow-up doesn\'t silently reopen it. Use the chevron next to the button to pick a different status if you want to advance or regress.',
+          },
+        ],
+      },
     ],
   },
   {

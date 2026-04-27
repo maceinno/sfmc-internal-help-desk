@@ -51,15 +51,14 @@ const STATUS_OPTIONS: TicketStatus[] = [
 
 // Default "next" status when an agent replies. Mirrors Zendesk: replying to a
 // new ticket moves it into the open queue; replying to an open ticket marks
-// it pending on the user; everything else stays put.
+// it pending on the user; solved tickets stay solved (a reply doesn't reopen
+// unless the agent explicitly picks a different status from the dropdown).
 function defaultNextStatus(current: TicketStatus): TicketStatus {
   switch (current) {
     case "new":
       return "open"
     case "open":
       return "pending"
-    case "solved":
-      return "open"
     default:
       return current
   }
@@ -138,16 +137,17 @@ export const ReplyComposer = React.forwardRef<
     return replyText.replace(/<[^>]*>/g, "").trim().length > 0
   }, [replyText])
 
-  // Re-baseline the suggested next-status when the ticket's current status
-  // changes from outside (e.g., assignee changed status via the sidebar).
-  // Skip if the user has explicitly chosen "no status change" (null).
+  // Mirror the sidebar's status pick into the Submit-as button. When the
+  // ticket's current status changes from outside (e.g., agent picked a
+  // status in TicketSidebarPanel), match it exactly — picking "Solved" on
+  // the sidebar should update the button to "Submit as Solved", not auto-
+  // advance via defaultNextStatus. Skip if the user explicitly chose
+  // "Send (no status change)" (null) on the composer dropdown.
   const lastCurrentStatusRef = React.useRef(currentStatus)
   React.useEffect(() => {
     if (lastCurrentStatusRef.current !== currentStatus) {
       lastCurrentStatusRef.current = currentStatus
-      setPendingStatus((prev) =>
-        prev === null ? null : defaultNextStatus(currentStatus),
-      )
+      setPendingStatus((prev) => (prev === null ? null : currentStatus))
     }
   }, [currentStatus])
 

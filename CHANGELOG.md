@@ -51,6 +51,11 @@ This file mirrors the data rendered in-app at **/whats-new**
 
 - **Views and ticket-list columns can now be collapsed.** Click the small panel icon in the Views header (or the chevron at the top of the ticket-list column) to hide it; click again on the thin strip to bring it back. Each column's collapsed state is remembered across reloads.
 
+### Reply composer
+
+- **Submit-as button now follows the right-sidebar status.** Picking a status in the Ticket Details panel (Solved, Pending, etc.) updates the Submit-as button to match — picking Solved makes the button say "Submit as Solved" instead of silently flipping to "Submit as Open".
+- **Replies on Solved tickets keep them solved by default.** You can still reply to (and attach images to) a solved ticket. The Submit-as button will say "Submit as Solved" so a follow-up reply doesn't accidentally re-open the ticket. Use the dropdown caret if you want to advance/regress the status explicitly.
+
 ## 2026-04-22
 
 ### Ticket replies by email
