@@ -149,6 +149,19 @@ export const CHANGELOG: ChangelogEntry[] = [
             title: 'Submit Ticket button is reachable again on the new-ticket form',
             body: 'The new-ticket form was being clipped at the bottom by the master-detail layout — as conditional fields like Category and Sub-category appeared, the Submit button could vanish off-screen with no way to scroll to it. The form now scrolls inside its own container so the bottom is always reachable.',
           },
+          {
+            title: 'Cancel and Submit are now a sticky footer at the bottom of the form',
+            body: "On longer forms (with conditional Category, Sub-category, and mailing-address fields) the action buttons now stay docked at the bottom of the form area. You don't have to scroll to find them — they're always visible while you fill the form.",
+          },
+        ],
+      },
+      {
+        heading: 'Replies + internal notes',
+        items: [
+          {
+            title: '@-mention picker is back in the reply composer',
+            body: 'Type @ in a reply or internal note to open a picker for the user list. Arrow keys to navigate, Enter or click to insert. The mentioned user shows as a blue chip in the editor, gets a notification when the reply posts, and the chip renders the same way in the conversation thread.',
+          },
         ],
       },
     ],

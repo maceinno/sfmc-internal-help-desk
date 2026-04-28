@@ -729,8 +729,12 @@ export function CreateTicketForm() {
               </div>
             )}
 
-            {/* Actions */}
-            <div className="flex items-center justify-end gap-3 border-t pt-6">
+            {/* Actions — sticky to the bottom of the scroll container so
+                Cancel/Submit are always reachable no matter how tall the
+                form gets after conditional fields appear. Negative
+                horizontal/bottom margins extend the white background out
+                to the Card edges, making it read as a footer bar. */}
+            <div className="sticky bottom-0 z-10 -mx-6 -mb-6 flex items-center justify-end gap-3 border-t bg-white px-6 py-4">
               <Button
                 type="button"
                 variant="outline"

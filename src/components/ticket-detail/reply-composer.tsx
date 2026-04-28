@@ -178,9 +178,27 @@ export const ReplyComposer = React.forwardRef<
           : isInternalNote
           ? null
           : pendingStatus
+      // Extract mentioned user ids from the HTML. Tiptap renders mentions
+      // as <span data-type="mention" data-id="<id>">@Name</span>; we
+      // dedupe and pass them as taggedAgents so notify-flow + UI chips
+      // pick up the tags. Empty array → undefined to keep the API call
+      // shape unchanged when there are no mentions.
+      const taggedAgents = (() => {
+        if (typeof window === "undefined") return undefined
+        const ids = new Set<string>()
+        const doc = new DOMParser().parseFromString(replyText, "text/html")
+        for (const el of Array.from(
+          doc.querySelectorAll('[data-type="mention"][data-id]'),
+        )) {
+          const id = el.getAttribute("data-id")
+          if (id) ids.add(id)
+        }
+        return ids.size > 0 ? Array.from(ids) : undefined
+      })()
       await onSubmit({
         content: replyText,
         isInternal: isInternalNote,
+        taggedAgents,
         attachments: selectedFiles.length > 0 ? selectedFiles : undefined,
         cannedResponseId: pendingCannedResponseId,
         nextStatus: finalNextStatus,
@@ -314,6 +332,11 @@ export const ReplyComposer = React.forwardRef<
                 : "Type your reply..."
             }
             onPasteFiles={handleEditorPasteFiles}
+            mentionUsers={users.map((u) => ({
+              id: u.id,
+              name: u.name,
+              email: u.email,
+            }))}
             minRows={5}
             className="rte-wrapper border-0 rounded-none focus-within:ring-0"
           />

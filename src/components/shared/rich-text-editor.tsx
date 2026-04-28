@@ -5,6 +5,7 @@ import { useEditor, EditorContent } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
 import Underline from "@tiptap/extension-underline"
 import Link from "@tiptap/extension-link"
+import Mention from "@tiptap/extension-mention"
 import {
   Bold,
   Italic,
@@ -16,6 +17,19 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { sanitizeRichHtml } from "@/lib/html/sanitize"
+
+interface MentionCandidate {
+  id: string
+  name: string
+  email?: string
+}
+
+interface MentionState {
+  items: MentionCandidate[]
+  selectedIndex: number
+  command: ((item: { id: string; label: string }) => void) | null
+  position: { top: number; left: number } | null
+}
 
 interface RichTextEditorProps {
   value: string
@@ -33,6 +47,14 @@ interface RichTextEditorProps {
    * them in the message HTML.
    */
   onPasteFiles?: (files: File[]) => void
+  /**
+   * If provided, enables `@`-trigger mentions. Typing `@` opens a popup
+   * with the candidates filtered by the typed query. Selected mentions
+   * insert as <span data-type="mention" data-id="<id>">@Name</span> and
+   * survive sanitization. Pass an empty array to render the editor with
+   * the popup wired but no candidates (the popup just won't open).
+   */
+  mentionUsers?: MentionCandidate[]
 }
 
 /**
@@ -50,6 +72,7 @@ export function RichTextEditor({
   id,
   minRows = 6,
   onPasteFiles,
+  mentionUsers,
 }: RichTextEditorProps) {
   // Keep the latest paste-handler in a ref so the editor's options object
   // doesn't have to re-init when callers pass an unstable callback.
@@ -57,6 +80,23 @@ export function RichTextEditor({
   React.useEffect(() => {
     pasteFilesRef.current = onPasteFiles
   }, [onPasteFiles])
+
+  // Mention candidate list lives in a ref for the same reason — useEditor
+  // initializes options once and we want the suggestion items() callback
+  // to always see the freshest user list.
+  const mentionUsersRef = React.useRef<MentionCandidate[]>(mentionUsers ?? [])
+  React.useEffect(() => {
+    mentionUsersRef.current = mentionUsers ?? []
+  }, [mentionUsers])
+
+  // Popup state for the @-mention picker. Driven by the suggestion lifecycle
+  // callbacks below; rendered as an absolutely-positioned floating panel.
+  const [mentionState, setMentionState] = React.useState<MentionState | null>(null)
+  // Track selected index in a ref too so onKeyDown sees current value
+  // synchronously without stale closure issues.
+  const selectedIndexRef = React.useRef(0)
+
+  const containerRef = React.useRef<HTMLDivElement>(null)
 
   const editor = useEditor({
     extensions: [
@@ -74,6 +114,129 @@ export function RichTextEditor({
           target: "_blank",
         },
       }),
+      ...(mentionUsers
+        ? [
+            Mention.configure({
+              HTMLAttributes: { class: "mention" },
+              renderHTML({ options, node }) {
+                return [
+                  "span",
+                  {
+                    "data-type": "mention",
+                    "data-id": node.attrs.id,
+                    "data-label": node.attrs.label,
+                    class: options.HTMLAttributes.class,
+                  },
+                  `@${node.attrs.label}`,
+                ]
+              },
+              suggestion: {
+                char: "@",
+                allowSpaces: false,
+                items: ({ query }) => {
+                  const q = query.trim().toLowerCase()
+                  if (!q) return mentionUsersRef.current.slice(0, 6)
+                  return mentionUsersRef.current
+                    .filter(
+                      (u) =>
+                        u.name.toLowerCase().includes(q) ||
+                        (u.email ?? "").toLowerCase().includes(q),
+                    )
+                    .slice(0, 6)
+                },
+                render: () => {
+                  // Suggestion's onKeyDown only receives the event; the
+                  // current items + command live on onStart/onUpdate's
+                  // props. Capture them in closure variables so we can
+                  // use them from inside onKeyDown.
+                  let currentItems: MentionCandidate[] = []
+                  let currentCommand:
+                    | ((item: { id: string; label: string }) => void)
+                    | null = null
+                  const computePosition = (
+                    rect: DOMRect | null | undefined,
+                  ): { top: number; left: number } | null => {
+                    if (!rect) return null
+                    // Position below the cursor, in viewport coordinates
+                    // (we use position: fixed on the popup).
+                    return {
+                      top: rect.bottom + 4,
+                      left: rect.left,
+                    }
+                  }
+                  return {
+                    onStart: (props) => {
+                      currentItems = props.items as MentionCandidate[]
+                      currentCommand = props.command
+                      selectedIndexRef.current = 0
+                      setMentionState({
+                        items: currentItems,
+                        selectedIndex: 0,
+                        command: currentCommand,
+                        position: computePosition(props.clientRect?.()),
+                      })
+                    },
+                    onUpdate: (props) => {
+                      currentItems = props.items as MentionCandidate[]
+                      currentCommand = props.command
+                      // Reset selection if it'd be out of bounds after a re-filter.
+                      if (selectedIndexRef.current >= currentItems.length) {
+                        selectedIndexRef.current = 0
+                      }
+                      setMentionState({
+                        items: currentItems,
+                        selectedIndex: selectedIndexRef.current,
+                        command: currentCommand,
+                        position: computePosition(props.clientRect?.()),
+                      })
+                    },
+                    onKeyDown: ({ event }) => {
+                      if (event.key === "Escape") {
+                        setMentionState(null)
+                        return true
+                      }
+                      if (currentItems.length === 0) return false
+                      if (event.key === "ArrowDown") {
+                        selectedIndexRef.current =
+                          (selectedIndexRef.current + 1) % currentItems.length
+                        setMentionState((s) =>
+                          s
+                            ? { ...s, selectedIndex: selectedIndexRef.current }
+                            : null,
+                        )
+                        return true
+                      }
+                      if (event.key === "ArrowUp") {
+                        selectedIndexRef.current =
+                          (selectedIndexRef.current -
+                            1 +
+                            currentItems.length) %
+                          currentItems.length
+                        setMentionState((s) =>
+                          s
+                            ? { ...s, selectedIndex: selectedIndexRef.current }
+                            : null,
+                        )
+                        return true
+                      }
+                      if (event.key === "Enter" || event.key === "Tab") {
+                        const item = currentItems[selectedIndexRef.current]
+                        if (item && currentCommand) {
+                          currentCommand({ id: item.id, label: item.name })
+                          return true
+                        }
+                      }
+                      return false
+                    },
+                    onExit: () => {
+                      setMentionState(null)
+                    },
+                  }
+                },
+              },
+            }),
+          ]
+        : []),
     ],
     content: value || "",
     immediatelyRender: false,
@@ -84,6 +247,7 @@ export function RichTextEditor({
           "prose prose-sm max-w-none px-3 py-2 outline-none focus:outline-none",
           "[&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1",
           "[&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6",
+          "[&_.mention]:bg-blue-100 [&_.mention]:text-blue-700 [&_.mention]:rounded [&_.mention]:px-1 [&_.mention]:font-medium",
         ),
         "data-placeholder": placeholder ?? "",
         "aria-invalid": ariaInvalid ? "true" : "false",
@@ -181,6 +345,7 @@ export function RichTextEditor({
 
   return (
     <div
+      ref={containerRef}
       className={cn(
         "rounded-md border border-input bg-background overflow-hidden focus-within:ring-2 focus-within:ring-ring/50",
         ariaInvalid && "border-destructive",
@@ -251,6 +416,53 @@ export function RichTextEditor({
           aria-hidden
         >
           {placeholder}
+        </div>
+      )}
+      {mentionState && mentionState.position && mentionState.items.length > 0 && (
+        <div
+          className="fixed z-50 max-h-64 w-64 overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg"
+          style={{
+            top: mentionState.position.top,
+            left: mentionState.position.left,
+          }}
+        >
+          {mentionState.items.map((item, i) => (
+            <button
+              key={item.id}
+              type="button"
+              onMouseDown={(e) => {
+                // Prevent the editor losing focus before command fires.
+                e.preventDefault()
+                mentionState.command?.({ id: item.id, label: item.name })
+              }}
+              className={cn(
+                "flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors",
+                i === mentionState.selectedIndex
+                  ? "bg-blue-50"
+                  : "hover:bg-gray-50",
+              )}
+            >
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-700">
+                {item.name
+                  .split(/\s+/)
+                  .map((p) => p[0])
+                  .filter(Boolean)
+                  .slice(0, 2)
+                  .join("")
+                  .toUpperCase()}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-medium text-gray-900">
+                  {item.name}
+                </span>
+                {item.email && (
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {item.email}
+                  </span>
+                )}
+              </span>
+            </button>
+          ))}
         </div>
       )}
     </div>

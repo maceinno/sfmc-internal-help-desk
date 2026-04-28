@@ -59,6 +59,11 @@ This file mirrors the data rendered in-app at **/whats-new**
 ### Create a ticket
 
 - **The Submit Ticket button is reachable again.** The new-ticket form was being clipped at the bottom by the master-detail layout's height constraint, so as conditional fields (Category, Sub-category, mailing address) appeared, the Submit button could disappear off-screen with no way to scroll. The form now scrolls inside its own container.
+- **Cancel and Submit are now a sticky footer at the bottom of the form.** Even on a long form, you no longer have to scroll all the way down to submit — the buttons stay docked at the bottom of the form area.
+
+### Replies + internal notes
+
+- **`@`-mention picker is back in the reply composer.** Type `@` to open a picker; arrow keys to navigate, Enter or click to select. The mentioned user shows as a blue chip, gets the @-mention notification, and the reply renders the chip in the conversation. Same picker is available for both Public Replies and Internal Notes.
 
 ## 2026-04-22
 

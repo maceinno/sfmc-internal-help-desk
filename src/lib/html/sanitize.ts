@@ -28,6 +28,8 @@ const ALLOWED_TAGS = [
   'h2',
   'h3',
   'img',
+  // Tiptap mention nodes render as <span data-type="mention" data-id="...">.
+  'span',
 ]
 
 const ALLOWED_ATTRS = [
@@ -40,6 +42,12 @@ const ALLOWED_ATTRS = [
   'height',
   'loading',
   'referrerpolicy',
+  // Mention attributes — needed so we can extract tagged user ids from
+  // saved HTML and so the mention chip styling survives sanitization.
+  'class',
+  'data-type',
+  'data-id',
+  'data-label',
 ]
 
 // http(s), mailto, tel, cid (email-embedded images), or scheme-less

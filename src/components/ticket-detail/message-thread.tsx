@@ -121,7 +121,7 @@ export function MessageThread({
         <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 text-gray-800">
           {looksLikeHtml(ticketDescription) ? (
             <div
-              className="prose prose-sm max-w-none break-words [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6"
+              className="prose prose-sm max-w-none break-words [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_.mention]:bg-blue-100 [&_.mention]:text-blue-700 [&_.mention]:rounded [&_.mention]:px-1 [&_.mention]:font-medium"
               dangerouslySetInnerHTML={{
                 __html: sanitizeRichHtml(ticketDescription),
               }}
@@ -254,7 +254,7 @@ export function MessageThread({
             <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 text-gray-800">
               {looksLikeHtml(message.content) ? (
                 <div
-                  className="prose prose-sm max-w-none break-words [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6"
+                  className="prose prose-sm max-w-none break-words [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_.mention]:bg-blue-100 [&_.mention]:text-blue-700 [&_.mention]:rounded [&_.mention]:px-1 [&_.mention]:font-medium"
                   dangerouslySetInnerHTML={{
                     __html: sanitizeRichHtml(message.content),
                   }}
