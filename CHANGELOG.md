@@ -65,6 +65,10 @@ This file mirrors the data rendered in-app at **/whats-new**
 
 - **`@`-mention picker is back in the reply composer.** Type `@` to open a picker; arrow keys to navigate, Enter or click to select. The mentioned user shows as a blue chip, gets the @-mention notification, and the reply renders the chip in the conversation. Same picker is available for both Public Replies and Internal Notes.
 
+### Admin
+
+- **Creating canned responses, routing rules, SLA policies, teams, and views works again.** The Save/Create button was silently failing because those five tables required a primary-key `id` on insert and the UI didn't supply one. The DB now auto-generates a UUID id on insert, so create-from-the-UI flows succeed.
+
 ## 2026-04-22
 
 ### Ticket replies by email

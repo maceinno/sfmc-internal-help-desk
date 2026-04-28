@@ -164,6 +164,15 @@ export const CHANGELOG: ChangelogEntry[] = [
           },
         ],
       },
+      {
+        heading: 'Admin',
+        items: [
+          {
+            title: 'Creating canned responses, routing rules, SLA policies, teams, and views works again',
+            body: "The Save/Create button on those five admin pages was silently failing because the underlying tables required a primary-key id on insert and the UI didn't provide one. The database now auto-generates a UUID id when one is omitted, so the create-from-the-UI flows succeed.",
+          },
+        ],
+      },
     ],
   },
   {
