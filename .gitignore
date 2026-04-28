@@ -41,3 +41,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# clerk migration artifacts (PII / DB dumps — never commit)
+dev-users.json
+prod-users.json
+/snapshots/
