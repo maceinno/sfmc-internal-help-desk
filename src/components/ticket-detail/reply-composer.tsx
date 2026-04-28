@@ -81,6 +81,13 @@ interface ReplyComposerProps {
     cannedResponseId?: string
     nextStatus?: TicketStatus | null
   }) => void | Promise<void>
+  /**
+   * Apply a status-only change without posting a message. Called when the
+   * composer is empty and pendingStatus differs from currentStatus — gives
+   * agents a way to mark a ticket Solved/Pending/etc. directly from the
+   * composer button without typing "you're welcome" first.
+   */
+  onStatusOnlyChange?: (status: TicketStatus) => void | Promise<void>
   onCannedResponseSelect?: (response: CannedResponse) => void
 }
 
@@ -111,6 +118,7 @@ export const ReplyComposer = React.forwardRef<
   currentUser,
   cannedResponses = [],
   onSubmit,
+  onStatusOnlyChange,
   onCannedResponseSelect,
 }, ref) {
   // replyText now holds HTML produced by the rich-text editor. Empty
@@ -213,6 +221,27 @@ export const ReplyComposer = React.forwardRef<
   }
 
   const handleSend = () => sendInternal('button')
+
+  // Empty-composer + sidebar-picked-different-status: clicking the primary
+  // button applies the status change directly without posting a message.
+  // Lets agents close out a ticket (or move Pending/On Hold/etc.) from the
+  // composer button as a one-click action — no "you're welcome" required.
+  // Disabled in internal-note mode (notes never carry status changes), and
+  // when pendingStatus matches currentStatus (nothing to do).
+  const canStatusOnly =
+    !hasContent &&
+    !isInternalNote &&
+    pendingStatus !== null &&
+    pendingStatus !== currentStatus &&
+    Boolean(onStatusOnlyChange)
+
+  const handlePrimaryClick = () => {
+    if (canStatusOnly && pendingStatus) {
+      onStatusOnlyChange?.(pendingStatus)
+      return
+    }
+    handleSend()
+  }
 
   const handleCannedResponseSelect = (response: CannedResponse) => {
     // Canned responses are stored as plain text. Wrap each line in a <p>
@@ -447,8 +476,8 @@ export const ReplyComposer = React.forwardRef<
           ) : (
             <div className="inline-flex rounded-md shadow-sm">
               <Button
-                onClick={handleSend}
-                disabled={!hasContent || isSending}
+                onClick={handlePrimaryClick}
+                disabled={(!hasContent && !canStatusOnly) || isSending}
                 size="default"
                 className="rounded-r-none border-r border-blue-700/40"
               >
@@ -456,6 +485,13 @@ export const ReplyComposer = React.forwardRef<
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Sending...
+                  </>
+                ) : canStatusOnly && pendingStatus ? (
+                  <>
+                    <span
+                      className={`mr-2 h-2 w-2 rounded-full ${STATUS_DOT[pendingStatus]}`}
+                    />
+                    Mark as <span className="ml-1 font-semibold">{STATUS_LABEL[pendingStatus]}</span>
                   </>
                 ) : pendingStatus === null ? (
                   <>

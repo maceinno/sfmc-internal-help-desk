@@ -12,7 +12,7 @@ export type PriorityFilterValue = TicketPriority | 'all'
 export type CategoryFilterValue = TicketCategory | 'all'
 export type SortField = keyof Pick<
   Ticket,
-  'updated_at' | 'created_at' | 'priority' | 'status'
+  'updated_at' | 'created_at' | 'priority' | 'status' | 'assigned_to'
 >
 export type SortDirection = 'asc' | 'desc'
 

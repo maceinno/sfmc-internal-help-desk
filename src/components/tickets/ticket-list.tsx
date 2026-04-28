@@ -111,6 +111,11 @@ export function TicketList({ tickets, allTickets, title, users }: TicketListProp
     // No sort applied → preserve the query's natural order.
     if (sortField === null) return filtered
 
+    // Map user id → name for assignee-name sorting (raw assigned_to is
+    // a UUID, sorting by that is meaningless to humans).
+    const userNameById = new Map<string, string>()
+    for (const u of users) userNameById.set(u.id, u.name)
+
     return [...filtered].sort((a, b) => {
       let aVal: number | string | undefined
       let bVal: number | string | undefined
@@ -121,6 +126,11 @@ export function TicketList({ tickets, allTickets, title, users }: TicketListProp
       } else if (sortField === 'status') {
         aVal = STATUS_ORDER[a.status] ?? 99
         bVal = STATUS_ORDER[b.status] ?? 99
+      } else if (sortField === 'assigned_to') {
+        // Sort by assignee name; unassigned tickets fall to the bottom
+        // (the undefined-handling below puts undefined last).
+        aVal = a.assigned_to ? userNameById.get(a.assigned_to)?.toLowerCase() : undefined
+        bVal = b.assigned_to ? userNameById.get(b.assigned_to)?.toLowerCase() : undefined
       } else {
         aVal = a[sortField] as string | undefined
         bVal = b[sortField] as string | undefined

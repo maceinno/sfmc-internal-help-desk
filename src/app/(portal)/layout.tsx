@@ -21,13 +21,19 @@ export default async function PortalLayout({
   return (
     <Providers>
       <RealtimeProvider>
-        <VersionBanner />
-        <AssumeUserBanner />
+        <div data-print="hide">
+          <VersionBanner />
+          <AssumeUserBanner />
+        </div>
         <div className="min-h-screen bg-gray-50 flex font-sans text-gray-900">
-          <Sidebar />
-          <div className="flex-1 min-w-0 ml-0 lg:ml-64 flex flex-col">
-            <TicketTabs />
-            <main className="flex-1 min-w-0 p-4 pt-16 lg:pt-8 lg:pr-8 lg:pb-8 lg:pl-12 overflow-x-hidden">
+          <div data-print="hide">
+            <Sidebar />
+          </div>
+          <div className="flex-1 min-w-0 ml-0 lg:ml-64 flex flex-col print:ml-0">
+            <div data-print="hide">
+              <TicketTabs />
+            </div>
+            <main className="flex-1 min-w-0 p-4 pt-16 lg:pt-8 lg:pr-8 lg:pb-8 lg:pl-12 overflow-x-hidden print:p-0">
               {children}
             </main>
           </div>

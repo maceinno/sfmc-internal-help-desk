@@ -10,6 +10,7 @@ const ADMIN_TABS = [
   { label: 'Schedules', href: '/admin/schedules' },
   { label: 'Canned Responses', href: '/admin/canned-responses' },
   { label: 'Users', href: '/admin/users' },
+  { label: 'Teams', href: '/admin/teams' },
   { label: 'Routing', href: '/admin/routing' },
   { label: 'Categories', href: '/admin/categories' },
   { label: 'Custom Fields', href: '/admin/custom-fields' },

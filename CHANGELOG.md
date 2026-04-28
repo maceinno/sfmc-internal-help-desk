@@ -68,6 +68,24 @@ This file mirrors the data rendered in-app at **/whats-new**
 ### Admin
 
 - **Creating canned responses, routing rules, SLA policies, teams, and views works again.** The Save/Create button was silently failing because those five tables required a primary-key `id` on insert and the UI didn't supply one. The DB now auto-generates a UUID id on insert, so create-from-the-UI flows succeed.
+- **Teams admin page** at Admin → Teams. Add, rename, or delete teams from the UI; previously you could only edit existing teams and `Doc Magic Support` / `System Support` weren't even selectable in routing rules until they were added directly to the database. Both are now in the list.
+
+### Dashboard
+
+- **Recent Requests sorts by latest activity, not creation date.** Solving or replying to a ticket now keeps it at the top of Recent Requests instead of falling off because its create date is older. Column is now labeled "Updated" to match. Showing 8 instead of 5 to give room for both fresh and recently-solved.
+
+### Reply composer
+
+- **Submit-as button works for status-only changes.** Pick a status from the right-hand sidebar without typing anything in the composer — the button enables and reads "Mark as &lt;status&gt;" so you can flip a ticket to Solved/Pending/On Hold without first having to type "you're welcome".
+- **Auto-assign on solve.** Marking an unassigned ticket Solved now claims it for whoever solved it. If the ticket was already assigned to someone, that assignee stays. Helps the "solved by no-one" graveyard problem when tickets sit in a team queue.
+
+### Tickets list
+
+- **Assignee column is sortable.** Click the Assignee header to sort tickets alphabetically by assignee name (unassigned tickets sort to the bottom).
+
+### Print
+
+- **Printing a ticket now includes the full conversation.** The conversation pane was being clipped to the visible scroll viewport; print rules now release that constraint and hide chrome (sidebar nav, view list, ticket list, composer, action buttons), leaving the ticket header + conversation + sidebar details in the printout.
 
 ## 2026-04-22
 

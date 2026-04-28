@@ -33,7 +33,7 @@ const COLUMNS: Column[] = [
   { key: 'status', label: 'Status', sortable: true, sortKey: 'status' },
   { key: 'priority', label: 'Priority', sortable: true, sortKey: 'priority' },
   { key: 'category', label: 'Category', sortable: false },
-  { key: 'assigned_to', label: 'Assignee', sortable: false },
+  { key: 'assigned_to', label: 'Assignee', sortable: true, sortKey: 'assigned_to' },
   { key: 'created_at', label: 'Created', sortable: true, sortKey: 'created_at' },
   { key: 'sla', label: 'SLA', sortable: false },
 ]

@@ -128,3 +128,48 @@
     @apply font-sans;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────
+   Print rules — keep ticket detail printable end-to-end.
+
+   The portal layout uses fixed-height shells (h-screen, overflow-hidden)
+   so internal panes (conversation thread, ticket-list, sidebar) can
+   scroll independently. Without overrides, browser print sees only the
+   currently-visible viewport of the conversation pane and the rest of
+   the messages get clipped.
+
+   Approach: anything tagged `data-print="hide"` is hidden; everything
+   else has its scroll constraints released so the conversation expands
+   naturally to print across pages.
+   ───────────────────────────────────────────────────────────────────── */
+@media print {
+  [data-print="hide"],
+  .no-print {
+    display: none !important;
+  }
+
+  /* Release fixed-height + scroll constraints across the layout shells
+     so children expand to their natural height and print across pages. */
+  html,
+  body,
+  .print-expand,
+  .print-expand * {
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* Fixed-position chrome (toolbars, sticky footers, popovers) shouldn't
+     reserve space on the printed page. */
+  .sticky,
+  .fixed {
+    position: static !important;
+  }
+
+  /* shadow + border noise is distracting on paper */
+  .print-flatten,
+  .print-flatten * {
+    box-shadow: none !important;
+  }
+}

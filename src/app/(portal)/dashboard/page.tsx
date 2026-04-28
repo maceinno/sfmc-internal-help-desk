@@ -32,8 +32,18 @@ export default function DashboardPage() {
     return { newCount, openCount, pendingCount, atRisk, overdue }
   }, [tickets, policies])
 
+  // Sort by most-recently-touched, not created_at. So just-solved or
+  // just-replied-to tickets surface to the top of "Recent Requests" instead
+  // of disappearing because their original creation date is older. The
+  // tickets table has a trg_tickets_updated_at trigger that bumps
+  // updated_at on every change.
   const recentTickets = useMemo(() => {
-    return tickets.slice(0, 5)
+    return [...tickets]
+      .sort(
+        (a, b) =>
+          new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
+      )
+      .slice(0, 8)
   }, [tickets])
 
   if (ticketsLoading) {
@@ -125,7 +135,7 @@ export default function DashboardPage() {
                     Priority
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Created
+                    Updated
                   </th>
                 </tr>
               </thead>
@@ -163,7 +173,7 @@ export default function DashboardPage() {
                         <PriorityBadge priority={ticket.priority} />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(ticket.created_at)}
+                        {formatDate(ticket.updated_at)}
                       </td>
                     </tr>
                   )

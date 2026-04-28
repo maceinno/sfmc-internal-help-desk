@@ -285,7 +285,7 @@ export default function TicketsLayout({
   }
 
   const viewsAside = viewsCollapsed ? (
-    <aside className="hidden lg:flex w-[28px] flex-shrink-0 bg-white border-r border-gray-200 flex-col items-center pt-2">
+    <aside data-print="hide" className="hidden lg:flex w-[28px] flex-shrink-0 bg-white border-r border-gray-200 flex-col items-center pt-2">
       <button
         type="button"
         onClick={() => setViewsCollapsed(false)}
@@ -297,7 +297,7 @@ export default function TicketsLayout({
       </button>
     </aside>
   ) : (
-    <aside className="hidden lg:flex w-[240px] flex-shrink-0 bg-white border-r border-gray-200 flex-col overflow-hidden">
+    <aside data-print="hide" className="hidden lg:flex w-[240px] flex-shrink-0 bg-white border-r border-gray-200 flex-col overflow-hidden">
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-100 bg-gray-50/50">
         <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
           Views
@@ -381,7 +381,7 @@ export default function TicketsLayout({
       {isDetail ? (
         <>
           {queueCollapsed ? (
-            <aside className="hidden md:flex w-[28px] flex-shrink-0 bg-white border-r border-gray-200 flex-col items-center pt-2">
+            <aside data-print="hide" className="hidden md:flex w-[28px] flex-shrink-0 bg-white border-r border-gray-200 flex-col items-center pt-2">
               <button
                 type="button"
                 onClick={() => setQueueCollapsed(false)}
@@ -393,7 +393,7 @@ export default function TicketsLayout({
               </button>
             </aside>
           ) : (
-            <aside className="relative hidden md:flex w-[280px] xl:w-[320px] flex-shrink-0 flex-col overflow-hidden">
+            <aside data-print="hide" className="relative hidden md:flex w-[280px] xl:w-[320px] flex-shrink-0 flex-col overflow-hidden">
               <button
                 type="button"
                 onClick={() => setQueueCollapsed(true)}

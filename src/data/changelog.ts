@@ -171,6 +171,50 @@ export const CHANGELOG: ChangelogEntry[] = [
             title: 'Creating canned responses, routing rules, SLA policies, teams, and views works again',
             body: "The Save/Create button on those five admin pages was silently failing because the underlying tables required a primary-key id on insert and the UI didn't provide one. The database now auto-generates a UUID id when one is omitted, so the create-from-the-UI flows succeed.",
           },
+          {
+            title: 'Admin → Teams page added',
+            body: "Add, rename, and delete teams from the admin panel. Previously you could only edit teams that already existed; new teams (like Doc Magic Support and System Support) had to be inserted manually. Both are now seeded and the page is available from the admin tabs.",
+          },
+        ],
+      },
+      {
+        heading: 'Dashboard',
+        items: [
+          {
+            title: 'Recent Requests sorts by latest activity, not creation date',
+            body: 'Solving or replying to a ticket keeps it at the top of Recent Requests instead of falling off because its create date is older. Column is now labeled Updated and shows 8 entries.',
+          },
+        ],
+      },
+      {
+        heading: 'Reply composer',
+        items: [
+          {
+            title: 'Submit-as button works for status-only changes (Mark as Solved without typing)',
+            body: 'Pick a status from the right-hand sidebar without typing in the composer — the button now enables and reads "Mark as <status>" so you can flip a ticket to Solved/Pending/On Hold without first typing "you\'re welcome".',
+          },
+          {
+            title: 'Auto-assign on solve for unassigned tickets',
+            body: 'Marking an unassigned ticket Solved claims it for whoever solved it. If the ticket was already assigned, the existing assignee stays. Stops the "solved by no-one" graveyard for tickets sitting in a team queue.',
+          },
+        ],
+      },
+      {
+        heading: 'Tickets list',
+        items: [
+          {
+            title: 'Assignee column is sortable',
+            body: 'Click the Assignee header to sort tickets alphabetically by assignee name. Unassigned tickets fall to the bottom regardless of direction.',
+          },
+        ],
+      },
+      {
+        heading: 'Print',
+        items: [
+          {
+            title: 'Printing a ticket includes the full conversation',
+            body: 'The conversation pane was being clipped to the visible scroll viewport so most messages disappeared from the print preview. Print now releases that constraint and hides app chrome (sidebar nav, view list, ticket list, composer, action buttons), leaving the ticket header, sidebar details, and the entire conversation thread in the printout.',
+          },
         ],
       },
     ],

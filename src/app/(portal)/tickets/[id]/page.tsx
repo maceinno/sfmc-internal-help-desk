@@ -168,10 +168,24 @@ export default function TicketDetailPage({
 
       const oldValue = (ticket as unknown as Record<string, unknown>)[field === 'assignedTo' ? 'assigned_to' : field]
 
+      // Auto-assign on solve: if an agent transitions a ticket to Solved
+      // and nobody currently owns it, claim it for the agent who solved.
+      // Avoids the "solved by no-one" graveyard for tickets that were
+      // sitting in a team queue.
+      const autoAssign =
+        field === 'status' &&
+        value === 'solved' &&
+        oldValue !== 'solved' &&
+        !ticket.assigned_to &&
+        currentUser?.id
+          ? { assignedTo: currentUser.id }
+          : null
+
       updateTicket.mutate(
         {
           id: ticket.id,
           [field]: value,
+          ...(autoAssign ?? {}),
         } as Parameters<typeof updateTicket.mutate>[0],
         {
           onSuccess: () => {
@@ -447,7 +461,7 @@ export default function TicketDetailPage({
     : (ticket.messages ?? []).filter((m) => !m.is_internal)
 
   return (
-    <div className="flex h-[calc(100vh-6rem)] flex-col animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="print-expand print-flatten flex h-[calc(100vh-6rem)] flex-col animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Header */}
       <div className="mb-4 flex flex-col gap-3 min-w-0 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
@@ -455,6 +469,7 @@ export default function TicketDetailPage({
             variant="ghost"
             size="icon-sm"
             onClick={handleBack}
+            data-print="hide"
           >
             <ChevronLeft className="h-5 w-5" />
           </Button>
@@ -470,7 +485,7 @@ export default function TicketDetailPage({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2" data-print="hide">
           {/* Follow-up button */}
           {ticket.status === "solved" && !ticket.parent_ticket_id && (
             <Button
@@ -615,18 +630,21 @@ export default function TicketDetailPage({
             </div>
           )}
 
-          <ReplyComposer
-            ref={replyComposerRef}
-            ticketId={ticket.id}
-            ticketCreatedBy={ticket.created_by}
-            ticketCc={ticket.cc}
-            ticketCollaborators={ticket.collaborators}
-            currentStatus={ticket.status}
-            users={users}
-            currentUser={currentUser}
-            cannedResponses={cannedResponses ?? []}
-            onSubmit={handleReplySubmit}
-          />
+          <div data-print="hide">
+            <ReplyComposer
+              ref={replyComposerRef}
+              ticketId={ticket.id}
+              ticketCreatedBy={ticket.created_by}
+              ticketCc={ticket.cc}
+              ticketCollaborators={ticket.collaborators}
+              currentStatus={ticket.status}
+              users={users}
+              currentUser={currentUser}
+              cannedResponses={cannedResponses ?? []}
+              onSubmit={handleReplySubmit}
+              onStatusOnlyChange={(status) => handleUpdateField('status', status)}
+            />
+          </div>
         </div>
 
         {/* Right: Sidebar */}
