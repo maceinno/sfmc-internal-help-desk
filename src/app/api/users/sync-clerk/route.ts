@@ -1,5 +1,6 @@
 import { auth, clerkClient } from '@clerk/nextjs/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { resolveClerkId } from '@/lib/clerk/resolve-id'
 import { NextResponse } from 'next/server'
 
 /**
@@ -54,16 +55,17 @@ export async function POST(request: Request) {
 
   // Sync to Clerk
   const client = await clerkClient()
+  const clerkId = await resolveClerkId(client, userId)
 
   // Sync name
   const nameParts = profile.name.trim().split(/\s+/)
-  await client.users.updateUser(userId, {
+  await client.users.updateUser(clerkId, {
     firstName: nameParts[0],
     lastName: nameParts.length > 1 ? nameParts.slice(1).join(' ') : '',
   })
 
   // Sync publicMetadata
-  await client.users.updateUserMetadata(userId, {
+  await client.users.updateUserMetadata(clerkId, {
     publicMetadata: {
       role: profile.role,
       hasBranchAccess: profile.has_branch_access,

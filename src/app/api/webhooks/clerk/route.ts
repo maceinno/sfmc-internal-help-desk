@@ -102,12 +102,19 @@ function getFullName(data: UserJSON): string {
 
 /**
  * Build the profile row payload from Clerk user data.
+ *
+ * profiles.id resolves to data.external_id when present, otherwise data.id.
+ * external_id is set by the migration tool when users are migrated between
+ * Clerk instances (e.g. dev → prod) so existing FK rows in Supabase keep
+ * pointing at the legacy id. The session JWT template also exposes
+ * `{{user.external_id || user.id}}` as `sub`, so this resolution stays
+ * consistent everywhere we identify a user.
  */
 function buildProfilePayload(data: UserJSON) {
   const meta = (data.public_metadata ?? {}) as Record<string, unknown>;
 
   return {
-    id: data.id,
+    id: data.external_id ?? data.id,
     email: getPrimaryEmail(data),
     name: getFullName(data),
     avatar_url: data.image_url ?? null,
@@ -134,6 +141,8 @@ async function handleUserUpsert(
 ) {
   const supabase = createAdminClient();
   const payload = buildProfilePayload(data);
+  // payload.id is data.external_id ?? data.id — the legacy/profile id.
+  const profileId = payload.id;
 
   if (eventType === "user.created") {
     const { error } = await supabase.from("profiles").insert(payload);
@@ -144,22 +153,24 @@ async function handleUserUpsert(
     }
 
     // Sync the default role to Clerk publicMetadata so the middleware
-    // can enforce route access from the very first login.
+    // can enforce route access from the very first login. Pass the
+    // *Clerk* id (data.id) here, not the profile id — Clerk's API needs
+    // its own user id, not external_id.
     await syncPublicMetadata(data.id, payload.role, false, false);
 
-    console.log(`[clerk-webhook] Profile created for user ${data.id}`);
+    console.log(`[clerk-webhook] Profile created for ${profileId} (clerk ${data.id})`);
   } else {
     const { error } = await supabase
       .from("profiles")
       .update(payload)
-      .eq("id", data.id);
+      .eq("id", profileId);
 
     if (error) {
       console.error("[clerk-webhook] Failed to update profile:", error);
       throw error;
     }
 
-    console.log(`[clerk-webhook] Profile updated for user ${data.id}`);
+    console.log(`[clerk-webhook] Profile updated for ${profileId} (clerk ${data.id})`);
   }
 }
 

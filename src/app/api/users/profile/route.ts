@@ -1,5 +1,6 @@
 import { auth, clerkClient } from '@clerk/nextjs/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { resolveClerkId } from '@/lib/clerk/resolve-id'
 import { NextResponse } from 'next/server'
 
 /**
@@ -51,7 +52,8 @@ export async function PATCH(request: Request) {
     try {
       const nameParts = (payload.name as string).split(/\s+/)
       const client = await clerkClient()
-      await client.users.updateUser(userId, {
+      const clerkId = await resolveClerkId(client, userId)
+      await client.users.updateUser(clerkId, {
         firstName: nameParts[0],
         lastName: nameParts.length > 1 ? nameParts.slice(1).join(' ') : '',
       })
