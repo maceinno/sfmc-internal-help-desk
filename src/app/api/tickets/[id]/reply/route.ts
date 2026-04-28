@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { getProfileId } from '@/lib/clerk/resolve-id'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { notifyNewReply, notifyUserTagged } from '@/lib/email/notify'
 import type {
@@ -25,7 +25,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   // ── Authenticate ───────────────────────────────────────────────────────────
-  const { userId } = await auth()
+  const userId = await getProfileId()
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }

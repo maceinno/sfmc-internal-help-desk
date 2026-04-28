@@ -46,3 +46,6 @@ next-env.d.ts
 dev-users.json
 prod-users.json
 /snapshots/
+
+# supabase CLI scratch
+/supabase/.temp/

@@ -1,4 +1,4 @@
-import { auth } from '@clerk/nextjs/server'
+import { getProfileId } from '@/lib/clerk/resolve-id'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
@@ -10,7 +10,7 @@ const COOKIE_NAME = 'assumed-user-id'
  * Body: { userId: string }
  */
 export async function POST(request: Request) {
-  const { userId: callerId } = await auth()
+  const callerId = await getProfileId()
   if (!callerId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
  * DELETE /api/users/assume — Stop assuming a user
  */
 export async function DELETE() {
-  const { userId: callerId } = await auth()
+  const callerId = await getProfileId()
   if (!callerId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }

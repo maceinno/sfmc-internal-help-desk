@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { auth, clerkClient } from '@clerk/nextjs/server'
+import { clerkClient } from '@clerk/nextjs/server'
+import { getProfileId } from '@/lib/clerk/resolve-id'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { notifyUserWelcome } from '@/lib/email'
 
@@ -21,7 +22,9 @@ interface ImportUserRow {
 
 export async function POST(request: Request) {
   // ── Authenticate + authorize admin ────────────────────────────────────────
-  const { userId } = await auth()
+  // userId here is the caller's profile id (resolved through external_id
+  // post-migration if applicable).
+  const userId = await getProfileId()
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }

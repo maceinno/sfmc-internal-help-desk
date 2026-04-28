@@ -1,4 +1,4 @@
-import { auth } from '@clerk/nextjs/server'
+import { getProfileId } from '@/lib/clerk/resolve-id'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 /**
@@ -11,7 +11,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 const MAX_FILE_SIZE = 2 * 1024 * 1024 // 2 MB
 
 export async function POST(request: Request) {
-  const { userId } = await auth()
+  const userId = await getProfileId()
   if (!userId) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }

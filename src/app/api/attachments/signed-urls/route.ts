@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { getProfileId } from '@/lib/clerk/resolve-id'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 /**
@@ -17,7 +17,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 const SIGNED_URL_EXPIRY = 60 * 60 // 1 hour in seconds
 
 export async function POST(request: Request) {
-  const { userId } = await auth()
+  const userId = await getProfileId()
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }

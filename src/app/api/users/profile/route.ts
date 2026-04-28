@@ -1,6 +1,6 @@
 import { auth, clerkClient } from '@clerk/nextjs/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { resolveClerkId } from '@/lib/clerk/resolve-id'
+import { getProfileId } from '@/lib/clerk/resolve-id'
 import { NextResponse } from 'next/server'
 
 /**
@@ -12,8 +12,9 @@ import { NextResponse } from 'next/server'
  * Body: { name?: string, department?: string, avatarUrl?: string }
  */
 export async function PATCH(request: Request) {
-  const { userId } = await auth()
-  if (!userId) {
+  const { userId: clerkUserId } = await auth()
+  const userId = await getProfileId()
+  if (!userId || !clerkUserId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -52,8 +53,7 @@ export async function PATCH(request: Request) {
     try {
       const nameParts = (payload.name as string).split(/\s+/)
       const client = await clerkClient()
-      const clerkId = await resolveClerkId(client, userId)
-      await client.users.updateUser(clerkId, {
+      await client.users.updateUser(clerkUserId, {
         firstName: nameParts[0],
         lastName: nameParts.length > 1 ? nameParts.slice(1).join(' ') : '',
       })

@@ -1,4 +1,4 @@
-import { auth } from '@clerk/nextjs/server'
+import { getProfileId } from '@/lib/clerk/resolve-id'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 
@@ -11,7 +11,7 @@ const ALLOWED = ['image/png', 'image/jpeg', 'image/webp']
  * Updates the user's avatar_url in profiles.
  */
 export async function POST(request: Request) {
-  const { userId } = await auth()
+  const userId = await getProfileId()
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }

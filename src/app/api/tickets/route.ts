@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { getProfileId } from '@/lib/clerk/resolve-id'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { applyRoutingRules } from '@/lib/routing/rule-engine'
 import { notifyTicketCreated } from '@/lib/email/notify'
@@ -38,7 +38,7 @@ interface CreateTicketBody {
 
 export async function POST(request: Request) {
   // ── Authenticate ───────────────────────────────────────────────────────────
-  const { userId } = await auth()
+  const userId = await getProfileId()
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }

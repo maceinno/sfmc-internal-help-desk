@@ -1,6 +1,6 @@
-import { auth, clerkClient } from '@clerk/nextjs/server'
+import { clerkClient } from '@clerk/nextjs/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
-import { resolveClerkId } from '@/lib/clerk/resolve-id'
+import { getProfileId, resolveClerkId } from '@/lib/clerk/resolve-id'
 import { NextResponse } from 'next/server'
 
 /**
@@ -16,8 +16,9 @@ import { NextResponse } from 'next/server'
  * fields into Clerk publicMetadata.
  */
 export async function POST(request: Request) {
-  // Verify the caller is an admin
-  const { userId: callerId } = await auth()
+  // Verify the caller is an admin (callerId is the profile id, possibly
+  // sourced from external_id post-migration)
+  const callerId = await getProfileId()
   if (!callerId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
