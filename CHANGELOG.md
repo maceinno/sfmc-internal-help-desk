@@ -56,6 +56,10 @@ This file mirrors the data rendered in-app at **/whats-new**
 - **Submit-as button now follows the right-sidebar status.** Picking a status in the Ticket Details panel (Solved, Pending, etc.) updates the Submit-as button to match — picking Solved makes the button say "Submit as Solved" instead of silently flipping to "Submit as Open".
 - **Replies on Solved tickets keep them solved by default.** You can still reply to (and attach images to) a solved ticket. The Submit-as button will say "Submit as Solved" so a follow-up reply doesn't accidentally re-open the ticket. Use the dropdown caret if you want to advance/regress the status explicitly.
 
+### Create a ticket
+
+- **The Submit Ticket button is reachable again.** The new-ticket form was being clipped at the bottom by the master-detail layout's height constraint, so as conditional fields (Category, Sub-category, mailing address) appeared, the Submit button could disappear off-screen with no way to scroll. The form now scrolls inside its own container.
+
 ## 2026-04-22
 
 ### Ticket replies by email

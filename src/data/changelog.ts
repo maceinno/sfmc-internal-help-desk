@@ -142,6 +142,15 @@ export const CHANGELOG: ChangelogEntry[] = [
           },
         ],
       },
+      {
+        heading: 'Create a ticket',
+        items: [
+          {
+            title: 'Submit Ticket button is reachable again on the new-ticket form',
+            body: 'The new-ticket form was being clipped at the bottom by the master-detail layout — as conditional fields like Category and Sub-category appeared, the Submit button could vanish off-screen with no way to scroll to it. The form now scrolls inside its own container so the bottom is always reachable.',
+          },
+        ],
+      },
     ],
   },
   {
