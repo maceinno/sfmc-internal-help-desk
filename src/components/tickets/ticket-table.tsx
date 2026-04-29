@@ -70,7 +70,7 @@ export function TicketTable({
   slaPolicies,
   schedules,
 }: TicketTableProps) {
-  const { formatDate } = useTimezone()
+  const { formatDateTime } = useTimezone()
   const router = useRouter()
 
   const handleRowClick = (ticketId: string) => {
@@ -177,7 +177,7 @@ export function TicketTable({
                 )}
               </TableCell>
               <TableCell className="text-sm text-gray-500">
-                {formatDate(ticket.created_at)}
+                {formatDateTime(ticket.created_at)}
               </TableCell>
               <TableCell>
                 <SlaIndicator

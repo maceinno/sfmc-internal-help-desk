@@ -93,7 +93,7 @@ export function AttachmentList({
   users,
   onImageClick,
 }: AttachmentListProps) {
-  const { formatDate } = useTimezone()
+  const { formatDateTime } = useTimezone()
   const [expandedVersionGroups, setExpandedVersionGroups] = React.useState<
     Set<string>
   >(new Set())
@@ -296,7 +296,7 @@ export function AttachmentList({
                                     <span>
                                       {" "}
                                       &bull;{" "}
-                                      {formatDate(att.created_at)}
+                                      {formatDateTime(att.created_at)}
                                     </span>
                                   )}
                                 </p>
@@ -380,7 +380,7 @@ export function AttachmentList({
                           <span>
                             {" "}
                             &bull;{" "}
-                            {formatDate(att.created_at)}
+                            {formatDateTime(att.created_at)}
                           </span>
                         )}
                       </p>

@@ -9,6 +9,10 @@ This file mirrors the data rendered in-app at **/whats-new**
 
 ## 2026-04-29
 
+### Dates in lists
+
+- **Ticket lists and dashboard rows now show date AND time.** Created column in the ticket list, Updated column in Recent Requests, attachment upload timestamps, and the merge-ticket preview now all show date + time in the user's timezone (e.g. "Apr 29, 2026, 3:42 PM") instead of date only. Date-only displays elsewhere (release headers, holiday lists, chart axis labels) are unchanged.
+
 ### Email notifications
 
 - **Team members get an email when a new ticket lands in their queue.** Previously a new ticket routed to a team with no specific agent assignment only emailed the requester; no one on the team was notified. Now every active team member (agents + admins, skipping anyone Out of Office or the requester themselves) receives a "New Ticket in Your Team Queue" email.

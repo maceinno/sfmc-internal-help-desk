@@ -32,6 +32,15 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: '2026-04-29',
     sections: [
       {
+        heading: 'Dates in lists',
+        items: [
+          {
+            title: 'Ticket lists and dashboard rows now show date AND time',
+            body: 'The Created column on the main ticket list, the Updated column in Recent Requests on the dashboard, and attachment upload timestamps were all showing only the date — easy to misread two events on the same day. They now show date and time in your local timezone (e.g. "Apr 29, 2026, 3:42 PM"). The merge-ticket preview also picks up the same format. Date-only displays where they make sense (release headers, holiday lists, chart axis labels) are unchanged.',
+          },
+        ],
+      },
+      {
         heading: 'Email notifications',
         items: [
           {

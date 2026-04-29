@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { StatusBadge } from "@/components/tickets/status-badge"
 import { PriorityBadge } from "@/components/tickets/priority-badge"
+import { useTimezone } from "@/hooks/use-timezone"
 import type { Ticket } from "@/types"
 
 interface MergeModalProps {
@@ -32,6 +33,7 @@ export function MergeModal({
   allTickets,
   onConfirm,
 }: MergeModalProps) {
+  const { formatDateTime } = useTimezone()
   const [searchQuery, setSearchQuery] = React.useState("")
   const [selectedTicket, setSelectedTicket] = React.useState<Ticket | null>(
     null
@@ -151,7 +153,7 @@ export function MergeModal({
                   {(selectedTicket.messages ?? []).length} message
                   {(selectedTicket.messages ?? []).length !== 1 ? "s" : ""} &bull;
                   Created{" "}
-                  {new Date(selectedTicket.created_at).toLocaleDateString()}
+                  {formatDateTime(selectedTicket.created_at)}
                 </p>
               </div>
 

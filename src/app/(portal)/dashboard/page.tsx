@@ -21,7 +21,7 @@ export default function DashboardPage() {
   const { data: policies = [] } = useSlaPolicies()
   const { data: schedules = [] } = useDepartmentSchedules()
   const router = useRouter()
-  const { formatDate } = useTimezone()
+  const { formatDateTime } = useTimezone()
 
   const stats = useMemo(() => {
     const newCount = tickets.filter((t) => t.status === 'new').length
@@ -175,7 +175,7 @@ export default function DashboardPage() {
                         <PriorityBadge priority={ticket.priority} />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(ticket.updated_at)}
+                        {formatDateTime(ticket.updated_at)}
                       </td>
                     </tr>
                   )
