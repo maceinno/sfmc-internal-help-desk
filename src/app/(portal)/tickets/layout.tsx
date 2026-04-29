@@ -24,6 +24,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { getSlaStatus } from '@/lib/sla'
 import { TicketList } from '@/components/tickets/ticket-list'
 import { TicketQueueList } from '@/components/tickets/ticket-queue-list'
+import { TicketTabs } from '@/components/layout/ticket-tabs'
 import type {
   Ticket,
   User,
@@ -431,60 +432,68 @@ export default function TicketsLayout({
     <div className="-m-4 lg:-m-8 lg:-mt-8 flex h-[calc(100vh-4rem)] lg:h-screen overflow-hidden">
       {viewsAside}
 
-      {isDetail ? (
-        <>
-          {queueCollapsed ? (
-            <aside data-print="hide" className="hidden md:flex w-[28px] flex-shrink-0 bg-white border-r border-gray-200 flex-col items-center pt-2">
-              <button
-                type="button"
-                onClick={() => setQueueCollapsed(false)}
-                className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-                title="Show ticket list"
-                aria-label="Show ticket list"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </aside>
-          ) : (
-            <aside data-print="hide" className="relative hidden md:flex w-[280px] xl:w-[320px] flex-shrink-0 flex-col overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setQueueCollapsed(true)}
-                className="absolute right-1 top-1.5 z-10 rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-                title="Hide ticket list"
-                aria-label="Hide ticket list"
-              >
-                <ChevronLeft className="w-3.5 h-3.5" />
-              </button>
-              <TicketQueueList
-                tickets={filteredTickets}
-                users={users}
-                title={activeView?.name ?? 'All Tickets'}
-              />
-            </aside>
-          )}
-          <div className="flex-1 min-w-0 overflow-hidden">{children}</div>
-        </>
-      ) : (
-        <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-          <div className="flex-shrink-0 px-6 py-4 border-b border-gray-200 bg-white">
-            <h1 className="text-2xl font-bold text-gray-900">Agent Views</h1>
-            <p className="text-sm text-gray-500 mt-0.5">
-              {filteredTickets.length} ticket
-              {filteredTickets.length !== 1 ? 's' : ''} in{' '}
-              {activeView?.name ?? 'All Tickets'}
-            </p>
-          </div>
-          <div className="flex-1 overflow-hidden">
-            <TicketList
-              tickets={filteredTickets}
-              allTickets={tickets}
-              title={activeView?.name ?? 'All Tickets'}
-              users={users}
-            />
-          </div>
+      {/* Right pane: tabs strip on top, then queue + detail OR full list. */}
+      <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+        <div data-print="hide">
+          <TicketTabs />
         </div>
-      )}
+        <div className="flex-1 min-w-0 flex overflow-hidden">
+          {isDetail ? (
+            <>
+              {queueCollapsed ? (
+                <aside data-print="hide" className="hidden md:flex w-[28px] flex-shrink-0 bg-white border-r border-gray-200 flex-col items-center pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setQueueCollapsed(false)}
+                    className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                    title="Show ticket list"
+                    aria-label="Show ticket list"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </aside>
+              ) : (
+                <aside data-print="hide" className="relative hidden md:flex w-[280px] xl:w-[320px] flex-shrink-0 flex-col overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setQueueCollapsed(true)}
+                    className="absolute right-1 top-1.5 z-10 rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                    title="Hide ticket list"
+                    aria-label="Hide ticket list"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                  </button>
+                  <TicketQueueList
+                    tickets={filteredTickets}
+                    users={users}
+                    title={activeView?.name ?? 'All Tickets'}
+                  />
+                </aside>
+              )}
+              <div className="flex-1 min-w-0 overflow-hidden">{children}</div>
+            </>
+          ) : (
+            <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+              <div className="flex-shrink-0 px-6 py-4 border-b border-gray-200 bg-white">
+                <h1 className="text-2xl font-bold text-gray-900">Agent Views</h1>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  {filteredTickets.length} ticket
+                  {filteredTickets.length !== 1 ? 's' : ''} in{' '}
+                  {activeView?.name ?? 'All Tickets'}
+                </p>
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <TicketList
+                  tickets={filteredTickets}
+                  allTickets={tickets}
+                  title={activeView?.name ?? 'All Tickets'}
+                  users={users}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
