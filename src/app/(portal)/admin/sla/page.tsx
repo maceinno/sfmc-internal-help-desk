@@ -64,6 +64,10 @@ function getSlaSummary(policy: SlaPolicy): string {
   return parts.length > 0 ? parts.join(' · ') : 'All tickets'
 }
 
+function formatHoursOrOff(hours: number | null | undefined): string {
+  return hours == null ? 'Off' : `${hours}h`
+}
+
 // ── Page component ─────────────────────────────────────────────
 
 export default function SlaAdminPage() {
@@ -173,6 +177,11 @@ export default function SlaAdminPage() {
   }
 
   const deleteSla = (id: string) => {
+    const target = (localPolicies ?? slaPolicies).find((p) => p.id === id)
+    const ok = window.confirm(
+      `Delete SLA policy "${target?.name ?? id}"?\n\nThis is staged in the editor — the change is not final until you click Save Changes.`,
+    )
+    if (!ok) return
     updatePolicies((prev) => prev.filter((p) => p.id !== id))
     if (editingId === id) setEditingId(null)
   }
@@ -358,8 +367,8 @@ export default function SlaAdminPage() {
                         <div className="flex items-center gap-1.5">
                           <Clock className="w-3.5 h-3.5 text-blue-500" />
                           <span>
-                            <span className="font-medium text-gray-900">
-                              {policy.metrics.firstReplyHours}h
+                            <span className={`font-medium ${policy.metrics.firstReplyHours == null ? 'text-gray-400' : 'text-gray-900'}`}>
+                              {formatHoursOrOff(policy.metrics.firstReplyHours)}
                             </span>{' '}
                             first
                           </span>
@@ -367,8 +376,8 @@ export default function SlaAdminPage() {
                         <div className="flex items-center gap-1.5">
                           <Activity className="w-3.5 h-3.5 text-purple-500" />
                           <span>
-                            <span className="font-medium text-gray-900">
-                              {policy.metrics.nextReplyHours}h
+                            <span className={`font-medium ${policy.metrics.nextReplyHours == null ? 'text-gray-400' : 'text-gray-900'}`}>
+                              {formatHoursOrOff(policy.metrics.nextReplyHours)}
                             </span>{' '}
                             next
                           </span>
@@ -415,17 +424,15 @@ export default function SlaAdminPage() {
                       >
                         <Settings className="w-3.5 h-3.5" />
                       </Button>
-                      {!policy.is_default && (
-                        <Button
-                          variant="ghost"
-                          size="icon-xs"
-                          onClick={() => deleteSla(policy.id)}
-                          title="Delete policy"
-                          className="text-gray-400 hover:text-red-600 hover:bg-red-50"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => deleteSla(policy.id)}
+                        title="Delete policy"
+                        className="text-gray-400 hover:text-red-600 hover:bg-red-50"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
                     </div>
                   </div>
 
@@ -554,14 +561,32 @@ export default function SlaAdminPage() {
                           </h4>
 
                           <div>
-                            <Label className="text-xs text-muted-foreground mb-1.5">
-                              First Reply Target
-                            </Label>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <Label className="text-xs text-muted-foreground">
+                                First Reply Target
+                              </Label>
+                              <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer">
+                                <Switch
+                                  checked={policy.metrics.firstReplyHours != null}
+                                  onCheckedChange={(checked) =>
+                                    updateSlaMetrics(policy.id, {
+                                      ...policy.metrics,
+                                      firstReplyHours: checked
+                                        ? (policy.metrics.firstReplyHours ?? 4)
+                                        : null,
+                                    })
+                                  }
+                                  size="sm"
+                                />
+                                Track
+                              </label>
+                            </div>
                             <div className="relative">
                               <Input
                                 type="number"
                                 min={1}
-                                value={policy.metrics.firstReplyHours}
+                                value={policy.metrics.firstReplyHours ?? ''}
+                                disabled={policy.metrics.firstReplyHours == null}
                                 onChange={(e) =>
                                   updateSlaMetrics(policy.id, {
                                     ...policy.metrics,
@@ -569,6 +594,7 @@ export default function SlaAdminPage() {
                                       parseInt(e.target.value) || 1,
                                   })
                                 }
+                                placeholder={policy.metrics.firstReplyHours == null ? 'Off' : ''}
                                 className="pr-12"
                               />
                               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
@@ -581,14 +607,32 @@ export default function SlaAdminPage() {
                           </div>
 
                           <div>
-                            <Label className="text-xs text-muted-foreground mb-1.5">
-                              Next Reply Target
-                            </Label>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <Label className="text-xs text-muted-foreground">
+                                Next Reply Target
+                              </Label>
+                              <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer">
+                                <Switch
+                                  checked={policy.metrics.nextReplyHours != null}
+                                  onCheckedChange={(checked) =>
+                                    updateSlaMetrics(policy.id, {
+                                      ...policy.metrics,
+                                      nextReplyHours: checked
+                                        ? (policy.metrics.nextReplyHours ?? 8)
+                                        : null,
+                                    })
+                                  }
+                                  size="sm"
+                                />
+                                Track
+                              </label>
+                            </div>
                             <div className="relative">
                               <Input
                                 type="number"
                                 min={1}
-                                value={policy.metrics.nextReplyHours}
+                                value={policy.metrics.nextReplyHours ?? ''}
+                                disabled={policy.metrics.nextReplyHours == null}
                                 onChange={(e) =>
                                   updateSlaMetrics(policy.id, {
                                     ...policy.metrics,
@@ -596,6 +640,7 @@ export default function SlaAdminPage() {
                                       parseInt(e.target.value) || 1,
                                   })
                                 }
+                                placeholder={policy.metrics.nextReplyHours == null ? 'Off' : ''}
                                 className="pr-12"
                               />
                               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
@@ -788,13 +833,32 @@ export default function SlaAdminPage() {
                 Targets
               </h4>
               <div>
-                <Label className="text-xs text-muted-foreground mb-1.5">
-                  First Reply (hours)
-                </Label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <Label className="text-xs text-muted-foreground">
+                    First Reply (hours)
+                  </Label>
+                  <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer">
+                    <Switch
+                      checked={newSlaMetrics.firstReplyHours != null}
+                      onCheckedChange={(checked) =>
+                        setNewSlaMetrics({
+                          ...newSlaMetrics,
+                          firstReplyHours: checked
+                            ? (newSlaMetrics.firstReplyHours ?? 4)
+                            : null,
+                        })
+                      }
+                      size="sm"
+                    />
+                    Track
+                  </label>
+                </div>
                 <Input
                   type="number"
                   min={1}
-                  value={newSlaMetrics.firstReplyHours}
+                  value={newSlaMetrics.firstReplyHours ?? ''}
+                  disabled={newSlaMetrics.firstReplyHours == null}
+                  placeholder={newSlaMetrics.firstReplyHours == null ? 'Off' : ''}
                   onChange={(e) =>
                     setNewSlaMetrics({
                       ...newSlaMetrics,
@@ -804,13 +868,32 @@ export default function SlaAdminPage() {
                 />
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground mb-1.5">
-                  Next Reply (hours)
-                </Label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <Label className="text-xs text-muted-foreground">
+                    Next Reply (hours)
+                  </Label>
+                  <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer">
+                    <Switch
+                      checked={newSlaMetrics.nextReplyHours != null}
+                      onCheckedChange={(checked) =>
+                        setNewSlaMetrics({
+                          ...newSlaMetrics,
+                          nextReplyHours: checked
+                            ? (newSlaMetrics.nextReplyHours ?? 8)
+                            : null,
+                        })
+                      }
+                      size="sm"
+                    />
+                    Track
+                  </label>
+                </div>
                 <Input
                   type="number"
                   min={1}
-                  value={newSlaMetrics.nextReplyHours}
+                  value={newSlaMetrics.nextReplyHours ?? ''}
+                  disabled={newSlaMetrics.nextReplyHours == null}
+                  placeholder={newSlaMetrics.nextReplyHours == null ? 'Off' : ''}
                   onChange={(e) =>
                     setNewSlaMetrics({
                       ...newSlaMetrics,

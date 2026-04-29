@@ -8,7 +8,6 @@ export {
 } from './business-hours';
 
 export {
-  SLA_CONFIG,
   type SlaStatus,
   getActiveMetric,
   getSlaStatus,

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { TicketFilters } from './ticket-filters'
 import { TicketTable } from './ticket-table'
 import { getSlaStatus } from '@/lib/sla'
+import { useSlaPolicies, useDepartmentSchedules } from '@/hooks/use-admin-config'
 import type { Ticket, User } from '@/types/ticket'
 import type {
   StatusFilterValue,
@@ -42,6 +43,9 @@ interface TicketListProps {
 // ── Component ──────────────────────────────────────────────────
 
 export function TicketList({ tickets, allTickets, title, users }: TicketListProps) {
+  const { data: slaPolicies = [] } = useSlaPolicies()
+  const { data: schedules = [] } = useDepartmentSchedules()
+
   // Filter state
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilterValue>('all')
@@ -91,7 +95,7 @@ export function TicketList({ tickets, allTickets, title, users }: TicketListProp
     // Status (including overdue pseudo-status)
     if (statusFilter === 'overdue') {
       filtered = filtered.filter((t) => {
-        const sla = getSlaStatus(t)
+        const sla = getSlaStatus(t, slaPolicies, schedules)
         return sla?.isOverdue === true
       })
     } else if (statusFilter !== 'all') {
@@ -152,6 +156,10 @@ export function TicketList({ tickets, allTickets, title, users }: TicketListProp
     categoryFilter,
     sortField,
     sortDirection,
+    slaPolicies,
+    schedules,
+    allTickets,
+    users,
   ])
 
   return (
@@ -187,6 +195,8 @@ export function TicketList({ tickets, allTickets, title, users }: TicketListProp
           sortDirection={sortDirection}
           onSort={handleSort}
           searchTerm={searchTerm}
+          slaPolicies={slaPolicies}
+          schedules={schedules}
         />
       </div>
     </div>

@@ -13,7 +13,12 @@ import {
 } from 'lucide-react'
 import { useTickets } from '@/hooks/use-tickets'
 import { useUsers } from '@/hooks/use-users'
-import { useViewConfigs, useDepartmentCategories } from '@/hooks/use-admin-config'
+import {
+  useViewConfigs,
+  useDepartmentCategories,
+  useSlaPolicies,
+  useDepartmentSchedules,
+} from '@/hooks/use-admin-config'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { useUIStore } from '@/stores/ui-store'
 import { getSlaStatus } from '@/lib/sla'
@@ -23,6 +28,8 @@ import type {
   Ticket,
   User,
   ViewConfig,
+  SlaPolicy,
+  DepartmentSchedule,
 } from '@/types/ticket'
 
 interface ViewEntry {
@@ -77,6 +84,8 @@ function applyViewFilter(
   viewId: string,
   configs: ViewConfig[],
   currentUserId: string,
+  slaPolicies: SlaPolicy[],
+  schedules: DepartmentSchedule[],
 ): Ticket[] {
   if (viewId === 'all-tickets') return tickets
 
@@ -116,11 +125,11 @@ function applyViewFilter(
     }
 
     if (fc.slaFilter === 'breached') {
-      const sla = getSlaStatus(t)
+      const sla = getSlaStatus(t, slaPolicies, schedules)
       if (!sla?.isOverdue) return false
     }
     if (fc.slaFilter === 'at-risk') {
-      const sla = getSlaStatus(t)
+      const sla = getSlaStatus(t, slaPolicies, schedules)
       if (!sla?.isAtRisk) return false
     }
 
@@ -137,6 +146,8 @@ export default function TicketsLayout({
   const { data: viewConfigs = [], isLoading: viewsLoading } = useViewConfigs()
   const { data: allUsers = [], isLoading: usersLoading } = useUsers()
   const { profile, isAdmin, isLoading: userLoading } = useCurrentUser()
+  const { data: slaPolicies = [] } = useSlaPolicies()
+  const { data: schedules = [] } = useDepartmentSchedules()
 
   const { activeViewId, setActiveViewId } = useUIStore()
   const searchParams = useSearchParams()
@@ -251,10 +262,12 @@ export default function TicketsLayout({
         view.id,
         viewConfigs,
         profile?.id ?? '',
+        slaPolicies,
+        schedules,
       ).length
     }
     return counts
-  }, [tickets, allViews, viewConfigs, profile?.id])
+  }, [tickets, allViews, viewConfigs, profile?.id, slaPolicies, schedules])
 
   const filteredTickets = useMemo(
     () =>
@@ -263,8 +276,10 @@ export default function TicketsLayout({
         resolvedViewId,
         viewConfigs,
         profile?.id ?? '',
+        slaPolicies,
+        schedules,
       ),
-    [tickets, resolvedViewId, viewConfigs, profile?.id],
+    [tickets, resolvedViewId, viewConfigs, profile?.id, slaPolicies, schedules],
   )
 
   const users: User[] = useMemo(() => {

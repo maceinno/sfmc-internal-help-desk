@@ -7,6 +7,15 @@ Newest entries go on top.
 This file mirrors the data rendered in-app at **/whats-new**
 (source: `src/data/changelog.ts`). When you add a fix, update both files.
 
+## 2026-04-29
+
+### SLA policies
+
+- **Ticket lists now actually use the SLA policies you configure.** A bug meant the main ticket list was ignoring your policies entirely and falling back to a hardcoded table (urgent=2h, high=4h, medium=8h, low=24h). Every place that shows an SLA badge — ticket list, view filters, dashboard, ticket detail, the SLA cron — now reads from your real Admin → SLA policies and respects each department's schedule (business hours / timezone).
+- **Tickets with no matching SLA policy show no SLA.** Previously when no policy matched, a hidden priority-based default deadline kicked in silently. Now turning a policy off actually does what you'd expect. If you want a global default, configure a catch-all policy with all conditions set to "Any".
+- **Per-metric "Track" switch.** Each policy's First Reply and Next Reply targets now have a Track switch. Off = N/A.
+- **Delete button on every SLA policy.** Built-in seeded policies were previously disable-only. Any policy can now be deleted (with confirm).
+
 ## 2026-04-28
 
 ### Admin · Users

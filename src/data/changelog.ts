@@ -29,8 +29,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    date: '2026-04-28',
+    date: '2026-04-29',
     sections: [
+      {
+        heading: 'SLA policies',
+        items: [
+          {
+            title: 'Ticket lists now actually use the SLA policies you configure',
+            body: 'A bug meant the main ticket list was ignoring your SLA policies entirely and falling back to a hardcoded table (urgent=2h, high=4h, medium=8h, low=24h). That\'s why disabling a policy didn\'t change anything in the list view. Every place that shows an SLA badge — ticket list, view filters, dashboard, ticket detail, the SLA cron — now reads from your real Admin → SLA policies and respects each department\'s schedule (business hours / timezone).',
+          },
+          {
+            title: 'Tickets with no matching SLA policy show no SLA',
+            body: 'Previously when no policy matched, a hidden priority-based default deadline kicked in silently. Now a ticket with no matching policy simply has no SLA badge — turning a policy off actually does what you\'d expect. If you want a global default, configure a catch-all policy with all conditions set to "Any".',
+          },
+          {
+            title: 'You can turn off First Reply or Next Reply per policy',
+            body: 'Each metric in a policy now has a "Track" switch. Flip it off and that metric is N/A — useful for policies where you only care about first response time, or want to test by disabling next reply.',
+          },
+          {
+            title: 'Delete button on every SLA policy',
+            body: 'Built-in seeded policies were previously locked to disable-only. Now any policy can be deleted from the admin editor (with a confirm). The "Built-in" badge stays as informational only.',
+          },
+        ],
+      },
       {
         heading: 'Admin · Users',
         items: [

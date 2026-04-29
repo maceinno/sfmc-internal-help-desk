@@ -17,7 +17,8 @@ import {
 } from 'recharts'
 import { useTickets } from '@/hooks/use-tickets'
 import { useUsers } from '@/hooks/use-users'
-import { SLA_CONFIG } from '@/lib/sla'
+import { useSlaPolicies } from '@/hooks/use-admin-config'
+import { findMatchingPolicy } from '@/lib/sla/policy-matcher'
 
 // ============================================================================
 // Color constants matching the app design system
@@ -55,6 +56,7 @@ const CATEGORY_COLORS = [
 export default function ReportsPage() {
   const { data: tickets = [], isLoading: ticketsLoading } = useTickets()
   const { data: users = [], isLoading: usersLoading } = useUsers()
+  const { data: slaPolicies = [] } = useSlaPolicies()
 
   const isLoading = ticketsLoading || usersLoading
 
@@ -80,21 +82,27 @@ export default function ReportsPage() {
       avgResolutionHours = totalHours / resolvedTickets.length
     }
 
-    // SLA compliance rate
+    // SLA compliance rate — only counts tickets that had a matching
+    // policy with first-reply tracking enabled. Tickets with no matching
+    // policy (or with first-reply tracking off) are excluded from both
+    // numerator and denominator so the metric reflects actual SLA-tracked
+    // work, not phantom hardcoded thresholds.
     let slaCompliant = 0
+    let slaTracked = 0
     resolvedTickets.forEach((t) => {
+      const policy = findMatchingPolicy(t, slaPolicies)
+      const slaHours = policy?.metrics.firstReplyHours
+      if (slaHours == null) return
+      slaTracked++
       const created = new Date(t.created_at).getTime()
       const updated = new Date(t.updated_at).getTime()
       const resolutionHours = (updated - created) / (1000 * 60 * 60)
-      const slaHours = SLA_CONFIG[t.priority].hours
-      if (resolutionHours <= slaHours) {
-        slaCompliant++
-      }
+      if (resolutionHours <= slaHours) slaCompliant++
     })
 
     const slaComplianceRate =
-      resolvedTickets.length > 0
-        ? Math.round((slaCompliant / resolvedTickets.length) * 100)
+      slaTracked > 0
+        ? Math.round((slaCompliant / slaTracked) * 100)
         : 100
 
     return {

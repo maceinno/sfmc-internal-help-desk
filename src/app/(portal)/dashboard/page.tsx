@@ -7,7 +7,7 @@ import { useTimezone } from '@/hooks/use-timezone'
 import { ArrowRight, Loader2 } from 'lucide-react'
 import { useTickets } from '@/hooks/use-tickets'
 import { useUsers } from '@/hooks/use-users'
-import { useSlaPolicies } from '@/hooks/use-admin-config'
+import { useSlaPolicies, useDepartmentSchedules } from '@/hooks/use-admin-config'
 import { getAtRiskTickets, getOverdueTickets, getSlaStatus } from '@/lib/sla'
 import { StatsCards } from '@/components/dashboard/stats-cards'
 import { SlaAtRiskTable } from '@/components/dashboard/sla-at-risk-table'
@@ -19,6 +19,7 @@ export default function DashboardPage() {
   const { data: tickets = [], isLoading: ticketsLoading } = useTickets()
   const { data: allUsers = [] } = useUsers()
   const { data: policies = [] } = useSlaPolicies()
+  const { data: schedules = [] } = useDepartmentSchedules()
   const router = useRouter()
   const { formatDate } = useTimezone()
 
@@ -26,11 +27,11 @@ export default function DashboardPage() {
     const newCount = tickets.filter((t) => t.status === 'new').length
     const openCount = tickets.filter((t) => t.status === 'open').length
     const pendingCount = tickets.filter((t) => t.status === 'pending').length
-    const atRisk = getAtRiskTickets(tickets, policies)
-    const overdue = getOverdueTickets(tickets, policies)
+    const atRisk = getAtRiskTickets(tickets, policies, schedules)
+    const overdue = getOverdueTickets(tickets, policies, schedules)
 
     return { newCount, openCount, pendingCount, atRisk, overdue }
-  }, [tickets, policies])
+  }, [tickets, policies, schedules])
 
   // Sort by most-recently-touched, not created_at. So just-solved or
   // just-replied-to tickets surface to the top of "Recent Requests" instead
@@ -98,6 +99,7 @@ export default function DashboardPage() {
         overdueTickets={stats.overdue}
         users={allUsers}
         policies={policies}
+        schedules={schedules}
       />
 
       {/* Recent Requests */}
@@ -141,7 +143,7 @@ export default function DashboardPage() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {recentTickets.map((ticket) => {
-                  const slaStatus = getSlaStatus(ticket, policies)
+                  const slaStatus = getSlaStatus(ticket, policies, schedules)
                   return (
                     <tr
                       key={ticket.id}

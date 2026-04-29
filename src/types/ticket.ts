@@ -206,8 +206,10 @@ export interface SlaPolicyConditions {
 }
 
 export interface SlaPolicyMetrics {
-  firstReplyHours: number
-  nextReplyHours: number
+  /** Null = first-reply tracking is off for this policy. */
+  firstReplyHours: number | null
+  /** Null = next-reply tracking is off for this policy. */
+  nextReplyHours: number | null
   warningThreshold?: number
 }
 

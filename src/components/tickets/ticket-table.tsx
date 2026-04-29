@@ -14,7 +14,7 @@ import {
 import { StatusBadge } from '@/components/tickets/status-badge'
 import { PriorityBadge } from '@/components/tickets/priority-badge'
 import { SlaIndicator } from '@/components/tickets/sla-indicator'
-import type { Ticket, User } from '@/types/ticket'
+import type { Ticket, User, SlaPolicy, DepartmentSchedule } from '@/types/ticket'
 import type { SortField, SortDirection } from './ticket-filters'
 
 // ── Column definitions ─────────────────────────────────────────
@@ -47,6 +47,8 @@ interface TicketTableProps {
   sortDirection: SortDirection
   onSort: (field: SortField) => void
   searchTerm?: string
+  slaPolicies?: SlaPolicy[]
+  schedules?: DepartmentSchedule[]
 }
 
 // ── Helpers ────────────────────────────────────────────────────
@@ -65,6 +67,8 @@ export function TicketTable({
   sortDirection,
   onSort,
   searchTerm,
+  slaPolicies,
+  schedules,
 }: TicketTableProps) {
   const { formatDate } = useTimezone()
   const router = useRouter()
@@ -176,7 +180,11 @@ export function TicketTable({
                 {formatDate(ticket.created_at)}
               </TableCell>
               <TableCell>
-                <SlaIndicator ticket={ticket} />
+                <SlaIndicator
+                  ticket={ticket}
+                  policies={slaPolicies}
+                  schedules={schedules}
+                />
               </TableCell>
             </TableRow>
           )

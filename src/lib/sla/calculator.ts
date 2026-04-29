@@ -1,6 +1,5 @@
 import type {
   Ticket,
-  TicketPriority,
   SlaPolicy,
   DepartmentSchedule,
 } from '@/types/ticket';
@@ -10,18 +9,6 @@ import {
   calculateBusinessHoursDeadline,
   calculateBusinessHoursElapsed,
 } from './business-hours';
-
-// ── Legacy fallback config ───────────────────────────────────
-
-export const SLA_CONFIG: Record<
-  TicketPriority,
-  { hours: number; label: string }
-> = {
-  urgent: { hours: 2, label: '2 Hours' },
-  high: { hours: 4, label: '4 Hours' },
-  medium: { hours: 8, label: '8 Hours' },
-  low: { hours: 24, label: '24 Hours' },
-};
 
 // ── SLA Status interface ─────────────────────────────────────
 
@@ -95,11 +82,15 @@ function findScheduleForTicket(
 /**
  * Compute the current SLA status for a ticket.
  *
- * When a matching policy and department schedule exist, business-hours-aware
- * calculations are used. Otherwise the system falls back to calendar-hours
- * or the legacy priority-based SLA.
+ * Returns `null` (no SLA badge) when:
+ *   - the ticket is solved,
+ *   - no SLA policy matches (admin must configure a catch-all if they
+ *     want a default for everything),
+ *   - or the matched policy has the active metric set to N/A
+ *     (e.g. `nextReplyHours: null` while we're tracking next-reply).
  *
- * @returns `null` for solved tickets; an `SlaStatus` object otherwise.
+ * When a department schedule is provided, business-hours-aware
+ * calculations are used; otherwise calendar hours.
  */
 export function getSlaStatus(
   ticket: Ticket,
@@ -112,29 +103,12 @@ export function getSlaStatus(
 
   const policy = policies ? findMatchingPolicy(ticket, policies) : null;
 
+  // No policy matches → no SLA. Admins can opt into a global default by
+  // creating a catch-all policy (any/any/any). We deliberately do NOT
+  // fall back to a hardcoded priority table — that would mask "I turned
+  // it off" and silently apply phantom deadlines.
   if (!policy) {
-    // Fallback to legacy priority-based SLA (no business hours)
-    const createdAt = new Date(ticket.created_at).getTime();
-    const slaHours = SLA_CONFIG[ticket.priority].hours;
-    const slaDeadlineMs = createdAt + slaHours * 60 * 60 * 1000;
-    const now = Date.now();
-    const timeRemainingMs = slaDeadlineMs - now;
-    const isOverdue = timeRemainingMs < 0;
-    const totalDuration = slaHours * 60 * 60 * 1000;
-    const timeElapsed = now - createdAt;
-    let percentUsed = (timeElapsed / totalDuration) * 100;
-    if (percentUsed < 0) percentUsed = 0;
-
-    return {
-      isOverdue,
-      isAtRisk: !isOverdue && percentUsed >= 75,
-      timeRemainingMs,
-      slaDeadline: new Date(slaDeadlineMs),
-      percentUsed,
-      warningThreshold: 75,
-      label: SLA_CONFIG[ticket.priority].label,
-      metric: 'firstReply',
-    };
+    return null;
   }
 
   // Policy-based SLA
@@ -143,6 +117,11 @@ export function getSlaStatus(
     metric === 'firstReply'
       ? policy.metrics.firstReplyHours
       : policy.metrics.nextReplyHours;
+
+  // Metric explicitly set to N/A on this policy → not tracked.
+  if (slaHours === null || slaHours === undefined) {
+    return null;
+  }
 
   const anchorMs = new Date(anchorTime).getTime();
   const now = Date.now();

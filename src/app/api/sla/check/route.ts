@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getSlaStatus, formatTimeRemaining } from '@/lib/sla/calculator'
 import { notifySlaAlert } from '@/lib/email/notify'
-import type { Ticket, SlaPolicy } from '@/types/ticket'
+import type { Ticket, SlaPolicy, DepartmentSchedule } from '@/types/ticket'
 
 // ── Auth helper ─────────────────────────────────────────────────
 
@@ -56,14 +56,20 @@ export async function GET(request: NextRequest) {
     )
   }
 
+  // 3. Fetch department schedules so SLA calculations honor business hours.
+  const { data: schedulesRaw } = await supabase
+    .from('department_schedules')
+    .select('*')
+
   const policies = (policiesRaw ?? []) as SlaPolicy[]
+  const schedules = (schedulesRaw ?? []) as DepartmentSchedule[]
   const allTickets = (tickets ?? []) as Ticket[]
 
   let atRiskCount = 0
   let notificationsCreated = 0
 
   for (const ticket of allTickets) {
-    const sla = getSlaStatus(ticket, policies)
+    const sla = getSlaStatus(ticket, policies, schedules)
     if (!sla || (!sla.isAtRisk && !sla.isOverdue)) continue
 
     atRiskCount++
