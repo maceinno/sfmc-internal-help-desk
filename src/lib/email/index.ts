@@ -4,6 +4,7 @@ export {
   notifyStatusChanged,
   notifyAssignmentChanged,
   notifyUserTagged,
+  notifyCcAdded,
   notifySlaAlert,
   notifyUserWelcome,
 } from './notify'

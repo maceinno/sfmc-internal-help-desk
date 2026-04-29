@@ -244,6 +244,7 @@ export async function POST(request: Request) {
     created_by: createdBy,
     assigned_to: null,
     assigned_team: ticket.assigned_team ?? null,
+    cc: body.cc ?? [],
   })
 
   return NextResponse.json(ticket, { status: 201 })

@@ -67,8 +67,10 @@ export async function notifyTicketCreated(ticket: {
   created_by: string
   assigned_to: string | null
   assigned_team?: string | null
+  cc?: string[]
 }) {
-  const userIds = [ticket.created_by]
+  const ccUserIds = (ticket.cc ?? []).filter((id) => id !== ticket.created_by)
+  const userIds = [ticket.created_by, ...ccUserIds]
   if (ticket.assigned_to) userIds.push(ticket.assigned_to)
   const users = await resolveUsers(userIds)
 
@@ -80,6 +82,25 @@ export async function notifyTicketCreated(ticket: {
       category: ticket.category,
       priority: ticket.priority,
     }), ticket.id)
+  }
+
+  // Notify each CC'd user that they've been added to a brand-new ticket.
+  // Reuses the same ccAdded template path the runtime-add flow uses;
+  // the isAtCreation flag tweaks the lead copy.
+  for (const ccId of ccUserIds) {
+    const ccUser = users.get(ccId)
+    if (!ccUser) continue
+    if (ccUser.email === creator?.email) continue
+    await send(
+      ccUser.email,
+      templates.ccAdded({
+        ticketId: ticket.id,
+        title: ticket.title,
+        addedByName: creator?.name ?? 'Someone',
+        isAtCreation: true,
+      }),
+      ticket.id,
+    )
   }
 
   // Specific agent assignment: notify just that agent.
@@ -280,7 +301,8 @@ export async function notifyNewReply(p: {
 }
 
 /**
- * Status changed — notify the ticket creator.
+ * Status changed — notify the ticket creator and any CC'd users so the
+ * full audience following the ticket sees the resolution / move.
  */
 export async function notifyStatusChanged(p: {
   ticketId: string
@@ -290,21 +312,77 @@ export async function notifyStatusChanged(p: {
   changedById: string
   createdBy: string
 }) {
-  // Don't notify if the creator changed it themselves
-  if (p.changedById === p.createdBy) return
+  try {
+    const supabase = createAdminClient()
+    const { data: ccRows } = await supabase
+      .from('ticket_cc')
+      .select('user_id')
+      .eq('ticket_id', p.ticketId)
 
-  const users = await resolveUsers([p.createdBy, p.changedById])
-  const creator = users.get(p.createdBy)
-  const changer = users.get(p.changedById)
+    const ccUserIds = (ccRows ?? [])
+      .map((r) => r.user_id as string)
+      .filter((id) => id !== p.createdBy && id !== p.changedById)
 
-  if (creator) {
-    await send(creator.email, templates.statusChanged({
-      ticketId: p.ticketId,
-      title: p.ticketTitle,
-      oldStatus: p.oldStatus,
-      newStatus: p.newStatus,
-      changedByName: changer?.name ?? 'An agent',
-    }), p.ticketId)
+    const recipientIds = new Set<string>(ccUserIds)
+    // Skip notifying the creator if they made the change themselves.
+    if (p.changedById !== p.createdBy) recipientIds.add(p.createdBy)
+
+    if (recipientIds.size === 0) return
+
+    const users = await resolveUsers([
+      ...recipientIds,
+      p.changedById,
+    ])
+    const changer = users.get(p.changedById)
+
+    for (const userId of recipientIds) {
+      const user = users.get(userId)
+      if (!user) continue
+      await send(
+        user.email,
+        templates.statusChanged({
+          ticketId: p.ticketId,
+          title: p.ticketTitle,
+          oldStatus: p.oldStatus,
+          newStatus: p.newStatus,
+          changedByName: changer?.name ?? 'An agent',
+        }),
+        p.ticketId,
+      )
+    }
+  } catch (err) {
+    console.error('[email] notifyStatusChanged crashed:', err)
+  }
+}
+
+/**
+ * Runtime CC-add — emit a single "you've been CC'd" notification to a
+ * user who was just added to an existing ticket.
+ */
+export async function notifyCcAdded(p: {
+  ticketId: string
+  ticketTitle: string
+  addedUserId: string
+  addedById: string
+}) {
+  if (p.addedUserId === p.addedById) return
+  try {
+    const users = await resolveUsers([p.addedUserId, p.addedById])
+    const target = users.get(p.addedUserId)
+    const adder = users.get(p.addedById)
+    if (!target) return
+    await send(
+      target.email,
+      templates.ccAdded({
+        ticketId: p.ticketId,
+        title: p.ticketTitle,
+        addedByName: adder?.name ?? 'Someone',
+        isAtCreation: false,
+      }),
+      p.ticketId,
+    )
+  } catch (err) {
+    console.error('[email] notifyCcAdded crashed:', err)
   }
 }
 

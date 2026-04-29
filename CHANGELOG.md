@@ -12,6 +12,8 @@ This file mirrors the data rendered in-app at **/whats-new**
 ### Email notifications
 
 - **Team members get an email when a new ticket lands in their queue.** Previously a new ticket routed to a team with no specific agent assignment only emailed the requester; no one on the team was notified. Now every active team member (agents + admins, skipping anyone Out of Office or the requester themselves) receives a "New Ticket in Your Team Queue" email.
+- **CC'd users get an email when added to a ticket.** Adding someone as a CC — at creation time or later via the sidebar — now sends them a "You've been CC'd" email with a link to the ticket. Previously they'd only show up on subsequent reply emails.
+- **CC'd users get status-change emails.** When a ticket is moved to Solved / Pending / On Hold / Open / New, the status-change email now also goes to every CC'd user, not just the requester.
 
 ### Employee experience
 

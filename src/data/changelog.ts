@@ -38,6 +38,14 @@ export const CHANGELOG: ChangelogEntry[] = [
             title: 'Team members get an email when a new ticket lands in their queue',
             body: 'Previously, a new ticket routed to a team queue (no specific agent assigned) sent an email to the requester only — no one on the team was notified, so tickets could sit unseen until someone refreshed the queue. Now every active member of the assigned team (agents and admins, skipping anyone marked Out of Office or the requester themselves) gets a "New Ticket in Your Team Queue" email with a link to view and claim it.',
           },
+          {
+            title: 'CC\'d users get an email when added to a ticket',
+            body: 'When you CC someone — either while creating a ticket or by adding them later from the ticket sidebar — they now get a "You\'ve been CC\'d" email with a link straight to the ticket. Previously they\'d sit silently on the thread until someone replied, and only the reply emails would surface that they were involved.',
+          },
+          {
+            title: 'CC\'d users get notified on status changes',
+            body: 'When a ticket is moved to Solved / Pending / On Hold / Open / New, every user CC\'d on the ticket now receives the same status-change email the requester gets. They no longer have to find out the ticket was resolved by checking back manually.',
+          },
         ],
       },
       {

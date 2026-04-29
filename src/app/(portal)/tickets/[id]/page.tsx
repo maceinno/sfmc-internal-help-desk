@@ -246,19 +246,22 @@ export default function TicketDetailPage({
     async (userId: string) => {
       if (!ticket) return
       try {
-        const token = await getToken({ template: "supabase" })
-        if (!token) return
-        const supabase = createClerkSupabaseClient(token)
-        const { error } = await supabase
-          .from("ticket_cc")
-          .upsert({ ticket_id: ticket.id, user_id: userId }, { onConflict: "ticket_id,user_id" })
-        if (error) throw error
+        // Server route handles the insert + emails the newly-CC'd user.
+        const res = await fetch(`/api/tickets/${ticket.id}/cc`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId }),
+        })
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          throw new Error(err.error ?? "Failed to add CC")
+        }
         queryClient.invalidateQueries({ queryKey: ["tickets", "detail", ticket.id] })
       } catch {
         toast.error("Failed to add CC")
       }
     },
-    [ticket, getToken, queryClient]
+    [ticket, queryClient]
   )
 
   const handleCcRemove = React.useCallback(

@@ -324,6 +324,36 @@ export function userTagged(p: {
   }
 }
 
+export function ccAdded(p: {
+  ticketId: string
+  title: string
+  /**
+   * Whoever pulled this user in. For tickets created with the user
+   * already CC'd, this is the requester. For runtime-adds, this is the
+   * person who clicked "Add CC".
+   */
+  addedByName: string
+  /** Optional — set when the ticket is being created in this same flow. */
+  isAtCreation?: boolean
+}) {
+  const lead = p.isAtCreation
+    ? `<strong>${p.addedByName}</strong> CC'd you on a new ticket. You'll get an email each time someone replies.`
+    : `<strong>${p.addedByName}</strong> added you as a CC on this ticket. You'll start receiving email updates on replies.`
+
+  return {
+    subject: `[${p.ticketId}] You were CC'd: ${p.title}`,
+    html: layout(`
+      <h2 style="margin:0 0 8px;font-size:20px;color:#111827;">You've Been CC'd</h2>
+      <p style="margin:0 0 16px;color:#6b7280;font-size:14px;">${lead}</p>
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px;">
+        <p style="margin:0;font-size:13px;color:#6b7280;">${p.ticketId}</p>
+        <p style="margin:4px 0 0;font-size:16px;font-weight:600;color:#111827;">${p.title}</p>
+      </div>
+      ${button(ticketUrl(p.ticketId), 'View Ticket')}
+    `),
+  }
+}
+
 export function ccNotification(p: {
   ticketId: string
   title: string
