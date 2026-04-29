@@ -6,6 +6,7 @@ import StarterKit from "@tiptap/starter-kit"
 import Underline from "@tiptap/extension-underline"
 import Link from "@tiptap/extension-link"
 import Mention from "@tiptap/extension-mention"
+import Placeholder from "@tiptap/extension-placeholder"
 import {
   Bold,
   Italic,
@@ -106,6 +107,13 @@ export function RichTextEditor({
         heading: false,
       }),
       Underline,
+      Placeholder.configure({
+        placeholder: placeholder ?? "",
+        // Render the placeholder as a CSS ::before pseudo-element on the
+        // first empty paragraph (default behavior). Click-anywhere focus
+        // works because the editor's contenteditable owns its full min-h.
+        showOnlyCurrent: false,
+      }),
       Link.configure({
         openOnClick: false,
         autolink: true,
@@ -249,7 +257,10 @@ export function RichTextEditor({
           "[&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6",
           "[&_.mention]:bg-blue-100 [&_.mention]:text-blue-700 [&_.mention]:rounded [&_.mention]:px-1 [&_.mention]:font-medium",
         ),
-        "data-placeholder": placeholder ?? "",
+        // min-h on the contenteditable itself so clicking anywhere in
+        // the visible editor area lands the cursor (instead of just the
+        // wrapper div absorbing the click).
+        style: `min-height: ${minRows * 1.5}rem`,
         "aria-invalid": ariaInvalid ? "true" : "false",
       },
       handlePaste: (_view, event) => {
@@ -405,19 +416,8 @@ export function RichTextEditor({
           <LinkIcon className="h-3.5 w-3.5" />
         </ToolbarBtn>
       </div>
-      <EditorContent
-        editor={editor}
-        className={cn("text-sm")}
-        style={{ minHeight: `${minRows * 1.5}rem` }}
-      />
-      {editor.isEmpty && placeholder && (
-        <div
-          className="pointer-events-none -mt-[1.75rem] px-3 text-sm text-muted-foreground"
-          aria-hidden
-        >
-          {placeholder}
-        </div>
-      )}
+      <EditorContent editor={editor} className={cn("text-sm")} />
+
       {mentionState && mentionState.position && mentionState.items.length > 0 && (
         <div
           className="fixed z-50 max-h-64 w-64 overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg"

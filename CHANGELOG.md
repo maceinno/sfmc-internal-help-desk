@@ -12,6 +12,8 @@ This file mirrors the data rendered in-app at **/whats-new**
 ### Reply composer
 
 - **Submit-as status picker works again.** Picking a different status from the small caret menu next to the Submit button (Open / Pending / On Hold / Solved / Send-no-status-change) now actually changes the button label and submits with that status. Was silently doing nothing — particularly noticeable on Solved tickets where you wanted to reply and reopen as Pending or Open.
+- **Click anywhere in the reply box to start typing.** The cursor lands on the first click no matter where in the reply area you click. Previously the placeholder showed mid-way down the box and only a small region was actually focusable.
+- **Progress indicator while a reply is sending.** A thin animated bar runs across the top of the reply box while a reply is posting (blue for replies, amber for internal notes), in addition to the existing "Sending..." button label.
 
 ## 2026-04-27
 

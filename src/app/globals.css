@@ -173,3 +173,24 @@
     box-shadow: none !important;
   }
 }
+
+/* Tiptap empty-editor placeholder (rendered by @tiptap/extension-placeholder).
+   Show the placeholder text inside the empty first paragraph so it sits
+   exactly where the cursor will appear. */
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--muted-foreground, #9ca3af);
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+
+/* Indeterminate progress sweep used to indicate "send in flight" on the
+   reply composer and similar in-flight UI. */
+@keyframes progress-sweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+.progress-sweep {
+  animation: progress-sweep 1.2s ease-in-out infinite;
+}

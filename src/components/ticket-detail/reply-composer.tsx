@@ -313,8 +313,14 @@ export const ReplyComposer = React.forwardRef<
           isInternalNote
             ? "border-amber-300 focus-within:ring-amber-200"
             : "border-gray-300 focus-within:ring-blue-500"
-        }`}
+        } ${isSending ? "opacity-90" : ""}`}
       >
+        {/* In-flight progress sweep — visible while a reply/note is posting */}
+        {isSending && (
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-0.5 overflow-hidden rounded-t-lg">
+            <div className={`h-full w-1/4 ${isInternalNote ? "bg-amber-500" : "bg-blue-500"} progress-sweep`} />
+          </div>
+        )}
         {/* Toggle Tabs */}
         <div className="flex items-center justify-between rounded-t-lg border-b border-gray-100 bg-gray-50/50 px-3 py-2">
           <div className="flex items-center gap-1">

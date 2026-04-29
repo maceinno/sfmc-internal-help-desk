@@ -38,6 +38,14 @@ export const CHANGELOG: ChangelogEntry[] = [
             title: 'Submit-as status picker works again',
             body: 'Picking a different status from the small caret menu next to the Submit button (Open / Pending / On Hold / Solved / Send-no-status-change) now actually changes the button label and submits with that status. The picker had been silently doing nothing — particularly noticeable on Solved tickets where you wanted to reply and reopen as Pending or Open.',
           },
+          {
+            title: 'Click anywhere in the reply box to start typing',
+            body: "The cursor now lands on the first click no matter where in the reply area you click. Previously the placeholder text \"Type your reply...\" showed mid-way down the box and only a small region was actually focusable, so you'd have to hunt for the right spot.",
+          },
+          {
+            title: 'Visible progress indicator while a reply is sending',
+            body: 'A thin animated bar runs across the top of the reply box while your reply is posting (blue for replies, amber for internal notes), so it\'s clear something is happening between clicking Submit and seeing the new message in the thread. The button still shows "Sending..." too.',
+          },
         ],
       },
     ],
