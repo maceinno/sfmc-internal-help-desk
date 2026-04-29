@@ -172,10 +172,14 @@ export default function TicketsLayout({
     }
   }, [userLoading, isEmployee, pathname, router])
   // Anything inside /tickets other than /tickets itself is a "detail-like"
-  // route (T-xxx, /tickets/new, etc.) and should render its own children
-  // with the queue list on the left rather than being eaten by the master
-  // ticket list.
-  const isDetail = pathname !== '/tickets' && pathname.startsWith('/tickets')
+  // route (T-xxx etc.) and should render its own children with the queue
+  // list on the left rather than being eaten by the master ticket list.
+  // Exception: /tickets/new is a creation form — pairing it with a queue
+  // of existing tickets is just noise, so it renders children only (no
+  // Views sidebar, no queue list) regardless of role.
+  const isCreateNew = pathname === '/tickets/new'
+  const isDetail =
+    pathname !== '/tickets' && pathname.startsWith('/tickets') && !isCreateNew
 
   useEffect(() => {
     const status = searchParams.get('status')
@@ -324,6 +328,12 @@ export default function TicketsLayout({
   // chrome.
   if (isEmployee) {
     if (pathname === '/tickets') return null
+    return <>{children}</>
+  }
+
+  // Create-ticket form: chrome-free for everyone (admins included). The
+  // queue list / Views sidebar add nothing on a creation flow.
+  if (isCreateNew) {
     return <>{children}</>
   }
 

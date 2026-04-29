@@ -47,6 +47,10 @@ export const CHANGELOG: ChangelogEntry[] = [
             body: 'The What\'s New release feed is intended for admins, so the sidebar link now appears only for admins and the /whats-new URL redirects non-admins to the appropriate landing page (dashboard for agents, /my-tickets for employees).',
           },
           {
+            title: 'Create Ticket form is no longer wrapped by the agent queue',
+            body: 'When agents/admins clicked Create Ticket, the page used to render with the Views sidebar on the left and the master ticket queue in the middle — visual noise that had nothing to do with creating a new ticket. The new-ticket form now renders by itself, the same way it does for employees.',
+          },
+          {
             title: 'Employees who land on the global tickets list go to My Tickets',
             body: 'If an employee navigates directly to the /tickets URL, they are redirected to /my-tickets. The global ticket triage view is intended for agents and admins.',
           },

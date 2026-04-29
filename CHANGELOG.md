@@ -15,6 +15,7 @@ This file mirrors the data rendered in-app at **/whats-new**
 - **Employees on `/tickets` are redirected to `/my-tickets`.** The global ticket triage list is agent-oriented; employees only need their own tickets.
 - **Open-tickets tab strip only shows on Agent Views.** The multi-tab strip at the top of the content area (T-1065, T-1139, etc.) was rendering on every portal page. It now only appears under Agent Views (`/tickets/...`) for agents + admins; employees never see it.
 - **"What's New" is now admin-only.** Sidebar link is admin-only and `/whats-new` redirects non-admins.
+- **Create Ticket form is no longer wrapped by the agent queue.** /tickets/new renders by itself for everyone — the Views sidebar and master ticket queue used to bracket the creation form for agents/admins, which was just noise.
 
 ### SLA policies
 
