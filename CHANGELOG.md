@@ -7,6 +7,12 @@ Newest entries go on top.
 This file mirrors the data rendered in-app at **/whats-new**
 (source: `src/data/changelog.ts`). When you add a fix, update both files.
 
+## 2026-04-28
+
+### Reply composer
+
+- **Submit-as status picker works again.** Picking a different status from the small caret menu next to the Submit button (Open / Pending / On Hold / Solved / Send-no-status-change) now actually changes the button label and submits with that status. Was silently doing nothing — particularly noticeable on Solved tickets where you wanted to reply and reopen as Pending or Open.
+
 ## 2026-04-27
 
 ### Ticket replies

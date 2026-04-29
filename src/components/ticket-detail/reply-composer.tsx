@@ -524,7 +524,7 @@ export const ReplyComposer = React.forwardRef<
                   {STATUS_OPTIONS.map((status) => (
                     <DropdownMenuItem
                       key={status}
-                      onSelect={() => setPendingStatus(status)}
+                      onClick={() => setPendingStatus(status)}
                       className="flex items-center gap-2"
                     >
                       <span
@@ -538,7 +538,7 @@ export const ReplyComposer = React.forwardRef<
                   ))}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    onSelect={() => setPendingStatus(null)}
+                    onClick={() => setPendingStatus(null)}
                     className="flex items-center gap-2"
                   >
                     <Send className="h-3.5 w-3.5 text-muted-foreground" />

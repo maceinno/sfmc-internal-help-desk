@@ -29,6 +29,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-04-28',
+    sections: [
+      {
+        heading: 'Reply composer',
+        items: [
+          {
+            title: 'Submit-as status picker works again',
+            body: 'Picking a different status from the small caret menu next to the Submit button (Open / Pending / On Hold / Solved / Send-no-status-change) now actually changes the button label and submits with that status. The picker had been silently doing nothing — particularly noticeable on Solved tickets where you wanted to reply and reopen as Pending or Open.',
+          },
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-04-27',
     sections: [
       {
