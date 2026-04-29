@@ -32,6 +32,15 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: '2026-04-29',
     sections: [
       {
+        heading: 'Email notifications',
+        items: [
+          {
+            title: 'Team members get an email when a new ticket lands in their queue',
+            body: 'Previously, a new ticket routed to a team queue (no specific agent assigned) sent an email to the requester only — no one on the team was notified, so tickets could sit unseen until someone refreshed the queue. Now every active member of the assigned team (agents and admins, skipping anyone marked Out of Office or the requester themselves) gets a "New Ticket in Your Team Queue" email with a link to view and claim it.',
+          },
+        ],
+      },
+      {
         heading: 'Employee experience',
         items: [
           {

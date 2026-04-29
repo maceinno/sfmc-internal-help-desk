@@ -51,7 +51,13 @@ async function send(to: string, template: { subject: string; html: string }, tic
 // ── Public notification functions ────────────────────────────────
 
 /**
- * Ticket created — notify creator + assigned agent (if any).
+ * Ticket created — notify creator, assigned agent (if any), and members
+ * of the assigned team queue when no specific agent is assigned. Tickets
+ * with neither assigned_to nor assigned_team only notify the creator.
+ *
+ * Team-queue notifications skip OOO members and the creator themselves
+ * (an agent who created a ticket on behalf of someone in their own team
+ * shouldn't get their own notification).
  */
 export async function notifyTicketCreated(ticket: {
   id: string
@@ -60,6 +66,7 @@ export async function notifyTicketCreated(ticket: {
   priority: string
   created_by: string
   assigned_to: string | null
+  assigned_team?: string | null
 }) {
   const userIds = [ticket.created_by]
   if (ticket.assigned_to) userIds.push(ticket.assigned_to)
@@ -75,6 +82,7 @@ export async function notifyTicketCreated(ticket: {
     }), ticket.id)
   }
 
+  // Specific agent assignment: notify just that agent.
   if (ticket.assigned_to) {
     const agent = users.get(ticket.assigned_to)
     if (agent && agent.email !== creator?.email) {
@@ -86,6 +94,64 @@ export async function notifyTicketCreated(ticket: {
         creatorName: creator?.name ?? 'Unknown',
       }), ticket.id)
     }
+    return
+  }
+
+  // No specific agent → fan out to the team queue if one is set.
+  if (!ticket.assigned_team) return
+
+  try {
+    const supabase = createAdminClient()
+
+    const { data: team } = await supabase
+      .from('teams')
+      .select('id, name')
+      .eq('id', ticket.assigned_team)
+      .single()
+
+    if (!team) {
+      console.warn(`[email] notifyTicketCreated: team ${ticket.assigned_team} not found`)
+      return
+    }
+
+    const { data: members, error: membersErr } = await supabase
+      .from('profiles')
+      .select('id, email, name, role, is_out_of_office')
+      .contains('team_ids', [ticket.assigned_team])
+
+    if (membersErr) {
+      console.error('[email] notifyTicketCreated: failed to load team members:', membersErr)
+      return
+    }
+
+    const recipients = (members ?? []).filter(
+      (m) =>
+        (m.role === 'agent' || m.role === 'admin') &&
+        !m.is_out_of_office &&
+        m.id !== ticket.created_by &&
+        m.email,
+    )
+
+    console.log(
+      `[email] notifyTicketCreated: fanning out to ${recipients.length} member(s) of team ${team.name}`,
+    )
+
+    for (const member of recipients) {
+      await send(
+        member.email,
+        templates.ticketCreatedTeam({
+          ticketId: ticket.id,
+          title: ticket.title,
+          category: ticket.category,
+          priority: ticket.priority,
+          creatorName: creator?.name ?? 'Unknown',
+          teamName: team.name,
+        }),
+        ticket.id,
+      )
+    }
+  } catch (err) {
+    console.error('[email] notifyTicketCreated team fan-out crashed:', err)
   }
 }
 

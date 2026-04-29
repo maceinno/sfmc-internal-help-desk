@@ -9,6 +9,10 @@ This file mirrors the data rendered in-app at **/whats-new**
 
 ## 2026-04-29
 
+### Email notifications
+
+- **Team members get an email when a new ticket lands in their queue.** Previously a new ticket routed to a team with no specific agent assignment only emailed the requester; no one on the team was notified. Now every active team member (agents + admins, skipping anyone Out of Office or the requester themselves) receives a "New Ticket in Your Team Queue" email.
+
 ### Employee experience
 
 - **Employees no longer see the agent Views sidebar.** Opening "Create Ticket" or any of their own tickets goes straight to the form / detail without the Views panel (All Tickets / My Queue / By Status / SLA At Risk / etc.) bleeding through. Agents and admins still see the full Views sidebar.
