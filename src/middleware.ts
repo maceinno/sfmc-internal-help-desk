@@ -16,7 +16,7 @@ const isPublicRoute = createRouteMatcher([
 ]);
 
 /** Routes restricted to admin role only. */
-const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
+const isAdminRoute = createRouteMatcher(["/admin(.*)", "/whats-new(.*)"]);
 
 /** Routes restricted to agent or admin roles. */
 const isAgentRoute = createRouteMatcher([

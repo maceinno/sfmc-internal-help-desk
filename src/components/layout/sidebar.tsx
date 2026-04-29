@@ -70,6 +70,8 @@ export function Sidebar() {
   // Build nav items based on role. While the profile is still loading, show
   // an empty list so we never flash the agent/admin nav to an employee
   // before their role resolves (or vice versa).
+  // What's New is admin-only — it's a release/changelog feed for the people
+  // shipping changes, not for end users or agents.
   const navItems: NavItem[] = isLoading || !profile
     ? []
     : isEmployee
@@ -79,7 +81,6 @@ export function Sidebar() {
           { href: '/cc-tickets', label: "CC'd Tickets", icon: AtSign },
           ...(profile?.has_branch_access ? [{ href: '/branch', label: 'My Branch', icon: Building2 }] : []),
           ...(profile?.has_regional_access ? [{ href: '/region', label: 'My Region', icon: MapPin }] : []),
-          { href: '/whats-new', label: "What's New", icon: Sparkles },
         ]
       : [
           { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -88,7 +89,9 @@ export function Sidebar() {
           { href: '/cc-tickets', label: "CC'd Tickets", icon: AtSign },
           { href: '/reports', label: 'Reports', icon: BarChart3 },
           { href: '/tickets/new', label: 'Create Ticket', icon: PlusCircle },
-          { href: '/whats-new', label: "What's New", icon: Sparkles },
+          ...(isAdmin
+            ? [{ href: '/whats-new', label: "What's New", icon: Sparkles }]
+            : []),
         ]
 
   const isActive = (href: string) => {

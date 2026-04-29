@@ -39,6 +39,14 @@ export const CHANGELOG: ChangelogEntry[] = [
             body: 'When an employee opens "Create Ticket" or any of their own tickets, the page now goes straight to the form/detail without the agent-oriented Views panel (All Tickets / My Queue / By Status / SLA At Risk / etc.) on the left. That panel was bleeding through into employee pages because it was part of the shared tickets layout. Agents and admins still see the full Views sidebar as before.',
           },
           {
+            title: 'Open-tickets tab strip only shows on Agent Views',
+            body: 'The multi-tab strip at the top of the content area (showing recently opened tickets like T-1065, T-1139, etc.) was rendering on every portal page — Dashboard, CC\'d Tickets, Reports, even What\'s New. It now only appears under Agent Views (/tickets/...) and only for users who actually use that area (agents + admins). Employees never see it at all.',
+          },
+          {
+            title: '"What\'s New" is now admin-only',
+            body: 'The What\'s New release feed is intended for admins, so the sidebar link now appears only for admins and the /whats-new URL redirects non-admins to the appropriate landing page (dashboard for agents, /my-tickets for employees).',
+          },
+          {
             title: 'Employees who land on the global tickets list go to My Tickets',
             body: 'If an employee navigates directly to the /tickets URL, they are redirected to /my-tickets. The global ticket triage view is intended for agents and admins.',
           },

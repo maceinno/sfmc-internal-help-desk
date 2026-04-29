@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { X, Ticket as TicketIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useTabStore } from "@/stores/tab-store"
+import { useCurrentUser } from "@/hooks/use-current-user"
 
 const TICKET_PATH_RE = /^\/tickets\/(T-[^/]+)\/?$/
 
@@ -15,19 +16,26 @@ function getActiveTicketId(pathname: string): string | null {
 }
 
 export function TicketTabs() {
-  const pathname = usePathname()
+  const pathname = usePathname() ?? ""
   const router = useRouter()
   const tabs = useTabStore((s) => s.tabs)
   const closeTab = useTabStore((s) => s.closeTab)
+  const { isEmployee, isLoading: userLoading } = useCurrentUser()
 
   // Defer rendering until after client hydration so persisted tabs don't
   // diverge from the server-rendered (empty) state.
   const [mounted, setMounted] = React.useState(false)
   React.useEffect(() => setMounted(true), [])
 
-  const activeId = getActiveTicketId(pathname ?? "")
+  const activeId = getActiveTicketId(pathname)
 
-  if (!mounted || tabs.length === 0) return null
+  // Only render in the agent-views area (/tickets/*) and only for roles
+  // that actually have agent views (agent + admin). Employees don't get
+  // a multi-tab triage strip; on every other top-level page (dashboard,
+  // /my-tickets, /admin/*, etc.) the strip is just noise.
+  const isOnAgentViews = pathname.startsWith("/tickets")
+  if (!mounted || userLoading || isEmployee || !isOnAgentViews) return null
+  if (tabs.length === 0) return null
 
   const handleClose = (e: React.MouseEvent, id: string) => {
     e.preventDefault()
