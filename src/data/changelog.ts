@@ -32,6 +32,15 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: '2026-04-28',
     sections: [
       {
+        heading: 'Admin · Users',
+        items: [
+          {
+            title: 'Removed "Ticket Types Handled" from the user editor',
+            body: 'The user edit dialog had three overlapping fields that were doing similar jobs — Team Assignments, Departments, and Ticket Types Handled. "Ticket Types Handled" was being collected but not actually used to drive anything in the app, so we removed it. Going forward, assign each user to their native Team and pick the Departments they can support; the assignee picker on a ticket already uses Departments.',
+          },
+        ],
+      },
+      {
         heading: 'Reply composer',
         items: [
           {

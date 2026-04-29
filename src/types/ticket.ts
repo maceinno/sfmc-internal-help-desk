@@ -91,7 +91,6 @@ export interface User {
   branch_id?: string
   region_id?: string
   is_out_of_office?: boolean
-  ticket_types_handled?: TicketType[]
   has_regional_access?: boolean
   managed_region_id?: string
   has_branch_access?: boolean

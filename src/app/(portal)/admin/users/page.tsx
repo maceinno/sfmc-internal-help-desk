@@ -21,7 +21,7 @@ import {
   useRegions,
   useDepartmentCategories,
 } from '@/hooks/use-admin-config'
-import type { User, TicketType } from '@/types'
+import type { User } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -80,7 +80,6 @@ interface UserFormState {
   branchId: string
   regionId: string
   isOutOfOffice: boolean
-  ticketTypesHandled: TicketType[]
   hasBranchAccess: boolean
   managedBranchId: string
   hasRegionalAccess: boolean
@@ -191,10 +190,6 @@ export default function UsersPage() {
         branch_id: data.branchId || null,
         region_id: data.regionId || null,
         is_out_of_office: data.isOutOfOffice,
-        ticket_types_handled:
-          data.ticketTypesHandled.length > 0
-            ? data.ticketTypesHandled
-            : null,
         has_branch_access: data.hasBranchAccess,
         managed_branch_id: data.hasBranchAccess
           ? data.managedBranchId || null
@@ -287,7 +282,6 @@ export default function UsersPage() {
       branchId: u.branch_id ?? '',
       regionId: u.region_id ?? '',
       isOutOfOffice: u.is_out_of_office ?? false,
-      ticketTypesHandled: u.ticket_types_handled ?? [],
       hasBranchAccess: u.has_branch_access ?? false,
       managedBranchId: u.managed_branch_id ?? '',
       hasRegionalAccess: u.has_regional_access ?? false,
@@ -320,20 +314,6 @@ export default function UsersPage() {
         departments: current.includes(dept)
           ? current.filter((d) => d !== dept)
           : [...current, dept],
-      }
-    })
-  }
-
-  function toggleTicketType(tt: string) {
-    if (!form) return
-    setForm((f) => {
-      if (!f) return f
-      const current = f.ticketTypesHandled
-      return {
-        ...f,
-        ticketTypesHandled: current.includes(tt as TicketType)
-          ? current.filter((t) => t !== tt)
-          : [...current, tt as TicketType],
       }
     })
   }
@@ -881,30 +861,6 @@ export default function UsersPage() {
                     </SelectContent>
                   </Select>
                 )}
-              </div>
-
-              {/* Ticket Types Handled (multi-select) */}
-              <div className="grid gap-1.5">
-                <Label>Ticket Types Handled</Label>
-                <div className="flex flex-wrap gap-1.5 p-2 border rounded-lg min-h-[42px]">
-                  {departmentNames.map((tt) => {
-                    const selected = form.ticketTypesHandled.includes(tt as TicketType)
-                    return (
-                      <button
-                        key={tt}
-                        type="button"
-                        onClick={() => toggleTicketType(tt)}
-                        className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-                          selected
-                            ? 'bg-primary/10 text-primary border-primary/30'
-                            : 'bg-background text-muted-foreground border-border hover:border-foreground/30'
-                        }`}
-                      >
-                        {tt}
-                      </button>
-                    )
-                  })}
-                </div>
               </div>
 
               {/* Out of Office toggle */}

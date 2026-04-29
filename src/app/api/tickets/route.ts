@@ -157,7 +157,6 @@ export async function POST(request: Request) {
     branch_id: p.branch_id ?? undefined,
     region_id: p.region_id ?? undefined,
     is_out_of_office: p.is_out_of_office ?? false,
-    ticket_types_handled: p.ticket_types_handled ?? undefined,
     has_regional_access: p.has_regional_access ?? false,
     managed_region_id: p.managed_region_id ?? undefined,
     has_branch_access: p.has_branch_access ?? false,
