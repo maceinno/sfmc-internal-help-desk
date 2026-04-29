@@ -232,6 +232,7 @@ export function TicketSidebarPanel({
           ticket={ticket}
           policies={slaPolicies}
           schedules={schedules}
+          emptyState="verbose"
         />
       </div>
 
