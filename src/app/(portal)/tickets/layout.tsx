@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import {
   ChevronDown,
   ChevronLeft,
@@ -145,13 +145,32 @@ export default function TicketsLayout({
   const { data: tickets = [], isLoading: ticketsLoading } = useTickets()
   const { data: viewConfigs = [], isLoading: viewsLoading } = useViewConfigs()
   const { data: allUsers = [], isLoading: usersLoading } = useUsers()
-  const { profile, isAdmin, isLoading: userLoading } = useCurrentUser()
+  const {
+    profile,
+    isAdmin,
+    isEmployee,
+    isLoading: userLoading,
+  } = useCurrentUser()
   const { data: slaPolicies = [] } = useSlaPolicies()
   const { data: schedules = [] } = useDepartmentSchedules()
 
   const { activeViewId, setActiveViewId } = useUIStore()
   const searchParams = useSearchParams()
   const pathname = usePathname() ?? ''
+  const router = useRouter()
+
+  // Employees never see the Views sidebar or the agent queue chrome —
+  // their flow is "Create Ticket / My Tickets / CC'd Tickets" via the
+  // portal sidebar, not a global ticket triage view. Redirect the bare
+  // /tickets master-list URL to /my-tickets; everything else
+  // (e.g. /tickets/new, /tickets/<id>) renders children directly via
+  // the early-return below — but kept after all hook calls to satisfy
+  // the rules of hooks.
+  useEffect(() => {
+    if (!userLoading && isEmployee && pathname === '/tickets') {
+      router.replace('/my-tickets')
+    }
+  }, [userLoading, isEmployee, pathname, router])
   // Anything inside /tickets other than /tickets itself is a "detail-like"
   // route (T-xxx, /tickets/new, etc.) and should render its own children
   // with the queue list on the left rather than being eaten by the master
@@ -297,6 +316,15 @@ export default function TicketsLayout({
         <Loader2 className="w-8 h-8 text-gray-400 animate-spin" />
       </div>
     )
+  }
+
+  // Employee shortcut: render children only, no Views / queue chrome.
+  // The /tickets → /my-tickets redirect is handled by the useEffect
+  // above; while it runs, render nothing instead of flashing the agent
+  // chrome.
+  if (isEmployee) {
+    if (pathname === '/tickets') return null
+    return <>{children}</>
   }
 
   const viewsAside = viewsCollapsed ? (

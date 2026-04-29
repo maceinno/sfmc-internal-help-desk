@@ -32,6 +32,19 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: '2026-04-29',
     sections: [
       {
+        heading: 'Employee experience',
+        items: [
+          {
+            title: 'Employees no longer see the agent Views sidebar',
+            body: 'When an employee opens "Create Ticket" or any of their own tickets, the page now goes straight to the form/detail without the agent-oriented Views panel (All Tickets / My Queue / By Status / SLA At Risk / etc.) on the left. That panel was bleeding through into employee pages because it was part of the shared tickets layout. Agents and admins still see the full Views sidebar as before.',
+          },
+          {
+            title: 'Employees who land on the global tickets list go to My Tickets',
+            body: 'If an employee navigates directly to the /tickets URL, they are redirected to /my-tickets. The global ticket triage view is intended for agents and admins.',
+          },
+        ],
+      },
+      {
         heading: 'SLA policies',
         items: [
           {

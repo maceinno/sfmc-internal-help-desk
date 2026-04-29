@@ -9,6 +9,11 @@ This file mirrors the data rendered in-app at **/whats-new**
 
 ## 2026-04-29
 
+### Employee experience
+
+- **Employees no longer see the agent Views sidebar.** Opening "Create Ticket" or any of their own tickets goes straight to the form / detail without the Views panel (All Tickets / My Queue / By Status / SLA At Risk / etc.) bleeding through. Agents and admins still see the full Views sidebar.
+- **Employees on `/tickets` are redirected to `/my-tickets`.** The global ticket triage list is agent-oriented; employees only need their own tickets.
+
 ### SLA policies
 
 - **Ticket lists now actually use the SLA policies you configure.** A bug meant the main ticket list was ignoring your policies entirely and falling back to a hardcoded table (urgent=2h, high=4h, medium=8h, low=24h). Every place that shows an SLA badge — ticket list, view filters, dashboard, ticket detail, the SLA cron — now reads from your real Admin → SLA policies and respects each department's schedule (business hours / timezone).
