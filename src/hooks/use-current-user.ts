@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useUser, useAuth } from '@clerk/nextjs'
 import { createClerkSupabaseClient } from '@/lib/supabase/client'
+import { useProfileId } from '@/hooks/use-profile-id'
 import type { User } from '@/types'
 
 function getAssumedUserId(): string | null {
@@ -20,6 +21,7 @@ function getAssumedUserId(): string | null {
 export function useCurrentUser() {
   const { user, isLoaded: isClerkLoaded } = useUser()
   const { getToken } = useAuth()
+  const profileId = useProfileId()
 
   const assumedUserId = getAssumedUserId()
 
@@ -28,7 +30,7 @@ export function useCurrentUser() {
     data: realProfile,
     isLoading: isRealProfileLoading,
   } = useQuery<User | null>({
-    queryKey: ['currentUserProfile', user?.id],
+    queryKey: ['currentUserProfile', profileId],
     queryFn: async () => {
       const token = await getToken({ template: 'supabase' })
       if (!token) return null
@@ -37,13 +39,13 @@ export function useCurrentUser() {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', user!.id)
+        .eq('id', profileId!)
         .single()
 
       if (error) throw error
       return data as User
     },
-    enabled: isClerkLoaded && !!user,
+    enabled: isClerkLoaded && !!user && !!profileId,
   })
 
   // Fetch assumed user's profile (only when assuming)

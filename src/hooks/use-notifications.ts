@@ -1,8 +1,9 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useAuth, useUser } from '@clerk/nextjs'
+import { useAuth } from '@clerk/nextjs'
 import { createClerkSupabaseClient } from '@/lib/supabase/client'
+import { useProfileId } from '@/hooks/use-profile-id'
 import type { AppNotification } from '@/types'
 
 const notificationKeys = {
@@ -15,10 +16,10 @@ const notificationKeys = {
  */
 export function useNotifications() {
   const { getToken } = useAuth()
-  const { user } = useUser()
+  const profileId = useProfileId()
 
   return useQuery<AppNotification[]>({
-    queryKey: notificationKeys.list(user?.id ?? ''),
+    queryKey: notificationKeys.list(profileId ?? ''),
     queryFn: async () => {
       const token = await getToken({ template: 'supabase' })
       if (!token) throw new Error('No auth token')
@@ -27,13 +28,13 @@ export function useNotifications() {
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
-        .eq('to_user_id', user!.id)
+        .eq('to_user_id', profileId!)
         .order('created_at', { ascending: false })
 
       if (error) throw error
       return data as AppNotification[]
     },
-    enabled: !!user?.id,
+    enabled: !!profileId,
   })
 }
 
@@ -42,7 +43,7 @@ export function useNotifications() {
  */
 export function useMarkNotificationRead() {
   const { getToken } = useAuth()
-  const { user } = useUser()
+  const profileId = useProfileId()
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -59,9 +60,9 @@ export function useMarkNotificationRead() {
       if (error) throw error
     },
     onSuccess: () => {
-      if (user?.id) {
+      if (profileId) {
         queryClient.invalidateQueries({
-          queryKey: notificationKeys.list(user.id),
+          queryKey: notificationKeys.list(profileId),
         })
       }
     },
@@ -73,28 +74,28 @@ export function useMarkNotificationRead() {
  */
 export function useMarkAllNotificationsRead() {
   const { getToken } = useAuth()
-  const { user } = useUser()
+  const profileId = useProfileId()
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: async () => {
       const token = await getToken({ template: 'supabase' })
       if (!token) throw new Error('No auth token')
-      if (!user?.id) throw new Error('No user')
+      if (!profileId) throw new Error('No user')
 
       const supabase = createClerkSupabaseClient(token)
       const { error } = await supabase
         .from('notifications')
         .update({ read: true })
-        .eq('to_user_id', user.id)
+        .eq('to_user_id', profileId)
         .eq('read', false)
 
       if (error) throw error
     },
     onSuccess: () => {
-      if (user?.id) {
+      if (profileId) {
         queryClient.invalidateQueries({
-          queryKey: notificationKeys.list(user.id),
+          queryKey: notificationKeys.list(profileId),
         })
       }
     },
