@@ -82,6 +82,7 @@ interface UserFormState {
   isOutOfOffice: boolean
   hasBranchAccess: boolean
   managedBranchId: string
+  managedBranchIds: string[]
   hasRegionalAccess: boolean
   managedRegionId: string
 }
@@ -192,7 +193,10 @@ export default function UsersPage() {
         is_out_of_office: data.isOutOfOffice,
         has_branch_access: data.hasBranchAccess,
         managed_branch_id: data.hasBranchAccess
-          ? data.managedBranchId || null
+          ? (data.managedBranchIds.length > 0 ? data.managedBranchIds[0] : data.managedBranchId || null)
+          : null,
+        managed_branch_ids: data.hasBranchAccess
+          ? (data.managedBranchIds.length > 0 ? data.managedBranchIds : null)
           : null,
         has_regional_access: data.hasRegionalAccess,
         managed_region_id: data.hasRegionalAccess
@@ -284,6 +288,7 @@ export default function UsersPage() {
       isOutOfOffice: u.is_out_of_office ?? false,
       hasBranchAccess: u.has_branch_access ?? false,
       managedBranchId: u.managed_branch_id ?? '',
+      managedBranchIds: u.managed_branch_ids ?? (u.managed_branch_id ? [u.managed_branch_id] : []),
       hasRegionalAccess: u.has_regional_access ?? false,
       managedRegionId: u.managed_region_id ?? '',
     })
@@ -314,6 +319,23 @@ export default function UsersPage() {
         departments: current.includes(dept)
           ? current.filter((d) => d !== dept)
           : [...current, dept],
+      }
+    })
+  }
+
+  function toggleManagedBranch(branchId: string) {
+    if (!form) return
+    setForm((f) => {
+      if (!f) return f
+      const current = f.managedBranchIds
+      const updated = current.includes(branchId)
+        ? current.filter((id) => id !== branchId)
+        : [...current, branchId]
+      return {
+        ...f,
+        managedBranchIds: updated,
+        // Keep legacy field in sync
+        managedBranchId: updated.length > 0 ? updated[0] : '',
       }
     })
   }
@@ -749,7 +771,7 @@ export default function UsersPage() {
                   <div>
                     <p className="text-sm font-medium">Branch Manager</p>
                     <p className="text-xs text-muted-foreground">
-                      Can manage a specific branch
+                      Can manage one or more branches
                     </p>
                   </div>
                   <Switch
@@ -763,6 +785,9 @@ export default function UsersPage() {
                               managedBranchId: checked
                                 ? f.managedBranchId
                                 : '',
+                              managedBranchIds: checked
+                                ? f.managedBranchIds
+                                : [],
                             }
                           : f,
                       )
@@ -770,36 +795,30 @@ export default function UsersPage() {
                   />
                 </div>
                 {form.hasBranchAccess && (
-                  <Select
-                    value={form.managedBranchId || '__none__'}
-                    onValueChange={(val) =>
-                      setForm((f) =>
-                        f
-                          ? {
-                              ...f,
-                              managedBranchId:
-                                !val || val === '__none__' ? '' : val,
-                            }
-                          : f,
-                      )
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select managed branch...">
-                        {(val: string) =>
-                          !val || val === '__none__' ? 'None' : getBranchName(val)
-                        }
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">None</SelectItem>
-                      {branches.map((b) => (
-                        <SelectItem key={b.id} value={b.id}>
-                          {b.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-1.5 block">
+                      Managed Branches ({form.managedBranchIds.length} selected)
+                    </Label>
+                    <div className="flex flex-wrap gap-1.5 p-2 border rounded-lg min-h-[42px]">
+                      {branches.map((b) => {
+                        const selected = form.managedBranchIds.includes(b.id)
+                        return (
+                          <button
+                            key={b.id}
+                            type="button"
+                            onClick={() => toggleManagedBranch(b.id)}
+                            className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                              selected
+                                ? 'bg-primary/10 text-primary border-primary/30'
+                                : 'bg-background text-muted-foreground border-border hover:border-foreground/30'
+                            }`}
+                          >
+                            {b.name}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
                 )}
               </div>
 

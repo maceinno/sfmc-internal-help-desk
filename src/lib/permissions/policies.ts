@@ -31,15 +31,32 @@ const ADMIN_PAGES = [...AGENT_PAGES, 'admin-settings']
 // ============================================================================
 
 /**
- * Return true when the ticket's creator OR assignee belongs to the user's
- * managed branch.
+ * Return the effective set of managed branch IDs for a user.
+ * Prefers the new `managed_branch_ids` array, falling back to the legacy
+ * single `managed_branch_id` field for backward compatibility.
+ */
+function getManagedBranchIds(user: User): string[] {
+  if (user.managed_branch_ids && user.managed_branch_ids.length > 0) {
+    return user.managed_branch_ids
+  }
+  if (user.managed_branch_id) {
+    return [user.managed_branch_id]
+  }
+  return []
+}
+
+/**
+ * Return true when the ticket's creator OR assignee belongs to one of the
+ * user's managed branches.
  */
 function ticketMatchesBranch(
   user: User,
   ticket: Ticket,
   allUsers: User[],
 ): boolean {
-  if (!user.has_branch_access || !user.managed_branch_id) return false
+  if (!user.has_branch_access) return false
+  const branchIds = getManagedBranchIds(user)
+  if (branchIds.length === 0) return false
 
   const creator = allUsers.find((u) => u.id === ticket.created_by)
   const assignee = ticket.assigned_to
@@ -47,8 +64,8 @@ function ticketMatchesBranch(
     : null
 
   return (
-    (!!creator && creator.branch_id === user.managed_branch_id) ||
-    (!!assignee && assignee.branch_id === user.managed_branch_id)
+    (!!creator && !!creator.branch_id && branchIds.includes(creator.branch_id)) ||
+    (!!assignee && !!assignee.branch_id && branchIds.includes(assignee.branch_id))
   )
 }
 
@@ -170,7 +187,7 @@ export function canAccessAdmin(user: User): boolean {
  * Check if a user can view branch-filtered tickets (has branch manager access).
  */
 export function canViewBranchTickets(user: User): boolean {
-  return !!user.has_branch_access && !!user.managed_branch_id
+  return !!user.has_branch_access && getManagedBranchIds(user).length > 0
 }
 
 /**
@@ -249,15 +266,15 @@ export function filterVisibleTickets(
 }
 
 /**
- * Filter tickets to those whose creator or assignee belongs to the user's
- * managed branch.  Returns an empty array when the user lacks branch access.
+ * Filter tickets to those whose creator or assignee belongs to one of the
+ * user's managed branches.  Returns an empty array when the user lacks branch access.
  */
 export function filterBranchTickets(
   user: User,
   tickets: Ticket[],
   allUsers: User[],
 ): Ticket[] {
-  if (!user.has_branch_access || !user.managed_branch_id) return []
+  if (!user.has_branch_access || getManagedBranchIds(user).length === 0) return []
   return tickets.filter((t) => ticketMatchesBranch(user, t, allUsers))
 }
 
