@@ -8,6 +8,7 @@ import {
   Calendar,
   Tag,
   X,
+  Hand,
 } from "lucide-react"
 import {
   Select,
@@ -405,9 +406,22 @@ export function TicketSidebarPanel({
           {/* Assignee */}
           {isAgentOrAdmin ? (
             <div>
-              <label className="mb-1 block text-xs font-medium uppercase text-muted-foreground">
-                Assignee
-              </label>
+              <div className="mb-1 flex items-center justify-between">
+                <label className="block text-xs font-medium uppercase text-muted-foreground">
+                  Assignee
+                </label>
+                {!ticket.assigned_to && (
+                  <button
+                    type="button"
+                    onClick={() => onUpdateField("assignedTo", currentUser.id)}
+                    className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100"
+                    title="Assign this ticket to yourself"
+                  >
+                    <Hand className="h-3 w-3" />
+                    Take it
+                  </button>
+                )}
+              </div>
               <UserAutocomplete
                 users={assignableUsers}
                 selectedIds={ticket.assigned_to ? [ticket.assigned_to] : []}

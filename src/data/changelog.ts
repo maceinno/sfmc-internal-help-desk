@@ -29,6 +29,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-04-30',
+    sections: [
+      {
+        heading: 'Ticket detail',
+        items: [
+          {
+            title: '"Take it" button — claim an unassigned ticket in one click',
+            body: 'When a ticket is sitting unassigned in a team queue, the right-hand panel now shows a small "Take it" button next to the Assignee label. Click it to assign the ticket to yourself without having to open the assignee picker and search for your name. Hides itself once the ticket is assigned to anyone.',
+          },
+          {
+            title: 'Status-only submit works on every ticket',
+            body: 'The Submit button in the reply composer was getting stuck disabled on tickets whose status defaulted to its current value (Pending, On Hold, Solved). You can now select any status from the caret dropdown and submit without typing a reply, on any ticket. Selecting the status the ticket already has is a no-op (no DB write, no false "saved" toast).',
+          },
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-04-29',
     sections: [
       {

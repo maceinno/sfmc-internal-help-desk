@@ -7,6 +7,13 @@ Newest entries go on top.
 This file mirrors the data rendered in-app at **/whats-new**
 (source: `src/data/changelog.ts`). When you add a fix, update both files.
 
+## 2026-04-30
+
+### Ticket detail
+
+- **"Take it" button — claim an unassigned ticket in one click.** Right-hand panel shows a small "Take it" button next to Assignee when nobody is assigned. Single-click sets you as the assignee. Hides once anyone is assigned.
+- **Status-only submit works on every ticket.** Submit button in the composer used to be disabled on Pending / On Hold / Solved tickets even after picking a different status from the caret. Now you can select any status and submit without a reply, on any ticket. Picking the status the ticket already has is a silent no-op.
+
 ## 2026-04-29
 
 ### Ticket detail · Sidebar

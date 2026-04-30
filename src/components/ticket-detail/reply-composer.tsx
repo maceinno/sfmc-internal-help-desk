@@ -222,21 +222,30 @@ export const ReplyComposer = React.forwardRef<
 
   const handleSend = () => sendInternal('button')
 
-  // Empty-composer + sidebar-picked-different-status: clicking the primary
-  // button applies the status change directly without posting a message.
-  // Lets agents close out a ticket (or move Pending/On Hold/etc.) from the
-  // composer button as a one-click action — no "you're welcome" required.
-  // Disabled in internal-note mode (notes never carry status changes), and
-  // when pendingStatus matches currentStatus (nothing to do).
+  // Empty-composer status-only submit: clicking the primary button
+  // applies the chosen status without posting a message. Lets agents
+  // flip Pending / On Hold / Solved / etc. from the composer in one
+  // click — no "you're welcome" required. Disabled only in internal-
+  // note mode (notes never carry status changes) or when the dropdown
+  // is on "Send (no status change)" (pendingStatus === null).
+  //
+  // We intentionally don't gate on pendingStatus !== currentStatus.
+  // That gate stranded users on tickets whose default pendingStatus
+  // already matched the current status (e.g. on_hold, solved): the
+  // button was simply disabled with no obvious explanation. Now the
+  // button stays enabled; if the user clicks it with the current
+  // status selected we treat it as a no-op (handlePrimaryClick below).
   const canStatusOnly =
     !hasContent &&
     !isInternalNote &&
     pendingStatus !== null &&
-    pendingStatus !== currentStatus &&
     Boolean(onStatusOnlyChange)
 
   const handlePrimaryClick = () => {
     if (canStatusOnly && pendingStatus) {
+      // No-op when the picked status is what the ticket already has —
+      // avoids a misleading "Status saved" toast for a non-change.
+      if (pendingStatus === currentStatus) return
       onStatusOnlyChange?.(pendingStatus)
       return
     }
