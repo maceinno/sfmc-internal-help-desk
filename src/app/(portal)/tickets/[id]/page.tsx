@@ -195,7 +195,13 @@ export default function TicketDetailPage({
             toast.success(`${label} saved`, { duration: 1500 })
 
             // Fire post-mutation hook (system event line in the thread + emails
-            // where applicable). One endpoint, dispatched per field.
+            // where applicable). One endpoint, dispatched per field. We
+            // explicitly invalidate the detail query when the request comes
+            // back so the inline event line shows up without the user having
+            // to wait on realtime — Supabase Realtime usually delivers within
+            // a second or two, but the race with the tickets-UPDATE refetch
+            // can leave the system row out of the rendered thread until the
+            // next manual refresh.
             const postNotify = (payload: Record<string, unknown>) => {
               fetch(`/api/tickets/${ticket.id}/notify`, {
                 method: 'POST',
@@ -205,7 +211,13 @@ export default function TicketDetailPage({
                   createdBy: ticket.created_by,
                   ...payload,
                 }),
-              }).catch(() => {})
+              })
+                .then(() => {
+                  queryClient.invalidateQueries({
+                    queryKey: ['tickets', 'detail', ticket.id],
+                  })
+                })
+                .catch(() => {})
             }
             if (field === 'status' && oldValue !== value) {
               postNotify({
