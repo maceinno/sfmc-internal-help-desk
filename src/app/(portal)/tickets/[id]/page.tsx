@@ -194,31 +194,63 @@ export default function TicketDetailPage({
             const label = FIELD_LABELS[field] ?? field
             toast.success(`${label} saved`, { duration: 1500 })
 
-            // Fire email notifications for status and assignment changes
-            if (field === 'status' && oldValue !== value) {
+            // Fire post-mutation hook (system event line in the thread + emails
+            // where applicable). One endpoint, dispatched per field.
+            const postNotify = (payload: Record<string, unknown>) => {
               fetch(`/api/tickets/${ticket.id}/notify`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                  type: 'status_changed',
                   ticketTitle: ticket.title,
                   createdBy: ticket.created_by,
-                  oldStatus: oldValue,
-                  newStatus: value,
+                  ...payload,
                 }),
               }).catch(() => {})
             }
+            if (field === 'status' && oldValue !== value) {
+              postNotify({
+                type: 'status_changed',
+                oldStatus: oldValue,
+                newStatus: value,
+              })
+            }
             if (field === 'assignedTo' && value && oldValue !== value) {
-              fetch(`/api/tickets/${ticket.id}/notify`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  type: 'assignment_changed',
-                  ticketTitle: ticket.title,
-                  createdBy: ticket.created_by,
-                  newAssigneeId: value,
-                }),
-              }).catch(() => {})
+              postNotify({ type: 'assignment_changed', newAssigneeId: value })
+            }
+            if (field === 'priority' && oldValue !== value) {
+              postNotify({
+                type: 'priority_changed',
+                oldPriority: oldValue,
+                newPriority: value,
+              })
+            }
+            if (field === 'category' && oldValue !== value) {
+              postNotify({
+                type: 'category_changed',
+                oldValue,
+                newValue: value,
+              })
+            }
+            if (field === 'subCategory' && oldValue !== value) {
+              postNotify({
+                type: 'subcategory_changed',
+                oldValue,
+                newValue: value,
+              })
+            }
+            if (field === 'ticketType' && oldValue !== value) {
+              postNotify({
+                type: 'department_changed',
+                oldValue,
+                newValue: value,
+              })
+            }
+            if (field === 'assignedTeam' && oldValue !== value) {
+              postNotify({
+                type: 'team_changed',
+                oldTeamId: oldValue,
+                newTeamId: value,
+              })
             }
 
             // Solving from the detail view returns the agent to /tickets so

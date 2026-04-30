@@ -43,8 +43,8 @@ export const CHANGELOG: ChangelogEntry[] = [
             body: 'The Submit button in the reply composer was getting stuck disabled on tickets whose status defaulted to its current value (Pending, On Hold, Solved). You can now select any status from the caret dropdown and submit without typing a reply, on any ticket. Selecting the status the ticket already has is a no-op (no DB write, no false "saved" toast).',
           },
           {
-            title: 'Status and assignment changes show inline in the conversation',
-            body: 'When someone changes a ticket\'s status (Open → Solved, etc.) or assigns it, an inline event line now appears in the conversation thread — "Jane Doe changed status from Open to Solved · Apr 30, 2026, 4:12 PM" — so anyone reading later sees what happened in context. The lines are intentionally muted so they don\'t compete with replies. Reply emails still only quote real replies (system events are filtered out of the thread an outbound email shows).',
+            title: 'Status, assignment, priority, category, department, and team changes show inline in the conversation',
+            body: 'When someone changes any of those fields on a ticket, an inline event line now appears in the conversation thread — e.g. "Jane Doe changed priority from Medium to High · Apr 30, 2026, 4:12 PM" or "Jane Doe moved team from Lending Support to Closing Support" — so anyone reading later sees the full context. The lines are intentionally muted so they don\'t compete with replies. Reply emails still only quote real replies (system events are filtered out of the thread an outbound email shows).',
           },
         ],
       },

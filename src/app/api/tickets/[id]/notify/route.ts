@@ -11,33 +11,62 @@ const STATUS_LABEL: Record<string, string> = {
   solved: 'Solved',
 }
 
+const PRIORITY_LABEL: Record<string, string> = {
+  urgent: 'Urgent',
+  high: 'High',
+  medium: 'Medium',
+  low: 'Low',
+}
+
 function statusLabel(status: string): string {
   return STATUS_LABEL[status] ?? status
 }
 
+function priorityLabel(priority: string): string {
+  return PRIORITY_LABEL[priority] ?? priority
+}
+
 /**
- * POST /api/tickets/[id]/notify — Fire email notifications for field changes.
+ * POST /api/tickets/[id]/notify
  *
- * Called by the client after a successful ticket update to send
- * status-change or assignment-change emails.
+ * Called by the client after a successful ticket field update. Two
+ * jobs:
+ *   1) write an inline system-event row to the ticket's message thread
+ *      ("X changed priority from Medium to High · timestamp"),
+ *   2) fire email notifications for the subset of changes that warrant
+ *      mail (status, assignment).
  *
- * Body: {
- *   type: 'status_changed' | 'assignment_changed'
- *   ticketTitle: string
- *   createdBy: string
- *   oldStatus?: string
- *   newStatus?: string
- *   newAssigneeId?: string
- * }
+ * Field-only changes that just need the inline event line — priority,
+ * category, sub-category, department, team — skip the email step.
  */
 
+type NotifyType =
+  | 'status_changed'
+  | 'assignment_changed'
+  | 'priority_changed'
+  | 'category_changed'
+  | 'subcategory_changed'
+  | 'department_changed'
+  | 'team_changed'
+
 interface NotifyBody {
-  type: 'status_changed' | 'assignment_changed'
+  type: NotifyType
   ticketTitle: string
   createdBy: string
+  // status
   oldStatus?: string
   newStatus?: string
+  // assignment (user)
   newAssigneeId?: string
+  // priority
+  oldPriority?: string
+  newPriority?: string
+  // category / sub-category / department: stored as display strings
+  oldValue?: string | null
+  newValue?: string | null
+  // team
+  oldTeamId?: string | null
+  newTeamId?: string | null
 }
 
 export async function POST(
@@ -58,17 +87,51 @@ export async function POST(
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  // Insert an inline system-event row in the ticket's message thread so
-  // status / assignment changes show up chronologically alongside replies.
-  // Awaited so realtime subscribers see the new row before the function
-  // returns, but non-fatal — failure here doesn't block the email send.
-  let systemContent: string | null = null
-  if (body.type === 'status_changed' && body.oldStatus && body.newStatus) {
-    systemContent = `changed status from ${statusLabel(body.oldStatus)} to ${statusLabel(body.newStatus)}`
+  // Build the human-readable system-event content for whichever event
+  // type was reported. Returns null when there's nothing to record
+  // (e.g. priority body shape was off, or team change but neither side
+  // resolved to a known team name).
+  async function buildSystemContent(): Promise<string | null> {
+    if (body.type === 'status_changed' && body.oldStatus && body.newStatus) {
+      return `changed status from ${statusLabel(body.oldStatus)} to ${statusLabel(body.newStatus)}`
+    }
+    if (body.type === 'assignment_changed' && body.newAssigneeId) {
+      return `assigned this ticket`
+    }
+    if (body.type === 'priority_changed' && body.oldPriority && body.newPriority) {
+      return `changed priority from ${priorityLabel(body.oldPriority)} to ${priorityLabel(body.newPriority)}`
+    }
+    if (body.type === 'category_changed') {
+      const from = body.oldValue || '—'
+      const to = body.newValue || '—'
+      return `changed category from ${from} to ${to}`
+    }
+    if (body.type === 'subcategory_changed') {
+      const from = body.oldValue || '—'
+      const to = body.newValue || '—'
+      return `changed sub-category from ${from} to ${to}`
+    }
+    if (body.type === 'department_changed') {
+      const from = body.oldValue || '—'
+      const to = body.newValue || '—'
+      return `changed department from ${from} to ${to}`
+    }
+    if (body.type === 'team_changed') {
+      const supabase = createAdminClient()
+      const ids = [body.oldTeamId, body.newTeamId].filter(Boolean) as string[]
+      const { data: teamRows } = ids.length
+        ? await supabase.from('teams').select('id, name').in('id', ids)
+        : { data: [] as { id: string; name: string }[] }
+      const map = new Map((teamRows ?? []).map((t) => [t.id, t.name]))
+      const from = body.oldTeamId ? map.get(body.oldTeamId) ?? '—' : '—'
+      const to = body.newTeamId ? map.get(body.newTeamId) ?? '—' : '—'
+      if (from === to) return null
+      return `moved team from ${from} to ${to}`
+    }
+    return null
   }
-  if (body.type === 'assignment_changed' && body.newAssigneeId) {
-    systemContent = `assigned this ticket`
-  }
+
+  const systemContent = await buildSystemContent()
   if (systemContent) {
     try {
       const supabase = createAdminClient()
@@ -84,6 +147,7 @@ export async function POST(
     }
   }
 
+  // Email side — only status and direct user assignment fire mail.
   if (body.type === 'status_changed' && body.oldStatus && body.newStatus) {
     notifyStatusChanged({
       ticketId,
