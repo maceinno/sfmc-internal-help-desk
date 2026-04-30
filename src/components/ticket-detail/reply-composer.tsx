@@ -134,6 +134,10 @@ export const ReplyComposer = React.forwardRef<
   const [pendingStatus, setPendingStatus] = React.useState<TicketStatus | null>(
     () => defaultNextStatus(currentStatus),
   )
+  // Set briefly after a status-only submit so the button can flash a
+  // confirmation ("✓ Marked as Solved") instead of immediately greying
+  // out when pendingStatus mirrors the new currentStatus.
+  const [justSavedStatus, setJustSavedStatus] = React.useState<TicketStatus | null>(null)
 
   const isAgentOrAdmin =
     currentUser.role === "agent" || currentUser.role === "admin"
@@ -246,7 +250,12 @@ export const ReplyComposer = React.forwardRef<
       // No-op when the picked status is what the ticket already has —
       // avoids a misleading "Status saved" toast for a non-change.
       if (pendingStatus === currentStatus) return
-      onStatusOnlyChange?.(pendingStatus)
+      const savedStatus = pendingStatus
+      onStatusOnlyChange?.(savedStatus)
+      // Flash a confirmation on the button itself; the toast is easy to
+      // miss right where the click happened.
+      setJustSavedStatus(savedStatus)
+      window.setTimeout(() => setJustSavedStatus(null), 1800)
       return
     }
     handleSend()
@@ -492,14 +501,22 @@ export const ReplyComposer = React.forwardRef<
             <div className="inline-flex rounded-md shadow-sm">
               <Button
                 onClick={handlePrimaryClick}
-                disabled={(!hasContent && !canStatusOnly) || isSending}
+                disabled={(!hasContent && !canStatusOnly) || isSending || Boolean(justSavedStatus)}
                 size="default"
-                className="rounded-r-none border-r border-blue-700/40"
+                className={cn(
+                  "rounded-r-none border-r border-blue-700/40",
+                  justSavedStatus && "!bg-green-600 hover:!bg-green-600",
+                )}
               >
                 {isSending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Sending...
+                  </>
+                ) : justSavedStatus ? (
+                  <>
+                    <Check className="mr-2 h-4 w-4" />
+                    Marked as <span className="ml-1 font-semibold">{STATUS_LABEL[justSavedStatus]}</span>
                   </>
                 ) : canStatusOnly && pendingStatus ? (
                   <>
