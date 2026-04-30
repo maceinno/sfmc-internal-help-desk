@@ -538,7 +538,13 @@ export default function RoutingPage() {
                 }
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="None" />
+                  <SelectValue placeholder="None">
+                    {(value) => {
+                      if (!value || value === '__none__') return 'None'
+                      const u = agentUsers.find((x) => x.id === value)
+                      return u ? `${u.name} (${u.email})` : value
+                    }}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">None</SelectItem>
@@ -566,7 +572,12 @@ export default function RoutingPage() {
                 }
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="None" />
+                  <SelectValue placeholder="None">
+                    {(value) => {
+                      if (!value || value === '__none__') return 'None'
+                      return teams.find((t) => t.id === value)?.name ?? value
+                    }}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">None</SelectItem>

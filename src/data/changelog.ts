@@ -32,6 +32,15 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: '2026-04-29',
     sections: [
       {
+        heading: 'Ticket detail · Sidebar',
+        items: [
+          {
+            title: 'Team dropdown shows the team name (not its database id)',
+            body: 'On the right-hand ticket details panel the Team dropdown was rendering the underlying database id (e.g. "93581d07-a3bb-488a-…") in the trigger instead of the team name. Same fix applied to the Assign-to-User and Assign-to-Team pickers in Admin → Routing rules.',
+          },
+        ],
+      },
+      {
         heading: 'Dates in lists',
         items: [
           {

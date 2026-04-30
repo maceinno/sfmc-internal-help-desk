@@ -9,6 +9,10 @@ This file mirrors the data rendered in-app at **/whats-new**
 
 ## 2026-04-29
 
+### Ticket detail · Sidebar
+
+- **Team dropdown shows the team name, not its database id.** Right-hand panel Team picker (and the Assign-to-User / Assign-to-Team pickers in Admin → Routing rules) were showing UUIDs in the trigger when a value was selected.
+
 ### Dates in lists
 
 - **Ticket lists and dashboard rows now show date AND time.** Created column in the ticket list, Updated column in Recent Requests, attachment upload timestamps, and the merge-ticket preview now all show date + time in the user's timezone (e.g. "Apr 29, 2026, 3:42 PM") instead of date only. Date-only displays elsewhere (release headers, holiday lists, chart axis labels) are unchanged.

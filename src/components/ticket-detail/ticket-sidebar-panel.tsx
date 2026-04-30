@@ -443,7 +443,16 @@ export function TicketSidebarPanel({
                 }
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="No team" />
+                  {/* Base UI Select.Value renders the raw value (= a UUID
+                      here) unless given a children render fn that maps it
+                      to a label. Without this, the trigger shows the
+                      team's database id instead of the team name. */}
+                  <SelectValue placeholder="No team">
+                    {(value) => {
+                      if (!value) return "No team"
+                      return teams.find((t) => t.id === value)?.name ?? value
+                    }}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">No team</SelectItem>
