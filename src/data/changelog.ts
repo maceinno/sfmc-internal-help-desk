@@ -39,6 +39,10 @@ export const CHANGELOG: ChangelogEntry[] = [
             body: 'When a ticket is sitting unassigned in a team queue, the right-hand panel now shows a small "Take it" button next to the Assignee label. Click it to assign the ticket to yourself without having to open the assignee picker and search for your name. Hides itself once the ticket is assigned to anyone.',
           },
           {
+            title: 'My Tickets has two grids for agents and admins',
+            body: 'The My Tickets page now shows two tabs for agents and admins: "My Tickets (Created)" — tickets you raised yourself — and "Assigned to Me" — tickets that have been taken or assigned to you. Each tab has a count badge so you can see at a glance how many sit in each bucket. Employees still see the single grid of tickets they created.',
+          },
+          {
             title: 'Status-only submit works on every ticket',
             body: 'The Submit button in the reply composer was getting stuck disabled on tickets whose status defaulted to its current value (Pending, On Hold, Solved). You can now select any status from the caret dropdown and submit without typing a reply, on any ticket. Selecting the status the ticket already has is a no-op (no DB write, no false "saved" toast).',
           },

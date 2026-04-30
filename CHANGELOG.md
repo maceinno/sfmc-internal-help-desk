@@ -12,6 +12,7 @@ This file mirrors the data rendered in-app at **/whats-new**
 ### Ticket detail
 
 - **"Take it" button — claim an unassigned ticket in one click.** Right-hand panel shows a small "Take it" button next to Assignee when nobody is assigned. Single-click sets you as the assignee. Hides once anyone is assigned.
+- **My Tickets shows two grids for agents and admins.** Tabs for "My Tickets (Created)" — tickets you raised — and "Assigned to Me" — tickets you've taken or that were assigned to you, each with a count. Employees keep the single grid.
 - **Status-only submit works on every ticket.** Submit button in the composer used to be disabled on Pending / On Hold / Solved tickets even after picking a different status from the caret. Now you can select any status and submit without a reply, on any ticket. Picking the status the ticket already has is a silent no-op.
 - **Inline event lines for status, assignment, priority, category, department, sub-category, and team changes.** Any of those edits now drops a muted inline line in the conversation thread ("Jane Doe changed priority from Medium to High · Apr 30, 2026, 4:12 PM" / "Jane Doe moved team from Lending Support to Closing Support" / etc.). Reply emails filter system events out so outbound mail stays clean.
 
