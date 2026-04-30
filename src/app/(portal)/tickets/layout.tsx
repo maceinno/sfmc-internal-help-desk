@@ -470,7 +470,14 @@ export default function TicketsLayout({
                   />
                 </aside>
               )}
-              <div className="flex-1 min-w-0 overflow-hidden">{children}</div>
+              {/* Detail content needs breathing room on the right — the
+                  parent (portal) layout's pr-8 is negated by the -m-8
+                  here so the agent-views table can span full width.
+                  Reintroduce padding only for the detail view so the
+                  ticket sidebar cards don't slam into the viewport edge. */}
+              <div className="flex-1 min-w-0 overflow-hidden px-4 py-2 lg:px-6 lg:py-4">
+                {children}
+              </div>
             </>
           ) : (
             <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
