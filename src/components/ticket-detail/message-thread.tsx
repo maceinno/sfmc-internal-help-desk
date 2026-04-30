@@ -212,7 +212,32 @@ export function MessageThread({
     )
   }
 
+  const renderSystemEvent = (message: Message) => {
+    const author = getUser(message.author_id)
+    return (
+      <div
+        key={message.id}
+        className="flex items-center gap-2 py-1 text-xs text-muted-foreground"
+      >
+        <div className="h-px flex-1 bg-gray-200" />
+        <span>
+          <span className="font-medium text-gray-700">
+            {author?.name ?? "Someone"}
+          </span>{" "}
+          {message.content}
+          {" · "}
+          <span>{formatDateTime(message.created_at)}</span>
+        </span>
+        <div className="h-px flex-1 bg-gray-200" />
+      </div>
+    )
+  }
+
   const renderMessage = (message: Message) => {
+    if (message.is_system) {
+      return renderSystemEvent(message)
+    }
+
     const author = getUser(message.author_id)
 
     return (
@@ -273,11 +298,14 @@ export function MessageThread({
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       {/* Sort Toggle Bar */}
-      {messages.length > 0 && (
+      {messages.length > 0 && (() => {
+        // Count only real replies (not system events) for the header.
+        const replyCount = messages.filter((m) => !m.is_system).length
+        return (
         <div className="flex shrink-0 items-center justify-between border-b border-gray-100 bg-white px-6 py-2.5">
           <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Conversation &bull; {messages.length}{" "}
-            {messages.length === 1 ? "reply" : "replies"}
+            Conversation &bull; {replyCount}{" "}
+            {replyCount === 1 ? "reply" : "replies"}
           </span>
           <Button
             variant="ghost"
@@ -292,7 +320,8 @@ export function MessageThread({
             {sortOrder === "oldest" ? "Oldest First" : "Newest First"}
           </Button>
         </div>
-      )}
+        )
+      })()}
 
       {/* Messages */}
       <div ref={scrollContainerRef} className="flex-1 space-y-8 overflow-y-auto p-6">

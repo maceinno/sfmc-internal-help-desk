@@ -40,7 +40,10 @@ export function getActiveMetric(ticket: Ticket): {
 } {
   const messages = ticket.messages ?? [];
   const agentReplies = messages.filter(
-    (m) => !m.is_internal && m.author_id !== ticket.created_by,
+    (m) =>
+      !m.is_internal &&
+      !m.is_system &&
+      m.author_id !== ticket.created_by,
   );
 
   if (agentReplies.length === 0) {
@@ -51,6 +54,7 @@ export function getActiveMetric(ticket: Ticket): {
   const endUserFollowUps = messages.filter(
     (m) =>
       !m.is_internal &&
+      !m.is_system &&
       m.author_id === ticket.created_by &&
       new Date(m.created_at).getTime() >
         new Date(lastAgentReply.created_at).getTime(),

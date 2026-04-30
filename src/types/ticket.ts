@@ -106,6 +106,12 @@ export interface Message {
   content: string
   created_at: string
   is_internal: boolean
+  /**
+   * True when this row represents a system event (status change, assignment
+   * change, etc.) rather than a human reply. Renderers should treat it as
+   * an inline event line instead of a full message card.
+   */
+  is_system?: boolean
   attachments?: Attachment[]
   tagged_agents?: string[]
 }

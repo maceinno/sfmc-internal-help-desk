@@ -13,6 +13,7 @@ This file mirrors the data rendered in-app at **/whats-new**
 
 - **"Take it" button — claim an unassigned ticket in one click.** Right-hand panel shows a small "Take it" button next to Assignee when nobody is assigned. Single-click sets you as the assignee. Hides once anyone is assigned.
 - **Status-only submit works on every ticket.** Submit button in the composer used to be disabled on Pending / On Hold / Solved tickets even after picking a different status from the caret. Now you can select any status and submit without a reply, on any ticket. Picking the status the ticket already has is a silent no-op.
+- **Inline event line in the conversation for status / assignment changes.** When someone changes a ticket's status or assigns it, the thread shows a muted inline line ("Jane Doe changed status from Open to Solved · Apr 30, 2026, 4:12 PM") so the timeline tells the full story. Reply emails filter system events out so outbound mail isn't cluttered.
 
 ## 2026-04-29
 

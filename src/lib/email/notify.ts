@@ -203,7 +203,7 @@ export async function notifyNewReply(p: {
 
     const { data: messages } = await supabase
       .from('messages')
-      .select('author_id, content, is_internal, created_at')
+      .select('author_id, content, is_internal, is_system, created_at')
       .eq('ticket_id', p.ticketId)
       .order('created_at', { ascending: true })
 
@@ -257,9 +257,11 @@ export async function notifyNewReply(p: {
 
     console.log(`[email] notifyNewReply: sending to ${recipientIds.size} recipients`)
 
-    // Build conversation thread
+    // Build conversation thread — drop the message we're notifying about
+    // (already shown above) and any system events (status / assignment
+    // changes), which would clutter the rendered reply email.
     const conversation: templates.ConversationMessage[] = (messages ?? [])
-      .filter((msg) => msg.content !== p.content)
+      .filter((msg) => msg.content !== p.content && !msg.is_system)
       .map((msg) => ({
         authorName: allUsers.get(msg.author_id)?.name ?? 'Unknown',
         content: msg.content,

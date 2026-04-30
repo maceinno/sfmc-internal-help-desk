@@ -50,7 +50,7 @@ export function useTickets(filters: TicketFilters = {}) {
       let query = supabase
         .from('tickets')
         .select(
-          '*, ticket_cc(user_id), ticket_collaborators(user_id), messages(id, author_id, created_at, is_internal)',
+          '*, ticket_cc(user_id), ticket_collaborators(user_id), messages(id, author_id, created_at, is_internal, is_system)',
         )
 
       if (filters.status) {
