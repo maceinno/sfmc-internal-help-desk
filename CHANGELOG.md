@@ -16,6 +16,7 @@ This file mirrors the data rendered in-app at **/whats-new**
 
 ### Ticket detail
 
+- **Spaces no longer get eaten in long replies.** In the public reply / internal note composer, pressing space after the first few lines was sometimes adding nothing, sometimes needing two presses, sometimes deleting the space you just typed. The composer was re-syncing its own keystrokes back into the editor and clobbering them on the way through.
 - **"Take it" button — claim an unassigned ticket in one click.** Right-hand panel shows a small "Take it" button next to Assignee when nobody is assigned. Single-click sets you as the assignee. Hides once anyone is assigned.
 - **My Tickets shows two grids for agents and admins.** Tabs for "My Tickets (Created)" — tickets you raised — and "Assigned to Me" — tickets you've taken or that were assigned to you, each with a count. Employees keep the single grid.
 - **Status-only submit works on every ticket.** Submit button in the composer used to be disabled on Pending / On Hold / Solved tickets even after picking a different status from the caret. Now you can select any status and submit without a reply, on any ticket. Picking the status the ticket already has is a silent no-op.

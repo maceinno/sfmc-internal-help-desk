@@ -99,6 +99,15 @@ export function RichTextEditor({
 
   const containerRef = React.useRef<HTMLDivElement>(null)
 
+  // Track the last HTML we emitted via onChange so the value-sync effect
+  // below can tell "value changed because of our own keystroke" apart from
+  // "value changed externally (form reset, canned response insert)". Without
+  // this guard, sanitizeRichHtml's round-trip can produce HTML that differs
+  // byte-for-byte from editor.getHTML() (whitespace normalization, attribute
+  // ordering), which then triggers setContent on every keystroke and eats
+  // the character the user just typed.
+  const lastEmittedRef = React.useRef<string>(value || "")
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -291,20 +300,28 @@ export function RichTextEditor({
       const html = editor.getHTML()
       // Tiptap spits out <p></p> for an empty doc; treat as truly empty.
       if (html === "<p></p>") {
+        lastEmittedRef.current = ""
         onChange("")
         return
       }
-      onChange(sanitizeRichHtml(html))
+      const sanitized = sanitizeRichHtml(html)
+      lastEmittedRef.current = sanitized
+      onChange(sanitized)
     },
   })
 
-  // Keep external resets in sync (e.g., form.reset()).
+  // Keep external resets in sync (e.g., form.reset(), canned-response insert).
+  // Only run setContent when the incoming value didn't come from our own
+  // onUpdate — otherwise sanitizer round-trip differences would clobber the
+  // editor mid-keystroke.
   React.useEffect(() => {
     if (!editor) return
-    const current = editor.getHTML()
     const next = value || ""
+    if (next === lastEmittedRef.current) return
+    const current = editor.getHTML()
     if (current === next) return
     if (current === "<p></p>" && next === "") return
+    lastEmittedRef.current = next
     editor.commands.setContent(next, { emitUpdate: false })
   }, [editor, value])
 
