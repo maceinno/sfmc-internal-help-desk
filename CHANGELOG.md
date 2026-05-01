@@ -9,6 +9,11 @@ This file mirrors the data rendered in-app at **/whats-new**
 
 ## 2026-04-30
 
+### Branch + region manager access
+
+- **Branch managers can be assigned multiple branches.** Admin → Users now uses a chip-toggle multi-select for managed branches. The "My Branch" page shows tickets across every branch the user manages ("My Branches: A, B, C"). Existing single-branch managers were backfilled automatically.
+- **Clearer error when branch / region access is misconfigured.** My Region / My Branch pages now spell out which piece is missing (regional access flag vs. assigned region, etc.) instead of a generic "Unauthorized" message.
+
 ### Ticket detail
 
 - **"Take it" button — claim an unassigned ticket in one click.** Right-hand panel shows a small "Take it" button next to Assignee when nobody is assigned. Single-click sets you as the assignee. Hides once anyone is assigned.

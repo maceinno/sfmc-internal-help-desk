@@ -15,11 +15,18 @@ export default function BranchPage() {
   const { data: users = [], isLoading: usersLoading } = useUsers()
   const { data: branches = [], isLoading: branchesLoading } = useBranches()
 
-  const branchName = useMemo(() => {
-    if (!profile?.managed_branch_id || branches.length === 0) return null
-    const branch = branches.find((b) => b.id === profile.managed_branch_id)
-    return branch?.name ?? null
-  }, [profile?.managed_branch_id, branches])
+  // Resolve all managed branch names for the title
+  const branchNames = useMemo(() => {
+    if (branches.length === 0 || !profile) return []
+    const ids = profile.managed_branch_ids?.length
+      ? profile.managed_branch_ids
+      : profile.managed_branch_id
+        ? [profile.managed_branch_id]
+        : []
+    return ids
+      .map((id) => branches.find((b) => b.id === id)?.name)
+      .filter(Boolean) as string[]
+  }, [profile, branches])
 
   const branchTickets = useMemo(() => {
     if (!profile) return []
@@ -36,7 +43,10 @@ export default function BranchPage() {
     )
   }
 
-  if (!profile?.has_branch_access || !profile?.managed_branch_id) {
+  const hasBranches =
+    (profile?.managed_branch_ids?.length ?? 0) > 0 || !!profile?.managed_branch_id
+
+  if (!profile?.has_branch_access || !hasBranches) {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-3">
@@ -56,7 +66,11 @@ export default function BranchPage() {
       <div className="flex-1 overflow-hidden">
         <TicketList
           tickets={branchTickets}
-          title={`My Branch: ${branchName ?? 'Unknown'}`}
+          title={
+            branchNames.length > 1
+              ? `My Branches: ${branchNames.join(', ')}`
+              : `My Branch: ${branchNames[0] ?? 'Unknown'}`
+          }
           users={users}
         />
       </div>

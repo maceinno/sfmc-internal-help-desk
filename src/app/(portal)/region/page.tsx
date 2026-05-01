@@ -19,7 +19,7 @@ export default function RegionPage() {
     if (!profile?.managed_region_id || regions.length === 0) return null
     const region = regions.find((r) => r.id === profile.managed_region_id)
     return region?.name ?? null
-  }, [profile?.managed_region_id, regions])
+  }, [profile, regions])
 
   const regionTickets = useMemo(() => {
     if (!profile) return []
@@ -37,6 +37,9 @@ export default function RegionPage() {
   }
 
   if (!profile?.has_regional_access || !profile?.managed_region_id) {
+    const missingParts: string[] = []
+    if (!profile?.has_regional_access) missingParts.push('regional access flag is not enabled')
+    if (!profile?.managed_region_id) missingParts.push('no managed region is assigned')
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-3">
@@ -44,8 +47,15 @@ export default function RegionPage() {
           <h1 className="text-2xl font-bold text-gray-900">Unauthorized</h1>
         </div>
         <div className="bg-white rounded-lg border border-gray-200 p-12 text-center text-gray-500">
-          You do not have regional manager access. Contact an administrator if
-          you believe this is an error.
+          <p>You do not have regional manager access.</p>
+          {missingParts.length > 0 && (
+            <p className="mt-2 text-sm text-gray-400">
+              Reason: {missingParts.join('; ')}.
+            </p>
+          )}
+          <p className="mt-2 text-sm text-gray-400">
+            Contact an administrator if you believe this is an error.
+          </p>
         </div>
       </div>
     )

@@ -32,6 +32,19 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: '2026-04-30',
     sections: [
       {
+        heading: 'Branch + region manager access',
+        items: [
+          {
+            title: 'Branch managers can be assigned multiple branches',
+            body: 'A user with branch manager access can now be assigned more than one branch in Admin → Users. The Manage section uses the same chip-toggle UI as the Departments selector. The "My Branch" page shows tickets across every branch they manage and pluralizes the title accordingly ("My Branches: A, B, C"). Existing single-branch managers were carried over automatically — no action needed.',
+          },
+          {
+            title: 'Clearer error when region or branch access is misconfigured',
+            body: 'Previously the My Region / My Branch pages showed a generic "Unauthorized" message when something was wrong. They now spell out which piece is missing — for example "regional access flag is not enabled" or "no managed region is assigned" — so the admin knows exactly which checkbox or field needs attention.',
+          },
+        ],
+      },
+      {
         heading: 'Ticket detail',
         items: [
           {
