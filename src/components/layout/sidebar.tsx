@@ -79,8 +79,18 @@ export function Sidebar() {
           { href: '/tickets/new', label: 'Create Ticket', icon: PlusCircle },
           { href: '/my-tickets', label: 'My Tickets', icon: Ticket },
           { href: '/cc-tickets', label: "CC'd Tickets", icon: AtSign },
-          ...(profile?.has_branch_access || (profile?.managed_branch_ids?.length ?? 0) > 0 ? [{ href: '/branch', label: 'My Branch', icon: Building2 }] : []),
-          ...(profile?.has_regional_access ? [{ href: '/region', label: 'My Region', icon: MapPin }] : []),
+          // Match the page-level gate exactly: branch link only shows when
+          // has_branch_access is on AND at least one managed branch is set
+          // (either the new array or the legacy single-id field). Otherwise
+          // a user clicking the link would land on an Unauthorized page.
+          ...(profile?.has_branch_access &&
+          ((profile?.managed_branch_ids?.length ?? 0) > 0 ||
+            !!profile?.managed_branch_id)
+            ? [{ href: '/branch', label: 'My Branch', icon: Building2 }]
+            : []),
+          ...(profile?.has_regional_access && profile?.managed_region_id
+            ? [{ href: '/region', label: 'My Region', icon: MapPin }]
+            : []),
         ]
       : [
           { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
