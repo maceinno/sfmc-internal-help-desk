@@ -89,6 +89,8 @@ interface ReplyComposerProps {
    */
   onStatusOnlyChange?: (status: TicketStatus) => void | Promise<void>
   onCannedResponseSelect?: (response: CannedResponse) => void
+  /** Called when the user starts/stops typing (for presence indicators). */
+  onTypingChange?: (isTyping: boolean) => void
 }
 
 export interface ReplyComposerHandle {
@@ -120,11 +122,32 @@ export const ReplyComposer = React.forwardRef<
   onSubmit,
   onStatusOnlyChange,
   onCannedResponseSelect,
+  onTypingChange,
 }, ref) {
   // replyText now holds HTML produced by the rich-text editor. Empty
   // editor maps to "" (Tiptap's empty-doc marker is replaced upstream).
   const [replyText, setReplyText] = React.useState("")
   const [isInternalNote, setIsInternalNote] = React.useState(false)
+
+  // ── Typing indicator debounce ──────────────────────────────
+  const typingTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  React.useEffect(() => {
+    if (!onTypingChange) return
+    // Only fire typing=true when there's actual content
+    const hasText = replyText.replace(/<[^>]*>/g, '').trim().length > 0
+    if (hasText) {
+      onTypingChange(true)
+      // Auto-reset after 3s of no further changes
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
+      typingTimeoutRef.current = setTimeout(() => onTypingChange(false), 3000)
+    } else {
+      onTypingChange(false)
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
+    }
+    return () => {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
+    }
+  }, [replyText, onTypingChange])
   const [showCannedPicker, setShowCannedPicker] = React.useState(false)
   const [selectedFiles, setSelectedFiles] = React.useState<File[]>([])
   const [showFileUpload, setShowFileUpload] = React.useState(false)
@@ -219,6 +242,7 @@ export const ReplyComposer = React.forwardRef<
       setSelectedFiles([])
       setShowFileUpload(false)
       setPendingCannedResponseId(undefined)
+      onTypingChange?.(false)
     } finally {
       setIsSending(false)
     }

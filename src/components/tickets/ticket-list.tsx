@@ -6,6 +6,7 @@ import { TicketTable } from './ticket-table'
 import { getSlaStatus } from '@/lib/sla'
 import { useSlaPolicies, useDepartmentSchedules } from '@/hooks/use-admin-config'
 import type { Ticket, User } from '@/types/ticket'
+import type { PresenceUser } from '@/hooks/use-ticket-presence'
 import type {
   StatusFilterValue,
   PriorityFilterValue,
@@ -38,11 +39,13 @@ interface TicketListProps {
   allTickets?: Ticket[]
   title: string
   users: User[]
+  /** Map of ticketId → agents currently viewing that ticket. */
+  presenceMap?: Map<string, PresenceUser[]>
 }
 
 // ── Component ──────────────────────────────────────────────────
 
-export function TicketList({ tickets, allTickets, title, users }: TicketListProps) {
+export function TicketList({ tickets, allTickets, title, users, presenceMap }: TicketListProps) {
   const { data: slaPolicies = [] } = useSlaPolicies()
   const { data: schedules = [] } = useDepartmentSchedules()
 
@@ -197,6 +200,7 @@ export function TicketList({ tickets, allTickets, title, users }: TicketListProp
           searchTerm={searchTerm}
           slaPolicies={slaPolicies}
           schedules={schedules}
+          presenceMap={presenceMap}
         />
       </div>
     </div>
