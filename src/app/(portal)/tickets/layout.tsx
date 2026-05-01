@@ -21,6 +21,7 @@ import {
 } from '@/hooks/use-admin-config'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { useUIStore } from '@/stores/ui-store'
+import { useGlobalPresence } from '@/hooks/use-global-presence'
 import { getSlaStatus } from '@/lib/sla'
 import { TicketList } from '@/components/tickets/ticket-list'
 import { TicketQueueList } from '@/components/tickets/ticket-queue-list'
@@ -155,6 +156,7 @@ export default function TicketsLayout({
   const { data: slaPolicies = [] } = useSlaPolicies()
   const { data: schedules = [] } = useDepartmentSchedules()
 
+  const { presenceMap } = useGlobalPresence(profile)
   const { activeViewId, setActiveViewId } = useUIStore()
   const searchParams = useSearchParams()
   const pathname = usePathname() ?? ''
@@ -495,6 +497,7 @@ export default function TicketsLayout({
                   allTickets={tickets}
                   title={activeView?.name ?? 'All Tickets'}
                   users={users}
+                  presenceMap={presenceMap}
                 />
               </div>
             </div>

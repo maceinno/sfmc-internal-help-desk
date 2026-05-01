@@ -7,6 +7,13 @@ Newest entries go on top.
 This file mirrors the data rendered in-app at **/whats-new**
 (source: `src/data/changelog.ts`). When you add a fix, update both files.
 
+## 2026-05-01
+
+### Ticket detail
+
+- **See who else is on a ticket.** When another agent or admin is viewing the same ticket, a small avatar stack appears next to the title (with a tooltip listing names). A green dot pulses on someone's avatar while they're typing a reply, so two people don't end up writing the same answer at the same time. Employees don't see the indicators and aren't tracked.
+- **Eye icon in the ticket grid for tickets being viewed.** The ID column shows a small eye + count when other agents currently have that ticket open — helpful when scanning a queue to avoid stepping on someone's work.
+
 ## 2026-04-30
 
 ### Branch + region manager access

@@ -29,6 +29,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-05-01',
+    sections: [
+      {
+        heading: 'Ticket detail',
+        items: [
+          {
+            title: 'See who else is on a ticket',
+            body: 'When another agent or admin is viewing the same ticket as you, a small avatar stack now appears next to the ticket title. Hover it for the list of names. A green dot pulses on a viewer\'s avatar while they\'re actively typing a reply, so two people don\'t end up writing the same answer in parallel. Employees aren\'t tracked and don\'t see these indicators — this is an agent / admin tool only.',
+          },
+          {
+            title: 'Eye icon in the ticket grid for tickets being viewed',
+            body: 'The ticket-ID column on every ticket grid (My Tickets, Assigned to Me, view-based queues, branch / region grids) now shows a small eye icon with a count when other agents currently have that ticket open. Hover it to see who\'s in there. Useful when triaging or scanning a queue so nobody picks up a ticket someone else is already replying to.',
+          },
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-04-30',
     sections: [
       {

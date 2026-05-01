@@ -15,6 +15,15 @@ interface UIState {
 
   selectedTicketId: string | null
   setSelectedTicketId: (id: string | null) => void
+
+  /**
+   * The ticket the current user is actively viewing on the detail page.
+   * Set by /tickets/[id] on mount, cleared on unmount. Read by the
+   * global presence hook so the agent's "viewing" state can broadcast
+   * to other agents without any per-route plumbing.
+   */
+  activeTicketId: string | null
+  setActiveTicketId: (id: string | null) => void
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -32,4 +41,7 @@ export const useUIStore = create<UIState>((set) => ({
 
   selectedTicketId: null,
   setSelectedTicketId: (id) => set({ selectedTicketId: id }),
+
+  activeTicketId: null,
+  setActiveTicketId: (id) => set({ activeTicketId: id }),
 }))

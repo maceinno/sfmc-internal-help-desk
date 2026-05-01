@@ -38,6 +38,8 @@ import { canViewInternalNotes } from "@/lib/permissions/policies"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import type { Ticket, Message, TicketStatus } from "@/types"
+import { useTicketPresence } from "@/hooks/use-ticket-presence"
+import { PresenceIndicator } from "@/components/ticket-detail/presence-indicator"
 
 export default function TicketDetailPage({
   params,
@@ -58,7 +60,20 @@ export default function TicketDetailPage({
   const updateTicket = useUpdateTicket()
   const queryClient = useQueryClient()
   const { setFollowUpFromTicketId } = useUIStore()
+  const setActiveTicketId = useUIStore((s) => s.setActiveTicketId)
   const openTab = useTabStore((s) => s.openTab)
+
+  // Agent presence — shows who else is viewing this ticket
+  const { viewers: presenceViewers, setIsTyping: setPresenceTyping } =
+    useTicketPresence(id, currentUser)
+
+  // Broadcast the active ticket so the global presence channel (mounted in
+  // the tickets layout) can show eye icons in the ticket table for other
+  // agents looking at this same ticket.
+  React.useEffect(() => {
+    setActiveTicketId(id)
+    return () => setActiveTicketId(null)
+  }, [id, setActiveTicketId])
 
   const [showMergeModal, setShowMergeModal] = React.useState(false)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
@@ -527,6 +542,7 @@ export default function TicketDetailPage({
               </h1>
               <StatusBadge status={ticket.status} />
               <PriorityBadge priority={ticket.priority} />
+              {isAgentOrAdmin && <PresenceIndicator viewers={presenceViewers} />}
             </div>
             <h2 className="mt-0.5 text-base text-gray-600 break-words">{ticket.title}</h2>
           </div>
@@ -690,6 +706,7 @@ export default function TicketDetailPage({
               cannedResponses={cannedResponses ?? []}
               onSubmit={handleReplySubmit}
               onStatusOnlyChange={(status) => handleUpdateField('status', status)}
+              onTypingChange={isAgentOrAdmin ? setPresenceTyping : undefined}
             />
           </div>
         </div>

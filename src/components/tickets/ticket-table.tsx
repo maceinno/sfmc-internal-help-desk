@@ -2,7 +2,13 @@
 
 import { useRouter } from 'next/navigation'
 import { useTimezone } from '@/hooks/use-timezone'
-import { ArrowUp, ArrowDown, Inbox } from 'lucide-react'
+import { ArrowUp, ArrowDown, Inbox, Eye } from 'lucide-react'
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from '@/components/ui/tooltip'
+import type { PresenceUser } from '@/hooks/use-ticket-presence'
 import {
   Table,
   TableHeader,
@@ -49,6 +55,8 @@ interface TicketTableProps {
   searchTerm?: string
   slaPolicies?: SlaPolicy[]
   schedules?: DepartmentSchedule[]
+  /** Map of ticketId → agents currently viewing that ticket (from global presence). */
+  presenceMap?: Map<string, PresenceUser[]>
 }
 
 // ── Helpers ────────────────────────────────────────────────────
@@ -69,6 +77,7 @@ export function TicketTable({
   searchTerm,
   slaPolicies,
   schedules,
+  presenceMap,
 }: TicketTableProps) {
   const { formatDateTime } = useTimezone()
   const router = useRouter()
@@ -146,7 +155,31 @@ export function TicketTable({
               onClick={() => handleRowClick(ticket.id)}
             >
               <TableCell className="font-medium text-gray-900 text-sm">
-                {ticket.id}
+                <span className="inline-flex items-center gap-1.5">
+                  {ticket.id}
+                  {(() => {
+                    const viewers = presenceMap?.get(ticket.id)
+                    if (!viewers || viewers.length === 0) return null
+                    return (
+                      <Tooltip>
+                        <TooltipTrigger className="inline-flex items-center">
+                          <span className="relative flex h-4 w-4 items-center justify-center">
+                            <Eye className="h-3.5 w-3.5 text-blue-500" />
+                            <span className="absolute -right-1 -top-1 flex h-3 w-3 items-center justify-center rounded-full bg-blue-600 text-[8px] font-bold text-white">
+                              {viewers.length}
+                            </span>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="right">
+                          <p className="font-medium text-xs">Currently viewing:</p>
+                          {viewers.map((v) => (
+                            <p key={v.userId} className="text-xs">{v.name}</p>
+                          ))}
+                        </TooltipContent>
+                      </Tooltip>
+                    )
+                  })()}
+                </span>
               </TableCell>
               <TableCell className="text-sm text-gray-700 max-w-xs truncate">
                 {ticket.title}
