@@ -129,25 +129,46 @@ export const ReplyComposer = React.forwardRef<
   const [replyText, setReplyText] = React.useState("")
   const [isInternalNote, setIsInternalNote] = React.useState(false)
 
-  // ── Typing indicator debounce ──────────────────────────────
+  // ── Typing indicator ───────────────────────────────────────
+  // Only call onTypingChange on transitions (false→true / true→false)
+  // so we don't spam the presence channel on every keystroke. The
+  // auto-stop timer is *not* cleared in the cleanup — that would leave
+  // isTyping stuck `true` once the user stopped typing, since no further
+  // keystroke would re-arm a timer.
+  const isTypingRef = React.useRef(false)
   const typingTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   React.useEffect(() => {
     if (!onTypingChange) return
-    // Only fire typing=true when there's actual content
     const hasText = replyText.replace(/<[^>]*>/g, '').trim().length > 0
-    if (hasText) {
-      onTypingChange(true)
-      // Auto-reset after 3s of no further changes
-      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
-      typingTimeoutRef.current = setTimeout(() => onTypingChange(false), 3000)
-    } else {
-      onTypingChange(false)
-      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
+    if (!hasText) {
+      if (isTypingRef.current) {
+        isTypingRef.current = false
+        onTypingChange(false)
+      }
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current)
+        typingTimeoutRef.current = null
+      }
+      return
     }
+    if (!isTypingRef.current) {
+      isTypingRef.current = true
+      onTypingChange(true)
+    }
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
+    typingTimeoutRef.current = setTimeout(() => {
+      isTypingRef.current = false
+      typingTimeoutRef.current = null
+      onTypingChange(false)
+    }, 3000)
+  }, [replyText, onTypingChange])
+  // Unmount cleanup only — clear the timer so it doesn't fire after the
+  // composer is gone.
+  React.useEffect(() => {
     return () => {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
     }
-  }, [replyText, onTypingChange])
+  }, [])
   const [showCannedPicker, setShowCannedPicker] = React.useState(false)
   const [selectedFiles, setSelectedFiles] = React.useState<File[]>([])
   const [showFileUpload, setShowFileUpload] = React.useState(false)
@@ -242,7 +263,16 @@ export const ReplyComposer = React.forwardRef<
       setSelectedFiles([])
       setShowFileUpload(false)
       setPendingCannedResponseId(undefined)
-      onTypingChange?.(false)
+      // After send, reset typing state so a subsequent keystroke re-fires
+      // the false→true transition cleanly.
+      if (isTypingRef.current) {
+        isTypingRef.current = false
+        onTypingChange?.(false)
+      }
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current)
+        typingTimeoutRef.current = null
+      }
     } finally {
       setIsSending(false)
     }

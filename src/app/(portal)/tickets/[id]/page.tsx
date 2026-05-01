@@ -60,11 +60,20 @@ export default function TicketDetailPage({
   const updateTicket = useUpdateTicket()
   const queryClient = useQueryClient()
   const { setFollowUpFromTicketId } = useUIStore()
+  const setActiveTicketId = useUIStore((s) => s.setActiveTicketId)
   const openTab = useTabStore((s) => s.openTab)
 
   // Agent presence — shows who else is viewing this ticket
   const { viewers: presenceViewers, setIsTyping: setPresenceTyping } =
     useTicketPresence(id, currentUser)
+
+  // Broadcast the active ticket so the global presence channel (mounted in
+  // the tickets layout) can show eye icons in the ticket table for other
+  // agents looking at this same ticket.
+  React.useEffect(() => {
+    setActiveTicketId(id)
+    return () => setActiveTicketId(null)
+  }, [id, setActiveTicketId])
 
   const [showMergeModal, setShowMergeModal] = React.useState(false)
   const [isSubmitting, setIsSubmitting] = React.useState(false)

@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '@clerk/nextjs'
 import { createClerkSupabaseClient } from '@/lib/supabase/client'
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js'
+import { useUIStore } from '@/stores/ui-store'
 import type { PresenceUser } from '@/hooks/use-ticket-presence'
 
 // ── Types ──────────────────────────────────────────────────────
@@ -18,15 +19,15 @@ interface GlobalPresencePayload {
 // ── Hook ───────────────────────────────────────────────────────
 
 /**
- * A lighter presence hook that tracks which tickets have agents viewing them.
+ * Tracks which tickets have agents viewing them across the whole portal.
  *
  * - Joins a single `global-ticket-presence` channel
- * - Each agent tracks which ticket they're currently viewing (or null)
- * - Returns a `Map<ticketId, PresenceUser[]>` of who's viewing what
- * - Only activates for agents/admins
- *
- * Call `setViewingTicket(ticketId)` when navigating to a ticket detail,
- * and `setViewingTicket(null)` when leaving.
+ * - Broadcasts the current user's `activeTicketId` (read from the UI store,
+ *   set by the ticket detail page on mount) so other agents see who's
+ *   on which ticket
+ * - Returns a `Map<ticketId, PresenceUser[]>` of who's viewing what,
+ *   used by TicketTable to show eye icons next to ticket IDs
+ * - Only activates for agents/admins; employees skip the subscription
  */
 export function useGlobalPresence(
   currentUser: { id: string; name: string; avatar_url?: string; role: string } | null,
@@ -35,29 +36,18 @@ export function useGlobalPresence(
   const [presenceMap, setPresenceMap] = useState<Map<string, PresenceUser[]>>(
     new Map(),
   )
+  const activeTicketId = useUIStore((s) => s.activeTicketId)
 
   const clientRef = useRef<SupabaseClient | null>(null)
   const channelRef = useRef<RealtimeChannel | null>(null)
-  const currentTicketRef = useRef<string | null>(null)
+  // Mirror the store value into a ref so the SUBSCRIBED callback below can
+  // pick up the freshest value without re-subscribing every navigation.
+  const activeTicketIdRef = useRef<string | null>(activeTicketId)
 
   const isAgentOrAdmin =
     currentUser?.role === 'agent' || currentUser?.role === 'admin'
 
-  const setViewingTicket = useCallback(
-    (ticketId: string | null) => {
-      currentTicketRef.current = ticketId
-      const channel = channelRef.current
-      if (!channel || !currentUser) return
-      channel.track({
-        userId: currentUser.id,
-        name: currentUser.name,
-        avatarUrl: currentUser.avatar_url ?? '',
-        ticketId,
-      } satisfies GlobalPresencePayload)
-    },
-    [currentUser],
-  )
-
+  // ── Channel lifecycle ──────────────────────────────────────
   useEffect(() => {
     if (!currentUser || !isAgentOrAdmin) return
 
@@ -102,7 +92,7 @@ export function useGlobalPresence(
               userId: currentUser.id,
               name: currentUser.name,
               avatarUrl: currentUser.avatar_url ?? '',
-              ticketId: currentTicketRef.current,
+              ticketId: activeTicketIdRef.current,
             } satisfies GlobalPresencePayload)
           }
         })
@@ -114,13 +104,27 @@ export function useGlobalPresence(
 
     return () => {
       cancelled = true
-      if (channelRef.current && clientRef.current) {
-        clientRef.current.removeChannel(channelRef.current)
-        channelRef.current = null
+      if (clientRef.current) {
+        clientRef.current.removeAllChannels()
+        clientRef.current = null
       }
+      channelRef.current = null
       setPresenceMap(new Map())
     }
   }, [currentUser?.id, isAgentOrAdmin, getToken])
 
-  return { presenceMap, setViewingTicket }
+  // ── Re-broadcast when active ticket changes ────────────────
+  useEffect(() => {
+    activeTicketIdRef.current = activeTicketId
+    const channel = channelRef.current
+    if (!channel || !currentUser || !isAgentOrAdmin) return
+    void channel.track({
+      userId: currentUser.id,
+      name: currentUser.name,
+      avatarUrl: currentUser.avatar_url ?? '',
+      ticketId: activeTicketId,
+    } satisfies GlobalPresencePayload)
+  }, [activeTicketId, currentUser, isAgentOrAdmin])
+
+  return { presenceMap }
 }

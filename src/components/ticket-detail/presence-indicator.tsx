@@ -33,8 +33,6 @@ export function PresenceIndicator({ viewers, className }: PresenceIndicatorProps
   const shown = viewers.slice(0, maxAvatars)
   const overflow = viewers.length - maxAvatars
 
-  const typingViewers = viewers.filter((v) => v.isTyping)
-
   return (
     <Tooltip>
       <TooltipTrigger
@@ -91,15 +89,6 @@ export function PresenceIndicator({ viewers, className }: PresenceIndicatorProps
           ))}
         </div>
       </TooltipContent>
-
-      {/* Typing indicator text below the badge */}
-      {typingViewers.length > 0 && (
-        <span className="ml-1 text-xs text-green-600 animate-pulse">
-          {typingViewers.length === 1
-            ? `${typingViewers[0].name} is typing…`
-            : `${typingViewers.length} agents typing…`}
-        </span>
-      )}
     </Tooltip>
   )
 }
