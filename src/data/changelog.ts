@@ -48,6 +48,10 @@ export const CHANGELOG: ChangelogEntry[] = [
         heading: 'Ticket detail',
         items: [
           {
+            title: 'Spaces no longer get eaten in long replies',
+            body: 'After a few lines of typing in the public reply or internal note composer, the spacebar had started misbehaving — sometimes nothing, sometimes you had to press it twice, sometimes pressing it again deleted the space you just typed. The composer was sanitizing each keystroke and then syncing the result back into the editor, which occasionally clobbered the character you were in the middle of typing. Spaces now go in once and stay put.',
+          },
+          {
             title: '"Take it" button — claim an unassigned ticket in one click',
             body: 'When a ticket is sitting unassigned in a team queue, the right-hand panel now shows a small "Take it" button next to the Assignee label. Click it to assign the ticket to yourself without having to open the assignee picker and search for your name. Hides itself once the ticket is assigned to anyone.',
           },
