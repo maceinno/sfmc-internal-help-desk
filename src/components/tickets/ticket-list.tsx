@@ -138,6 +138,9 @@ export function TicketList({ tickets, allTickets, title, users, presenceMap }: T
         // (the undefined-handling below puts undefined last).
         aVal = a.assigned_to ? userNameById.get(a.assigned_to)?.toLowerCase() : undefined
         bVal = b.assigned_to ? userNameById.get(b.assigned_to)?.toLowerCase() : undefined
+      } else if (sortField === 'created_by') {
+        aVal = a.created_by ? userNameById.get(a.created_by)?.toLowerCase() : undefined
+        bVal = b.created_by ? userNameById.get(b.created_by)?.toLowerCase() : undefined
       } else {
         aVal = a[sortField] as string | undefined
         bVal = b[sortField] as string | undefined

@@ -39,6 +39,7 @@ const COLUMNS: Column[] = [
   { key: 'status', label: 'Status', sortable: true, sortKey: 'status' },
   { key: 'priority', label: 'Priority', sortable: true, sortKey: 'priority' },
   { key: 'category', label: 'Category', sortable: false },
+  { key: 'created_by', label: 'Requester', sortable: true, sortKey: 'created_by' },
   { key: 'assigned_to', label: 'Assignee', sortable: true, sortKey: 'assigned_to' },
   { key: 'created_at', label: 'Created', sortable: true, sortKey: 'created_at' },
   { key: 'sla', label: 'SLA', sortable: false },
@@ -148,6 +149,7 @@ export function TicketTable({
       <TableBody>
         {tickets.map((ticket) => {
           const assigneeName = getUserName(users, ticket.assigned_to)
+          const requesterName = getUserName(users, ticket.created_by)
           return (
             <TableRow
               key={ticket.id}
@@ -194,6 +196,20 @@ export function TicketTable({
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
                   {ticket.category}
                 </span>
+              </TableCell>
+              <TableCell className="text-sm text-gray-500">
+                {ticket.created_by ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-medium text-emerald-700">
+                      {requesterName.charAt(0)}
+                    </div>
+                    <span className="truncate max-w-[100px]">
+                      {requesterName}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-gray-400 italic">Unknown</span>
+                )}
               </TableCell>
               <TableCell className="text-sm text-gray-500">
                 {ticket.assigned_to ? (
