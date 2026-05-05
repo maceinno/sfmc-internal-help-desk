@@ -510,7 +510,7 @@ export function TicketSidebarPanel({
         {ccUsers.length > 0 && (
           <div>
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              CC'd
+              CC&apos;d
             </p>
             <div className="flex flex-col gap-1.5">
               {ccUsers.map(({ userId, user }) => (

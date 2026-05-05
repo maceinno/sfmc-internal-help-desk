@@ -155,7 +155,7 @@ export interface CreateTicketPayload {
   title: string
   description: string
   priority: TicketPriority
-  category: TicketCategory
+  category: TicketCategory | string
   ticketType?: string
   subCategory?: string
   attachments?: File[]

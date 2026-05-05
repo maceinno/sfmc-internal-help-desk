@@ -32,10 +32,10 @@ export default function CcTicketsPage() {
       <div className="space-y-6">
         <div className="flex items-center gap-3">
           <Users className="w-7 h-7 text-gray-700" />
-          <h1 className="text-2xl font-bold text-gray-900">CC'd Tickets</h1>
+          <h1 className="text-2xl font-bold text-gray-900">CC&apos;d Tickets</h1>
         </div>
         <div className="bg-white rounded-lg border border-gray-200 p-12 text-center text-gray-500">
-          You are not CC'd on any tickets.
+          You are not CC&apos;d on any tickets.
         </div>
       </div>
     )

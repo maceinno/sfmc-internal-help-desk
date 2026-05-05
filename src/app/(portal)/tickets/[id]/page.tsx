@@ -494,7 +494,7 @@ export default function TicketDetailPage({
             Ticket not found
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            The ticket you're looking for doesn't exist or you don't have access.
+            The ticket you&apos;re looking for doesn&apos;t exist or you don&apos;t have access.
           </p>
           <Button
             variant="outline"

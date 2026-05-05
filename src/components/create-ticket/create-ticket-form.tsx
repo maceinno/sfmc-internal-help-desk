@@ -299,7 +299,7 @@ export function CreateTicketForm() {
       title: data.title,
       description: data.description,
       priority: data.priority as TicketPriority,
-      category: data.category as any,
+      category: data.category,
       ticketType: data.ticketType,
       subCategory: data.subCategory || undefined,
       attachments: files.length > 0 ? files : undefined,
