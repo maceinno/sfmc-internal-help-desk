@@ -423,11 +423,15 @@ export const ReplyComposer = React.forwardRef<
           </div>
         </div>
 
-        {/* Editor */}
+        {/* Editor — capped height with internal scroll so the bottom action
+            bar stays in the viewport on long replies. Without this, the
+            editor grows unbounded and the parent column's overflow-hidden
+            clips the Submit button below the fold. */}
         <div
           className={cn(
             isInternalNote && "[&_.tiptap]:bg-amber-50/30",
             "[&_.rte-wrapper]:rounded-none [&_.rte-wrapper]:border-0",
+            "max-h-[40vh] overflow-y-auto",
           )}
         >
           <RichTextEditor
@@ -499,8 +503,9 @@ export const ReplyComposer = React.forwardRef<
           </div>
         )}
 
-        {/* Bottom Bar */}
-        <div className="flex items-center justify-between rounded-b-lg border-t border-gray-100 bg-gray-50/50 px-3 py-2">
+        {/* Bottom Bar — shrink-0 so it never gives ground to the editor in
+            a flex column. */}
+        <div className="flex shrink-0 items-center justify-between rounded-b-lg border-t border-gray-100 bg-gray-50/50 px-3 py-2">
           <div className="flex items-center gap-1">
             <Button
               type="button"
