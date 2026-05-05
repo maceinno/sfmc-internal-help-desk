@@ -357,9 +357,14 @@ export default function TicketDetailPage({
       setIsSubmitting(true)
 
       try {
-        // Upload attachments first if any
+        // Upload attachments first if any. Treat any failure as fatal so
+        // we never post a reply with the user's intended attachments
+        // silently dropped. Previously the loop swallowed non-OK
+        // responses, which surfaced as "reply landed but my files
+        // didn't" — most often Vercel's body-size 413 on files >4.5 MB.
         const attachmentIds: string[] = []
         if (message.attachments && message.attachments.length > 0) {
+          const failed: string[] = []
           for (const file of message.attachments) {
             const formData = new FormData()
             formData.append("file", file)
@@ -372,7 +377,18 @@ export default function TicketDetailPage({
             if (uploadRes.ok) {
               const uploadData = await uploadRes.json()
               if (uploadData.id) attachmentIds.push(uploadData.id)
+              else failed.push(file.name)
+            } else {
+              failed.push(file.name)
             }
+          }
+
+          if (failed.length > 0) {
+            toast.error(
+              `Couldn't upload ${failed.length === 1 ? "attachment" : "attachments"}: ${failed.join(", ")}. Reply not sent — please retry or remove the listed file${failed.length === 1 ? "" : "s"}.`,
+              { duration: 8000 },
+            )
+            return
           }
         }
 

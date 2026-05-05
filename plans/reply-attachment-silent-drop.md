@@ -1,10 +1,16 @@
 ---
 name: reply-attachment-silent-drop
-status: backlog
+status: interim-landed
 created: 2026-05-05T16:35:19Z
 updated: 2026-05-05T16:35:19Z
 source: Slack report, ticket T-1236, 2026-05-05
 ---
+
+> **Status update 2026-05-05:** the cheaper interim mitigation (size
+> pre-check + surfaced upload failures) shipped on the same PR as the
+> agent-UI bug batch. The clean fix (direct-to-Supabase signed
+> uploads) is still pending — keep this file until that lands so the
+> 4 MB cap can be lifted back to 20 MB or higher.
 
 # Reply attachments silently dropped when files exceed Vercel body limit (~4.5 MB)
 

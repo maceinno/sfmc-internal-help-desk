@@ -8,7 +8,13 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // Storage, creates an attachment record, and returns it with a signed URL.
 // ---------------------------------------------------------------------------
 
-const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
+// Capped at 4 MB to match Vercel's serverless function body limit
+// (~4.5 MB) with headroom for multipart overhead. Above this, requests
+// are rejected at the platform layer with a 413 before this handler
+// runs, so accepting larger values here is misleading. Bumping
+// requires moving uploads off Vercel functions (e.g. direct-to-storage
+// signed URLs).
+const MAX_FILE_SIZE = 4 * 1024 * 1024;
 
 export async function POST(request: Request) {
   // ── Authenticate ──────────────────────────────────────────────────────────
@@ -83,7 +89,7 @@ export async function POST(request: Request) {
   if (file.size > MAX_FILE_SIZE) {
     return Response.json(
       {
-        error: `File size exceeds the 20 MB limit. Received ${(file.size / (1024 * 1024)).toFixed(2)} MB.`,
+        error: `File size exceeds the ${MAX_FILE_SIZE / (1024 * 1024)} MB limit. Received ${(file.size / (1024 * 1024)).toFixed(2)} MB.`,
       },
       { status: 413 },
     );

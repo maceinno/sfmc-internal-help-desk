@@ -11,6 +11,7 @@ import {
   ChevronUp,
   Check,
 } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -24,6 +25,27 @@ import { FileUpload } from "@/components/shared/file-upload"
 import { RichTextEditor } from "@/components/shared/rich-text-editor"
 import { cn } from "@/lib/utils"
 import type { User, CannedResponse, TicketStatus } from "@/types"
+
+// Mirrors the cap in FileUpload + /api/upload. Stays under Vercel's
+// ~4.5 MB function body limit so paste/drag entries don't silently
+// 413 at the platform layer.
+const MAX_ATTACHMENT_MB = 4
+const MAX_ATTACHMENT_BYTES = MAX_ATTACHMENT_MB * 1024 * 1024
+
+function partitionBySize(files: File[]): { ok: File[]; oversized: File[] } {
+  const ok: File[] = []
+  const oversized: File[] = []
+  for (const f of files) (f.size > MAX_ATTACHMENT_BYTES ? oversized : ok).push(f)
+  return { ok, oversized }
+}
+
+function notifyOversized(oversized: File[]) {
+  if (oversized.length === 0) return
+  const names = oversized.map((f) => f.name).join(", ")
+  toast.error(
+    `File${oversized.length > 1 ? "s" : ""} exceed ${MAX_ATTACHMENT_MB} MB limit: ${names}`,
+  )
+}
 
 const STATUS_DOT: Record<TicketStatus, string> = {
   new: "bg-yellow-500",
@@ -341,14 +363,20 @@ export const ReplyComposer = React.forwardRef<
 
   const handleEditorPasteFiles = React.useCallback((files: File[]) => {
     if (files.length === 0) return
-    setSelectedFiles((prev) => [...prev, ...files])
+    const { ok, oversized } = partitionBySize(files)
+    notifyOversized(oversized)
+    if (ok.length === 0) return
+    setSelectedFiles((prev) => [...prev, ...ok])
     setShowFileUpload(true)
   }, [])
 
   React.useImperativeHandle(ref, () => ({
     addFiles: (files: File[]) => {
       if (files.length === 0) return
-      setSelectedFiles((prev) => [...prev, ...files])
+      const { ok, oversized } = partitionBySize(files)
+      notifyOversized(oversized)
+      if (ok.length === 0) return
+      setSelectedFiles((prev) => [...prev, ...ok])
       setShowFileUpload(true)
     },
     hasDraft: () => hasContent,
