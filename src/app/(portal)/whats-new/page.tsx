@@ -21,7 +21,7 @@ export default function WhatsNewPage() {
           <Sparkles className="h-5 w-5" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">What's New</h1>
+          <h1 className="text-2xl font-bold text-gray-900">What&apos;s New</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
             Fixes and improvements to the help desk.
           </p>
