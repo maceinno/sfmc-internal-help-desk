@@ -222,9 +222,15 @@ export default function UsersPage() {
         throw new Error(body.error ?? 'Failed to sync role to Clerk')
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] })
+    onSuccess: async () => {
+      // Await the refetch before closing the dialog so a quick reopen
+      // never lands on a stale cached row. Reports of "had to save 2-3
+      // times for the change to stick" trace at least partly to this
+      // race — the dialog closed before the list refreshed, and the
+      // next openEdit() snapshot captured pre-save values.
+      await queryClient.invalidateQueries({ queryKey: ['admin', 'users'] })
       setDialogOpen(false)
+      setForm(null)
       toast.success('User updated')
     },
     onError: (err: Error) => {
