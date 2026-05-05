@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@clerk/nextjs'
+import { toast } from 'sonner'
 import { createClerkSupabaseClient } from '@/lib/supabase/client'
 import type {
   Ticket,
@@ -192,19 +193,6 @@ export function useCreateTicket() {
 
   return useMutation({
     mutationFn: async (payload: CreateTicketPayload) => {
-      // Upload attachments first
-      const attachmentIds: string[] = []
-      if (payload.attachments && payload.attachments.length > 0) {
-        for (const file of payload.attachments) {
-          const formData = new FormData()
-          formData.append('file', file)
-          // We'll link them after ticket creation; use a temp ticketId
-          // Actually the upload API requires a ticketId, so we'll upload
-          // after ticket creation. For now, skip — the API route doesn't
-          // handle file uploads inline. We'll handle this post-creation.
-        }
-      }
-
       // Call the server API route which handles routing rules, CC,
       // custom fields, mailing address, and parent ticket linking.
       const res = await fetch('/api/tickets', {
@@ -232,13 +220,28 @@ export function useCreateTicket() {
 
       const ticket = await res.json()
 
-      // Upload attachments now that we have a ticket ID
+      // Upload attachments now that we have a ticket ID. The ticket is
+      // already created at this point, so don't throw on per-file failure
+      // — surface the names and let the user re-attach from the ticket
+      // detail page rather than orphaning the ticket behind an error.
       if (payload.attachments && payload.attachments.length > 0) {
+        const failed: string[] = []
         for (const file of payload.attachments) {
           const formData = new FormData()
           formData.append('file', file)
           formData.append('ticketId', ticket.id)
-          await fetch('/api/upload', { method: 'POST', body: formData })
+          const uploadRes = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData,
+          })
+          if (!uploadRes.ok) failed.push(file.name)
+        }
+
+        if (failed.length > 0) {
+          toast.error(
+            `Ticket created, but couldn't attach ${failed.length === 1 ? 'file' : 'files'}: ${failed.join(', ')}. Open the ticket and re-attach.`,
+            { duration: 8000 },
+          )
         }
       }
 
