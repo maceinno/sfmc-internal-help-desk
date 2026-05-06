@@ -545,6 +545,54 @@ describe('getSlaStatus', () => {
     // The deadline should be calculated via business hours
     expect(status!.slaDeadline).toBeInstanceOf(Date);
   });
+
+  it('per-priority overrides take precedence over top-level metrics', () => {
+    const created_at = '2025-06-01T09:00:00Z';
+    const urgentTicket = makeTicket({ priority: 'urgent', created_at });
+    const lowTicket = makeTicket({ priority: 'low', created_at });
+
+    const policy = makePolicy({
+      metrics: {
+        firstReplyHours: 8,
+        nextReplyHours: 16,
+        perPriority: {
+          urgent: { firstReplyHours: 1 },
+          // low: deliberately absent → falls back to top-level 8h
+        },
+      },
+    });
+
+    // Set clock 90 minutes after creation:
+    // - urgent's 1h SLA → overdue
+    // - low's 8h SLA → not overdue
+    const createdMs = new Date(created_at).getTime();
+    vi.setSystemTime(new Date(createdMs + 90 * 60 * 1000));
+
+    const urgentStatus = getSlaStatus(urgentTicket, [policy]);
+    expect(urgentStatus!.isOverdue).toBe(true);
+
+    const lowStatus = getSlaStatus(lowTicket, [policy]);
+    expect(lowStatus!.isOverdue).toBe(false);
+  });
+
+  it('per-priority null disables tracking at that priority', () => {
+    const created_at = '2025-06-01T09:00:00Z';
+    const ticket = makeTicket({ priority: 'low', created_at });
+    const policy = makePolicy({
+      metrics: {
+        firstReplyHours: 8,
+        nextReplyHours: 16,
+        perPriority: {
+          low: { firstReplyHours: null },
+        },
+      },
+    });
+
+    vi.setSystemTime(new Date(created_at));
+
+    // firstReplyHours resolved to null → metric returns null → no SLA.
+    expect(getSlaStatus(ticket, [policy])).toBeNull();
+  });
 });
 
 // ── getOverdueTickets / getAtRiskTickets ─────────────────────

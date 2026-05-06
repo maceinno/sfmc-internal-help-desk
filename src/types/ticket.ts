@@ -226,12 +226,27 @@ export interface SlaPolicyConditions {
   subCategories?: string[] | 'any'
 }
 
+export interface SlaPolicyPerPriorityMetrics {
+  /** When set, overrides the rule's top-level firstReplyHours for tickets
+   *  at this priority. Null = first-reply tracking off at this priority. */
+  firstReplyHours?: number | null
+  /** When set, overrides the rule's top-level nextReplyHours for tickets
+   *  at this priority. Null = next-reply tracking off at this priority. */
+  nextReplyHours?: number | null
+}
+
 export interface SlaPolicyMetrics {
-  /** Null = first-reply tracking is off for this policy. */
+  /** Null = first-reply tracking is off for this policy.
+   *  Used as the fallback when no perPriority entry matches. */
   firstReplyHours: number | null
-  /** Null = next-reply tracking is off for this policy. */
+  /** Null = next-reply tracking is off for this policy.
+   *  Used as the fallback when no perPriority entry matches. */
   nextReplyHours: number | null
   warningThreshold?: number
+  /** Optional per-priority overrides. Keys are TicketPriority values; each
+   *  entry can selectively override firstReplyHours / nextReplyHours.
+   *  Resolution: lookup by ticket.priority first, fall back to top-level. */
+  perPriority?: Partial<Record<TicketPriority, SlaPolicyPerPriorityMetrics>>
 }
 
 export interface SlaPolicy {

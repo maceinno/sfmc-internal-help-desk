@@ -11,6 +11,7 @@ import type {
   SlaPolicy,
   SlaPolicyConditions,
   SlaPolicyMetrics,
+  SlaPolicyPerPriorityMetrics,
   TicketType,
   TicketCategory,
   TicketPriority,
@@ -356,6 +357,13 @@ export function SlaForm({
           />
         </div>
 
+        <PerPriorityOverrides
+          metrics={value.metrics}
+          onChange={(perPriority) =>
+            setMetrics({ ...value.metrics, perPriority })
+          }
+        />
+
         <Field
           label="Warn at"
           helper="Tickets cross into 'at risk' (amber) at this percentage of the response window."
@@ -378,6 +386,162 @@ export function SlaForm({
           </div>
         </Field>
       </Section>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+
+function PerPriorityOverrides({
+  metrics,
+  onChange,
+}: {
+  metrics: SlaPolicyMetrics
+  onChange: (
+    next:
+      | Partial<Record<TicketPriority, SlaPolicyPerPriorityMetrics>>
+      | undefined,
+  ) => void
+}) {
+  const enabled = metrics.perPriority !== undefined
+  const overrides = metrics.perPriority ?? {}
+
+  const setForPriority = (
+    priority: TicketPriority,
+    patch: Partial<SlaPolicyPerPriorityMetrics>,
+  ) => {
+    const current = overrides[priority] ?? {}
+    const merged = { ...current, ...patch }
+    // If both fields are now undefined, drop the entry entirely.
+    if (
+      merged.firstReplyHours === undefined &&
+      merged.nextReplyHours === undefined
+    ) {
+      const { [priority]: _drop, ...rest } = overrides
+      void _drop
+      onChange(Object.keys(rest).length === 0 ? undefined : rest)
+      return
+    }
+    onChange({ ...overrides, [priority]: merged })
+  }
+
+  const toggle = (checked: boolean) => {
+    onChange(checked ? {} : undefined)
+  }
+
+  return (
+    <div className="rounded border border-input bg-background p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium">
+            Different response times by priority
+          </p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
+            When on, urgent tickets can have a faster response window than
+            medium/low. Empty cells fall back to the top-level value above.
+          </p>
+        </div>
+        <Switch checked={enabled} onCheckedChange={toggle} />
+      </div>
+
+      {enabled && (
+        <div className="mt-3 overflow-hidden rounded border border-input">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50 text-[11px] uppercase tracking-wider text-muted-foreground">
+              <tr>
+                <th className="px-2 py-1.5 text-left font-medium">Priority</th>
+                <th className="px-2 py-1.5 text-left font-medium">First reply (hrs)</th>
+                <th className="px-2 py-1.5 text-left font-medium">Next reply (hrs)</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-input">
+              {PRIORITIES.map((p) => {
+                const entry = overrides[p.value] ?? {}
+                return (
+                  <tr key={p.value}>
+                    <td className="px-2 py-1.5 font-medium capitalize">
+                      {p.label}
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <PerPriorityCell
+                        value={entry.firstReplyHours}
+                        fallback={metrics.firstReplyHours}
+                        onChange={(next) =>
+                          setForPriority(p.value, { firstReplyHours: next })
+                        }
+                      />
+                    </td>
+                    <td className="px-2 py-1.5">
+                      <PerPriorityCell
+                        value={entry.nextReplyHours}
+                        fallback={metrics.nextReplyHours}
+                        onChange={(next) =>
+                          setForPriority(p.value, { nextReplyHours: next })
+                        }
+                      />
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PerPriorityCell({
+  value,
+  fallback,
+  onChange,
+}: {
+  /** undefined = no override at this priority (use fallback). */
+  value: number | null | undefined
+  fallback: number | null
+  onChange: (next: number | null | undefined) => void
+}) {
+  const [mode, setMode] = React.useState<"fallback" | "off" | "set">(() =>
+    value === undefined ? "fallback" : value === null ? "off" : "set",
+  )
+
+  // Sync mode when the parent value changes (e.g. switching policies).
+  React.useEffect(() => {
+    setMode(value === undefined ? "fallback" : value === null ? "off" : "set")
+  }, [value])
+
+  return (
+    <div className="flex items-center gap-2">
+      <select
+        value={mode}
+        onChange={(e) => {
+          const next = e.target.value as "fallback" | "off" | "set"
+          setMode(next)
+          if (next === "fallback") onChange(undefined)
+          else if (next === "off") onChange(null)
+          else onChange(typeof value === "number" ? value : (fallback ?? 4))
+        }}
+        className="h-7 rounded border border-input bg-transparent px-1.5 text-xs"
+      >
+        <option value="fallback">
+          Use default ({fallback === null ? "off" : `${fallback}h`})
+        </option>
+        <option value="off">Off at this priority</option>
+        <option value="set">Custom…</option>
+      </select>
+      {mode === "set" && (
+        <Input
+          type="number"
+          min={1}
+          step={1}
+          value={typeof value === "number" ? value : ""}
+          onChange={(e) => {
+            const n = Number(e.target.value)
+            onChange(isNaN(n) || n <= 0 ? (fallback ?? 1) : n)
+          }}
+          className="h-7 w-16 text-xs"
+        />
+      )}
     </div>
   )
 }

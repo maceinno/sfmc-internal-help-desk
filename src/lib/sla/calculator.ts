@@ -145,10 +145,19 @@ export function getSlaStatus(
 
   // Policy-based SLA
   const { metric, anchorTime } = getActiveMetric(ticket);
+
+  // Per-priority overrides take precedence over the top-level metrics.
+  // `undefined` means "no override at this priority — fall back to top-level".
+  // `null` means "explicitly disabled for this priority".
+  const perPri = policy.metrics.perPriority?.[ticket.priority];
+  const overrideHours =
+    metric === 'firstReply' ? perPri?.firstReplyHours : perPri?.nextReplyHours;
   const slaHours =
-    metric === 'firstReply'
-      ? policy.metrics.firstReplyHours
-      : policy.metrics.nextReplyHours;
+    overrideHours !== undefined
+      ? overrideHours
+      : metric === 'firstReply'
+        ? policy.metrics.firstReplyHours
+        : policy.metrics.nextReplyHours;
 
   // Metric explicitly set to N/A on this policy → not tracked.
   if (slaHours === null || slaHours === undefined) {
