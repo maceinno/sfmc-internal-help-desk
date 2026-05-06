@@ -23,8 +23,8 @@ import { createClerkSupabaseClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
-import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Dialog,
@@ -34,22 +34,12 @@ import {
   DialogFooter,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import type {
-  SlaPolicy,
-  SlaPolicyConditions,
-  SlaPolicyMetrics,
-  TicketType,
-  TicketCategory,
-  TicketPriority,
-} from '@/types'
-// ── Constants ──────────────────────────────────────────────────
-
-const PRIORITIES: { value: TicketPriority; label: string }[] = [
-  { value: 'urgent', label: 'Urgent' },
-  { value: 'high', label: 'High' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'low', label: 'Low' },
-]
+import {
+  SlaForm,
+  buildSlaFormCatalog,
+  type SlaFormValue,
+} from '@/components/admin/sla/sla-form'
+import type { SlaPolicy, SlaPolicyMetrics } from '@/types/ticket'
 
 // ── Helpers ────────────────────────────────────────────────────
 
@@ -68,6 +58,20 @@ function formatHoursOrOff(hours: number | null | undefined): string {
   return hours == null ? 'Off' : `${hours}h`
 }
 
+const EMPTY_FORM_VALUE: SlaFormValue = {
+  name: '',
+  conditions: {
+    ticketTypes: 'any',
+    categories: 'any',
+    priorities: 'any',
+  },
+  metrics: {
+    firstReplyHours: 4,
+    nextReplyHours: 8,
+    warningThreshold: 75,
+  },
+}
+
 // ── Page component ─────────────────────────────────────────────
 
 export default function SlaAdminPage() {
@@ -76,52 +80,23 @@ export default function SlaAdminPage() {
   const { data: slaPolicies = [], isLoading } = useSlaPolicies()
   const { data: departmentGroups = [] } = useDepartmentCategories()
 
-  const ticketTypes = useMemo(
-    () => departmentGroups.map((g) => g.ticket_type),
+  const catalog = useMemo(
+    () => buildSlaFormCatalog(departmentGroups),
     [departmentGroups],
   )
-
-  const categoriesByType = useMemo(() => {
-    const map: Record<string, string[]> = {}
-    for (const g of departmentGroups) {
-      map[g.ticket_type] = g.categories.map((c) => c.name)
-    }
-    return map
-  }, [departmentGroups])
-
-  const allCategoryNames = useMemo(() => {
-    const set = new Set<string>()
-    for (const g of departmentGroups) {
-      for (const c of g.categories) set.add(c.name)
-    }
-    return Array.from(set).sort()
-  }, [departmentGroups])
 
   const [localPolicies, setLocalPolicies] = useState<SlaPolicy[] | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [saving, setSaving] = useState(false)
-
-  // New SLA form state
-  const [newSlaName, setNewSlaName] = useState('')
-  const [newSlaConditions, setNewSlaConditions] =
-    useState<SlaPolicyConditions>({
-      ticketTypes: 'any',
-      categories: 'any',
-      priorities: 'any',
-    })
-  const [newSlaMetrics, setNewSlaMetrics] = useState<SlaPolicyMetrics>({
-    firstReplyHours: 4,
-    nextReplyHours: 8,
-    warningThreshold: 75,
-  })
+  const [addForm, setAddForm] = useState<SlaFormValue>(EMPTY_FORM_VALUE)
 
   const policies = localPolicies ?? slaPolicies
   const hasChanges = localPolicies !== null
 
   const sortedPolicies = useMemo(
     () => [...policies].sort((a, b) => a.sort_order - b.sort_order),
-    [policies]
+    [policies],
   )
 
   // ── Mutation helpers ───────────────────────────────────────
@@ -130,35 +105,27 @@ export default function SlaAdminPage() {
     (updater: (prev: SlaPolicy[]) => SlaPolicy[]) => {
       setLocalPolicies((prev) => updater(prev ?? slaPolicies))
     },
-    [slaPolicies]
+    [slaPolicies],
   )
 
-  const toggleSla = (id: string) => {
+  const toggleSla = (id: string) =>
     updatePolicies((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, enabled: !p.enabled } : p))
+      prev.map((p) => (p.id === id ? { ...p, enabled: !p.enabled } : p)),
     )
-  }
 
-  const updateSlaName = (id: string, name: string) => {
+  const updatePolicyForm = (id: string, next: SlaFormValue) =>
     updatePolicies((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, name } : p))
+      prev.map((p) =>
+        p.id === id
+          ? {
+              ...p,
+              name: next.name,
+              conditions: next.conditions,
+              metrics: next.metrics,
+            }
+          : p,
+      ),
     )
-  }
-
-  const updateSlaConditions = (
-    id: string,
-    conditions: SlaPolicyConditions
-  ) => {
-    updatePolicies((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, conditions } : p))
-    )
-  }
-
-  const updateSlaMetrics = (id: string, metrics: SlaPolicyMetrics) => {
-    updatePolicies((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, metrics } : p))
-    )
-  }
 
   const moveSla = (id: string, direction: 'up' | 'down') => {
     updatePolicies((prev) => {
@@ -179,7 +146,7 @@ export default function SlaAdminPage() {
   const deleteSla = (id: string) => {
     const target = (localPolicies ?? slaPolicies).find((p) => p.id === id)
     const ok = window.confirm(
-      `Delete SLA policy "${target?.name ?? id}"?\n\nThis is staged in the editor — the change is not final until you click Save Changes.`,
+      `Delete SLA policy "${target?.name ?? id}"? This cannot be undone.`,
     )
     if (!ok) return
     updatePolicies((prev) => prev.filter((p) => p.id !== id))
@@ -187,29 +154,19 @@ export default function SlaAdminPage() {
   }
 
   const addSla = () => {
-    if (!newSlaName.trim()) return
+    if (!addForm.name.trim()) return
     const currentPolicies = localPolicies ?? slaPolicies
     const newPolicy: SlaPolicy = {
       id: `custom-sla-${Date.now()}`,
-      name: newSlaName.trim(),
+      name: addForm.name.trim(),
       enabled: true,
-      conditions: { ...newSlaConditions },
-      metrics: { ...newSlaMetrics },
+      conditions: addForm.conditions,
+      metrics: addForm.metrics,
       sort_order: currentPolicies.length,
       is_default: false,
     }
     updatePolicies((prev) => [...prev, newPolicy])
-    setNewSlaName('')
-    setNewSlaConditions({
-      ticketTypes: 'any',
-      categories: 'any',
-      priorities: 'any',
-    })
-    setNewSlaMetrics({
-      firstReplyHours: 4,
-      nextReplyHours: 8,
-      warningThreshold: 75,
-    })
+    setAddForm(EMPTY_FORM_VALUE)
     setShowAddDialog(false)
   }
 
@@ -230,7 +187,7 @@ export default function SlaAdminPage() {
           metrics: p.metrics,
           sort_order: p.sort_order,
           is_default: p.is_default ?? false,
-        }))
+        })),
       )
       if (error) throw error
 
@@ -340,9 +297,7 @@ export default function SlaAdminPage() {
                         <div className="flex items-center gap-2">
                           <span
                             className={`text-sm font-medium truncate ${
-                              policy.enabled
-                                ? 'text-gray-900'
-                                : 'text-gray-400'
+                              policy.enabled ? 'text-gray-900' : 'text-gray-400'
                             }`}
                           >
                             {policy.name}
@@ -358,16 +313,16 @@ export default function SlaAdminPage() {
                         </div>
                         <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
                           <FileText className="w-3 h-3" />
-                          <span className="truncate">
-                            {getSlaSummary(policy)}
-                          </span>
+                          <span className="truncate">{getSlaSummary(policy)}</span>
                         </p>
                       </div>
                       <div className="flex items-center gap-4 text-sm text-gray-600">
                         <div className="flex items-center gap-1.5">
                           <Clock className="w-3.5 h-3.5 text-blue-500" />
                           <span>
-                            <span className={`font-medium ${policy.metrics.firstReplyHours == null ? 'text-gray-400' : 'text-gray-900'}`}>
+                            <span
+                              className={`font-medium ${policy.metrics.firstReplyHours == null ? 'text-gray-400' : 'text-gray-900'}`}
+                            >
                               {formatHoursOrOff(policy.metrics.firstReplyHours)}
                             </span>{' '}
                             first
@@ -376,7 +331,9 @@ export default function SlaAdminPage() {
                         <div className="flex items-center gap-1.5">
                           <Activity className="w-3.5 h-3.5 text-purple-500" />
                           <span>
-                            <span className={`font-medium ${policy.metrics.nextReplyHours == null ? 'text-gray-400' : 'text-gray-900'}`}>
+                            <span
+                              className={`font-medium ${policy.metrics.nextReplyHours == null ? 'text-gray-400' : 'text-gray-900'}`}
+                            >
                               {formatHoursOrOff(policy.metrics.nextReplyHours)}
                             </span>{' '}
                             next
@@ -438,255 +395,32 @@ export default function SlaAdminPage() {
 
                   {/* Inline edit panel */}
                   {isEditing && (
-                    <div className="px-4 pb-5 pt-2 ml-12 border-t border-gray-100 bg-gray-50/50">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 mt-2">
-                        {/* Left column: Conditions */}
-                        <div className="space-y-4">
-                          <h4 className="text-xs font-semibold text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
-                            <FileText className="w-3.5 h-3.5 text-gray-400" />
-                            Conditions
-                          </h4>
-
-                          <div>
-                            <Label className="text-xs text-muted-foreground mb-1.5">
-                              Policy Name
-                            </Label>
-                            <Input
-                              value={policy.name}
-                              onChange={(e) =>
-                                updateSlaName(policy.id, e.target.value)
-                              }
-                            />
-                          </div>
-
-                          <div>
-                            <Label className="text-xs text-muted-foreground mb-1.5">
-                              Ticket Types
-                            </Label>
-                            <select
-                              value={
-                                policy.conditions.ticketTypes === 'any'
-                                  ? 'any'
-                                  : policy.conditions.ticketTypes[0]
-                              }
-                              onChange={(e) =>
-                                updateSlaConditions(policy.id, {
-                                  ...policy.conditions,
-                                  ticketTypes:
-                                    e.target.value === 'any'
-                                      ? 'any'
-                                      : [e.target.value as TicketType],
-                                })
-                              }
-                              className="w-full h-8 px-2.5 text-sm border border-input rounded-lg bg-transparent focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 outline-none"
-                            >
-                              <option value="any">Any Type</option>
-                              {ticketTypes.map((type) => (
-                                <option key={type} value={type}>
-                                  {type}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-
-                          <div>
-                            <Label className="text-xs text-muted-foreground mb-1.5">
-                              Categories
-                            </Label>
-                            <select
-                              value={
-                                policy.conditions.categories === 'any'
-                                  ? 'any'
-                                  : policy.conditions.categories[0]
-                              }
-                              onChange={(e) =>
-                                updateSlaConditions(policy.id, {
-                                  ...policy.conditions,
-                                  categories:
-                                    e.target.value === 'any'
-                                      ? 'any'
-                                      : [e.target.value as TicketCategory],
-                                })
-                              }
-                              className="w-full h-8 px-2.5 text-sm border border-input rounded-lg bg-transparent focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 outline-none"
-                            >
-                              <option value="any">Any Category</option>
-                              {(policy.conditions.ticketTypes === 'any'
-                                ? allCategoryNames
-                                : (categoriesByType[policy.conditions.ticketTypes[0]] ?? [])
-                              ).map((cat) => (
-                                <option key={cat} value={cat}>
-                                  {cat}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-
-                          <div>
-                            <Label className="text-xs text-muted-foreground mb-1.5">
-                              Priorities
-                            </Label>
-                            <select
-                              value={
-                                policy.conditions.priorities === 'any'
-                                  ? 'any'
-                                  : policy.conditions.priorities[0]
-                              }
-                              onChange={(e) =>
-                                updateSlaConditions(policy.id, {
-                                  ...policy.conditions,
-                                  priorities:
-                                    e.target.value === 'any'
-                                      ? 'any'
-                                      : [e.target.value as TicketPriority],
-                                })
-                              }
-                              className="w-full h-8 px-2.5 text-sm border border-input rounded-lg bg-transparent focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 outline-none"
-                            >
-                              <option value="any">Any Priority</option>
-                              {PRIORITIES.map((p) => (
-                                <option key={p.value} value={p.value}>
-                                  {p.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-
-                        {/* Right column: Metrics */}
-                        <div className="space-y-4">
-                          <h4 className="text-xs font-semibold text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
-                            <Activity className="w-3.5 h-3.5 text-gray-400" />
-                            Targets (Hours)
-                          </h4>
-
-                          <div>
-                            <div className="flex items-center justify-between mb-1.5">
-                              <Label className="text-xs text-muted-foreground">
-                                First Reply Target
-                              </Label>
-                              <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer">
-                                <Switch
-                                  checked={policy.metrics.firstReplyHours != null}
-                                  onCheckedChange={(checked) =>
-                                    updateSlaMetrics(policy.id, {
-                                      ...policy.metrics,
-                                      firstReplyHours: checked
-                                        ? (policy.metrics.firstReplyHours ?? 4)
-                                        : null,
-                                    })
-                                  }
-                                  size="sm"
-                                />
-                                Track
-                              </label>
-                            </div>
-                            <div className="relative">
-                              <Input
-                                type="number"
-                                min={1}
-                                value={policy.metrics.firstReplyHours ?? ''}
-                                disabled={policy.metrics.firstReplyHours == null}
-                                onChange={(e) =>
-                                  updateSlaMetrics(policy.id, {
-                                    ...policy.metrics,
-                                    firstReplyHours:
-                                      parseInt(e.target.value) || 1,
-                                  })
-                                }
-                                placeholder={policy.metrics.firstReplyHours == null ? 'Off' : ''}
-                                className="pr-12"
-                              />
-                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                                hrs
-                              </span>
-                            </div>
-                            <p className="text-[11px] text-muted-foreground mt-1">
-                              Time until first agent response
-                            </p>
-                          </div>
-
-                          <div>
-                            <div className="flex items-center justify-between mb-1.5">
-                              <Label className="text-xs text-muted-foreground">
-                                Next Reply Target
-                              </Label>
-                              <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer">
-                                <Switch
-                                  checked={policy.metrics.nextReplyHours != null}
-                                  onCheckedChange={(checked) =>
-                                    updateSlaMetrics(policy.id, {
-                                      ...policy.metrics,
-                                      nextReplyHours: checked
-                                        ? (policy.metrics.nextReplyHours ?? 8)
-                                        : null,
-                                    })
-                                  }
-                                  size="sm"
-                                />
-                                Track
-                              </label>
-                            </div>
-                            <div className="relative">
-                              <Input
-                                type="number"
-                                min={1}
-                                value={policy.metrics.nextReplyHours ?? ''}
-                                disabled={policy.metrics.nextReplyHours == null}
-                                onChange={(e) =>
-                                  updateSlaMetrics(policy.id, {
-                                    ...policy.metrics,
-                                    nextReplyHours:
-                                      parseInt(e.target.value) || 1,
-                                  })
-                                }
-                                placeholder={policy.metrics.nextReplyHours == null ? 'Off' : ''}
-                                className="pr-12"
-                              />
-                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                                hrs
-                              </span>
-                            </div>
-                            <p className="text-[11px] text-muted-foreground mt-1">
-                              Time until next response after user replies
-                            </p>
-                          </div>
-
-                          <div>
-                            <Label className="text-xs text-muted-foreground mb-1.5">
-                              Warning Threshold
-                            </Label>
-                            <div className="relative">
-                              <Input
-                                type="number"
-                                min={1}
-                                max={99}
-                                value={policy.metrics.warningThreshold ?? 75}
-                                onChange={(e) =>
-                                  updateSlaMetrics(policy.id, {
-                                    ...policy.metrics,
-                                    warningThreshold: Math.min(
-                                      99,
-                                      Math.max(
-                                        1,
-                                        parseInt(e.target.value) || 75
-                                      )
-                                    ),
-                                  })
-                                }
-                                className="pr-12"
-                              />
-                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                                %
-                              </span>
-                            </div>
-                            <p className="text-[11px] text-muted-foreground mt-1">
-                              Flag as &ldquo;At Risk&rdquo; when this % of SLA
-                              time has elapsed
-                            </p>
-                          </div>
-                        </div>
+                    <div className="px-4 pb-5 pt-3 ml-12 border-t border-gray-100 bg-gray-50/50">
+                      <div className="mb-3">
+                        <Label className="mb-1.5 text-xs text-muted-foreground">
+                          Rule name
+                        </Label>
+                        <Input
+                          value={policy.name}
+                          onChange={(e) =>
+                            updatePolicyForm(policy.id, {
+                              name: e.target.value,
+                              conditions: policy.conditions,
+                              metrics: policy.metrics,
+                            })
+                          }
+                        />
                       </div>
+                      <SlaForm
+                        value={{
+                          name: policy.name,
+                          conditions: policy.conditions,
+                          metrics: policy.metrics,
+                        }}
+                        onChange={(next) => updatePolicyForm(policy.id, next)}
+                        catalog={catalog}
+                        hideName
+                      />
                     </div>
                   )}
                 </div>
@@ -715,220 +449,16 @@ export default function SlaAdminPage() {
           <Plus className="w-4 h-4 mr-2" />
           Add SLA Policy
         </DialogTrigger>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>New SLA Policy</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-            {/* Conditions */}
-            <div className="space-y-4">
-              <h4 className="text-xs font-semibold text-gray-900 uppercase tracking-wider">
-                Conditions
-              </h4>
-              <div>
-                <Label className="text-xs text-muted-foreground mb-1.5">
-                  Policy Name
-                </Label>
-                <Input
-                  value={newSlaName}
-                  onChange={(e) => setNewSlaName(e.target.value)}
-                  placeholder="e.g. VIP Client SLA"
-                />
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground mb-1.5">
-                  Ticket Type
-                </Label>
-                <select
-                  value={
-                    newSlaConditions.ticketTypes === 'any'
-                      ? 'any'
-                      : newSlaConditions.ticketTypes[0]
-                  }
-                  onChange={(e) =>
-                    setNewSlaConditions({
-                      ...newSlaConditions,
-                      ticketTypes:
-                        e.target.value === 'any'
-                          ? 'any'
-                          : [e.target.value as TicketType],
-                    })
-                  }
-                  className="w-full h-8 px-2.5 text-sm border border-input rounded-lg bg-transparent focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 outline-none"
-                >
-                  <option value="any">Any Type</option>
-                  {ticketTypes.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground mb-1.5">
-                  Category
-                </Label>
-                <select
-                  value={
-                    newSlaConditions.categories === 'any'
-                      ? 'any'
-                      : newSlaConditions.categories[0]
-                  }
-                  onChange={(e) =>
-                    setNewSlaConditions({
-                      ...newSlaConditions,
-                      categories:
-                        e.target.value === 'any'
-                          ? 'any'
-                          : [e.target.value as TicketCategory],
-                    })
-                  }
-                  className="w-full h-8 px-2.5 text-sm border border-input rounded-lg bg-transparent focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 outline-none"
-                >
-                  <option value="any">Any Category</option>
-                  {(newSlaConditions.ticketTypes === 'any'
-                    ? allCategoryNames
-                    : (categoriesByType[newSlaConditions.ticketTypes[0]] ?? [])
-                  ).map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground mb-1.5">
-                  Priority
-                </Label>
-                <select
-                  value={
-                    newSlaConditions.priorities === 'any'
-                      ? 'any'
-                      : newSlaConditions.priorities[0]
-                  }
-                  onChange={(e) =>
-                    setNewSlaConditions({
-                      ...newSlaConditions,
-                      priorities:
-                        e.target.value === 'any'
-                          ? 'any'
-                          : [e.target.value as TicketPriority],
-                    })
-                  }
-                  className="w-full h-8 px-2.5 text-sm border border-input rounded-lg bg-transparent focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 outline-none"
-                >
-                  <option value="any">Any Priority</option>
-                  {PRIORITIES.map((p) => (
-                    <option key={p.value} value={p.value}>
-                      {p.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Metrics */}
-            <div className="space-y-4">
-              <h4 className="text-xs font-semibold text-gray-900 uppercase tracking-wider">
-                Targets
-              </h4>
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <Label className="text-xs text-muted-foreground">
-                    First Reply (hours)
-                  </Label>
-                  <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer">
-                    <Switch
-                      checked={newSlaMetrics.firstReplyHours != null}
-                      onCheckedChange={(checked) =>
-                        setNewSlaMetrics({
-                          ...newSlaMetrics,
-                          firstReplyHours: checked
-                            ? (newSlaMetrics.firstReplyHours ?? 4)
-                            : null,
-                        })
-                      }
-                      size="sm"
-                    />
-                    Track
-                  </label>
-                </div>
-                <Input
-                  type="number"
-                  min={1}
-                  value={newSlaMetrics.firstReplyHours ?? ''}
-                  disabled={newSlaMetrics.firstReplyHours == null}
-                  placeholder={newSlaMetrics.firstReplyHours == null ? 'Off' : ''}
-                  onChange={(e) =>
-                    setNewSlaMetrics({
-                      ...newSlaMetrics,
-                      firstReplyHours: parseInt(e.target.value) || 1,
-                    })
-                  }
-                />
-              </div>
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <Label className="text-xs text-muted-foreground">
-                    Next Reply (hours)
-                  </Label>
-                  <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer">
-                    <Switch
-                      checked={newSlaMetrics.nextReplyHours != null}
-                      onCheckedChange={(checked) =>
-                        setNewSlaMetrics({
-                          ...newSlaMetrics,
-                          nextReplyHours: checked
-                            ? (newSlaMetrics.nextReplyHours ?? 8)
-                            : null,
-                        })
-                      }
-                      size="sm"
-                    />
-                    Track
-                  </label>
-                </div>
-                <Input
-                  type="number"
-                  min={1}
-                  value={newSlaMetrics.nextReplyHours ?? ''}
-                  disabled={newSlaMetrics.nextReplyHours == null}
-                  placeholder={newSlaMetrics.nextReplyHours == null ? 'Off' : ''}
-                  onChange={(e) =>
-                    setNewSlaMetrics({
-                      ...newSlaMetrics,
-                      nextReplyHours: parseInt(e.target.value) || 1,
-                    })
-                  }
-                />
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground mb-1.5">
-                  Warning Threshold (%)
-                </Label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={99}
-                  value={newSlaMetrics.warningThreshold ?? 75}
-                  onChange={(e) =>
-                    setNewSlaMetrics({
-                      ...newSlaMetrics,
-                      warningThreshold: Math.min(
-                        99,
-                        Math.max(1, parseInt(e.target.value) || 75)
-                      ),
-                    })
-                  }
-                />
-              </div>
-            </div>
-          </div>
+          <SlaForm value={addForm} onChange={setAddForm} catalog={catalog} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={addSla} disabled={!newSlaName.trim()}>
+            <Button onClick={addSla} disabled={!addForm.name.trim()}>
               <Plus className="w-4 h-4 mr-1.5" />
               Add Policy
             </Button>
@@ -938,3 +468,6 @@ export default function SlaAdminPage() {
     </div>
   )
 }
+
+// formatHoursOrOff is used in the list rendering above
+void formatHoursOrOff
