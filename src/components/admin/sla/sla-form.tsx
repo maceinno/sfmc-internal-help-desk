@@ -110,6 +110,44 @@ export function SlaForm({
     [],
   )
 
+  // Subcategory options: union across selected categories, grouped by
+  // source category so admins see which subcategory belongs to which.
+  const subcategoryOptions: MultiSelectOption[] = React.useMemo(() => {
+    const cats =
+      value.conditions.categories === "any" ? [] : value.conditions.categories
+    const opts: MultiSelectOption[] = []
+    for (const c of cats) {
+      const subs = catalog.subcategoriesByCategory[c] ?? []
+      for (const s of subs) {
+        opts.push({ value: s, label: s, group: c })
+      }
+    }
+    return opts
+  }, [value.conditions.categories, catalog])
+
+  const subcategoriesValue: string[] =
+    !value.conditions.subCategories || value.conditions.subCategories === "any"
+      ? []
+      : value.conditions.subCategories
+
+  // Detect the "subcategories from cat A but not cat B" mismatch.
+  // Surface as a warning in the form footer so admins can see + fix it.
+  const subcategoryMismatch = React.useMemo(() => {
+    if (subcategoriesValue.length === 0) return null
+    if (value.conditions.categories === "any") return null
+    const groupsWithSelection = new Set<string>()
+    for (const opt of subcategoryOptions) {
+      if (subcategoriesValue.includes(opt.value) && opt.group) {
+        groupsWithSelection.add(opt.group)
+      }
+    }
+    const categoriesWithoutPicks = value.conditions.categories.filter(
+      (c) => !groupsWithSelection.has(c),
+    )
+    if (categoriesWithoutPicks.length === 0) return null
+    return categoriesWithoutPicks
+  }, [subcategoriesValue, subcategoryOptions, value.conditions.categories])
+
   // ── Helpers ──────────────────────────────────────────────────────────────
 
   const ticketTypesValue: string[] =
@@ -146,10 +184,34 @@ export function SlaForm({
     })
   }
 
-  const setCategories = (next: string[]) =>
+  const setCategories = (next: string[]) => {
+    // Drop subcategories no longer reachable from the new category set.
+    const allowedSubs = new Set<string>(
+      next.flatMap((c) => catalog.subcategoriesByCategory[c] ?? []),
+    )
+    const currentSubs = value.conditions.subCategories
+    const prunedSubs =
+      !currentSubs || currentSubs === "any"
+        ? currentSubs
+        : currentSubs.filter((s) => allowedSubs.has(s))
     setConditions({
       ...value.conditions,
       categories: next.length === 0 ? "any" : (next as TicketCategory[]),
+      subCategories:
+        prunedSubs === undefined
+          ? undefined
+          : prunedSubs === "any"
+            ? "any"
+            : prunedSubs.length === 0
+              ? undefined
+              : prunedSubs,
+    })
+  }
+
+  const setSubCategories = (next: string[]) =>
+    setConditions({
+      ...value.conditions,
+      subCategories: next.length === 0 ? undefined : next,
     })
 
   const setPriorities = (next: string[]) =>
@@ -213,6 +275,43 @@ export function SlaForm({
             disabled={categoryOptions.length === 0}
           />
         </Field>
+
+        {subcategoryOptions.length > 0 && (
+          <Field
+            label="Subcategories (optional)"
+            helper={
+              subcategoriesValue.length === 0
+                ? "Empty: applies to ALL subcategories of the selected categories."
+                : `Limits to ${subcategoriesValue.length} ${subcategoriesValue.length === 1 ? "subcategory" : "subcategories"}. Tickets without a subcategory set will NOT match.`
+            }
+          >
+            <MultiSelect
+              options={subcategoryOptions}
+              value={subcategoriesValue}
+              onChange={setSubCategories}
+              placeholder="Any subcategory"
+              searchPlaceholder="Search subcategories…"
+            />
+            {subcategoryMismatch && subcategoryMismatch.length > 0 && (
+              <div className="mt-2 flex items-start gap-2 rounded border border-amber-200 bg-amber-50 p-2 text-[11px] text-amber-800">
+                <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+                <div>
+                  <strong>Heads up:</strong> you picked subcategories from
+                  some chosen categories but not from{" "}
+                  {subcategoryMismatch.map((c, i) => (
+                    <React.Fragment key={c}>
+                      {i > 0 && (i === subcategoryMismatch.length - 1 ? " or " : ", ")}
+                      <span className="font-mono">{c}</span>
+                    </React.Fragment>
+                  ))}
+                  . Tickets in those categories won&apos;t match this rule.
+                  Either add subcategories from those categories, or remove
+                  the categories from this rule&apos;s scope.
+                </div>
+              </div>
+            )}
+          </Field>
+        )}
 
         <Field
           label="Priorities"
@@ -400,5 +499,3 @@ export function buildSlaFormCatalog(
   return { ticketTypes, categoriesByType, subcategoriesByCategory }
 }
 
-// Suppress unused-import warning for AlertTriangle until M3 (mismatch warning)
-void AlertTriangle

@@ -40,13 +40,18 @@ export function findMatchingPolicy(
       }
     }
 
-    // Note: `subCategories` is intentionally NOT honored here. The admin
-    // SLA form has no UI to view or edit it, so a stray value (whether
-    // from a seed bug or a direct DB edit) silently skips matching policies
-    // with no way for admins to debug it. We hit exactly that bug 2026-05-06
-    // — every Lending Support SLA had subCategories planted by the seed
-    // and silently failed to fire. Reintroduce filtering here only after
-    // the admin form exposes the field.
+    // Subcategory filter: opt-in via the admin form (visible only when at
+    // least one selected category has subcategories defined). Tickets with
+    // no sub_category set fail any non-'any' subcategory filter, which is
+    // intentional — admins set this to scope a rule to specific subcats.
+    if (conditions.subCategories && conditions.subCategories !== 'any') {
+      if (
+        !ticket.sub_category ||
+        !conditions.subCategories.includes(ticket.sub_category)
+      ) {
+        continue;
+      }
+    }
 
     return policy;
   }

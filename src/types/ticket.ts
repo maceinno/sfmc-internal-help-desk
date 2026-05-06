@@ -220,9 +220,10 @@ export interface SlaPolicyConditions {
   ticketTypes: TicketType[] | 'any'
   categories: TicketCategory[] | 'any'
   priorities: TicketPriority[] | 'any'
-  // subCategories intentionally removed — the admin form has no UI for it,
-  // and a stray value silently skipped matching policies. See policy-matcher.ts
-  // for the dormant-until-UI-lands note.
+  /** Optional subcategory filter. Visible in the admin form only when at
+   *  least one selected category has subcategories defined; "Leave empty
+   *  = all subcategories" copy is required wherever this is editable. */
+  subCategories?: string[] | 'any'
 }
 
 export interface SlaPolicyMetrics {
