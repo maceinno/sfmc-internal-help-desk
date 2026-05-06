@@ -39,6 +39,7 @@ import {
   buildSlaFormCatalog,
   type SlaFormValue,
 } from '@/components/admin/sla/sla-form'
+import { SlaFormWizard } from '@/components/admin/sla/sla-form-wizard'
 import type { SlaPolicy, SlaPolicyMetrics } from '@/types/ticket'
 
 // ── Helpers ────────────────────────────────────────────────────
@@ -90,6 +91,7 @@ export default function SlaAdminPage() {
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [saving, setSaving] = useState(false)
   const [addForm, setAddForm] = useState<SlaFormValue>(EMPTY_FORM_VALUE)
+  const [wizardMode, setWizardMode] = useState(false)
 
   const policies = localPolicies ?? slaPolicies
   const hasChanges = localPolicies !== null
@@ -453,24 +455,51 @@ export default function SlaAdminPage() {
         </DialogTrigger>
         <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>New SLA Policy</DialogTitle>
+            <div className="flex items-center justify-between gap-3">
+              <DialogTitle>New SLA Policy</DialogTitle>
+              <label className="flex cursor-pointer items-center gap-2 text-xs font-normal text-muted-foreground">
+                Walk me through it
+                <Switch
+                  checked={wizardMode}
+                  onCheckedChange={setWizardMode}
+                  size="sm"
+                />
+              </label>
+            </div>
           </DialogHeader>
-          <SlaForm
-            value={addForm}
-            onChange={setAddForm}
-            catalog={catalog}
-            allPolicies={policies}
-            currentRuleId={null}
-          />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={addSla} disabled={!addForm.name.trim()}>
-              <Plus className="w-4 h-4 mr-1.5" />
-              Add Policy
-            </Button>
-          </DialogFooter>
+          {wizardMode ? (
+            <SlaFormWizard
+              value={addForm}
+              onChange={setAddForm}
+              catalog={catalog}
+              allPolicies={policies}
+              currentRuleId={null}
+              onComplete={addSla}
+              onCancel={() => setShowAddDialog(false)}
+            />
+          ) : (
+            <>
+              <SlaForm
+                value={addForm}
+                onChange={setAddForm}
+                catalog={catalog}
+                allPolicies={policies}
+                currentRuleId={null}
+              />
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowAddDialog(false)}
+                >
+                  Cancel
+                </Button>
+                <Button onClick={addSla} disabled={!addForm.name.trim()}>
+                  <Plus className="w-4 h-4 mr-1.5" />
+                  Add Policy
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>
