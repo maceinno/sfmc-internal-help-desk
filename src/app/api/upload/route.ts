@@ -2,18 +2,20 @@ import { getProfileId } from "@/lib/clerk/resolve-id";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // ---------------------------------------------------------------------------
-// POST /api/upload — File Upload
+// POST /api/upload — File Upload (DEPRECATED)
 // ---------------------------------------------------------------------------
 // Accepts multipart/form-data with a file and metadata, uploads to Supabase
 // Storage, creates an attachment record, and returns it with a signed URL.
+//
+// DEPRECATED: prefer /api/upload/sign + direct PUT + /api/upload/finalize.
+// This route stays as a fallback during rollout. Files >~4.5 MB still 413 at
+// the Vercel layer here — the new signed-upload flow has no such cap. Once
+// all callers migrate, this route can be removed.
 // ---------------------------------------------------------------------------
 
 // Capped at 4 MB to match Vercel's serverless function body limit
-// (~4.5 MB) with headroom for multipart overhead. Above this, requests
-// are rejected at the platform layer with a 413 before this handler
-// runs, so accepting larger values here is misleading. Bumping
-// requires moving uploads off Vercel functions (e.g. direct-to-storage
-// signed URLs).
+// (~4.5 MB) with headroom for multipart overhead. The new
+// /api/upload/sign flow lifts this cap to 50 MB.
 const MAX_FILE_SIZE = 4 * 1024 * 1024;
 
 export async function POST(request: Request) {

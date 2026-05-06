@@ -26,10 +26,10 @@ import { RichTextEditor } from "@/components/shared/rich-text-editor"
 import { cn } from "@/lib/utils"
 import type { User, CannedResponse, TicketStatus } from "@/types"
 
-// Mirrors the cap in FileUpload + /api/upload. Stays under Vercel's
-// ~4.5 MB function body limit so paste/drag entries don't silently
-// 413 at the platform layer.
-const MAX_ATTACHMENT_MB = 4
+// Mirrors the cap in FileUpload + /api/upload/sign. Matches the Supabase
+// Storage bucket limit; uploads go direct to Storage via signed URLs so
+// the old Vercel function body cap no longer applies.
+const MAX_ATTACHMENT_MB = 50
 const MAX_ATTACHMENT_BYTES = MAX_ATTACHMENT_MB * 1024 * 1024
 
 function partitionBySize(files: File[]): { ok: File[]; oversized: File[] } {
