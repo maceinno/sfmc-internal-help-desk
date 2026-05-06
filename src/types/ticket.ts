@@ -212,7 +212,9 @@ export interface SlaPolicyConditions {
   ticketTypes: TicketType[] | 'any'
   categories: TicketCategory[] | 'any'
   priorities: TicketPriority[] | 'any'
-  subCategories?: string[] | 'any'
+  // subCategories intentionally removed — the admin form has no UI for it,
+  // and a stray value silently skipped matching policies. See policy-matcher.ts
+  // for the dormant-until-UI-lands note.
 }
 
 export interface SlaPolicyMetrics {

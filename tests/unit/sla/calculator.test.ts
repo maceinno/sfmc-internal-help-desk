@@ -156,24 +156,13 @@ describe('findMatchingPolicy', () => {
     expect(result!.id).toBe('pol-first');
   });
 
-  it('matches subcategory conditions when specified', () => {
-    const policy = makePolicy({
-      conditions: {
-        ticketTypes: 'any',
-        categories: 'any',
-        priorities: 'any',
-        subCategories: ['Early Release'],
-      },
-    });
-
-    const matchingTicket = makeTicket({ sub_category: 'Early Release' });
-    const nonMatchingTicket = makeTicket({ sub_category: 'Other' });
-    const noSubCatTicket = makeTicket();
-
-    expect(findMatchingPolicy(matchingTicket, [policy])).not.toBeNull();
-    expect(findMatchingPolicy(nonMatchingTicket, [policy])).toBeNull();
-    expect(findMatchingPolicy(noSubCatTicket, [policy])).toBeNull();
-  });
+  // Note: subCategories filtering was removed from the matcher 2026-05-06
+  // because the admin SLA form has no UI to view or edit it — stray values
+  // silently skipped matching policies with no way to debug. See
+  // policy-matcher.ts and SlaPolicyConditions for the dormant-until-UI note.
+  // If/when subCategories support is reintroduced, restore a test here that
+  // covers (a) match when both sub_category is set + included, (b) non-match
+  // when set + excluded, and (c) non-match when sub_category is null.
 });
 
 // ── getActiveMetric ──────────────────────────────────────────
