@@ -11,6 +11,10 @@ env:
   CLERK_SECRET_KEY: sk_test_placeholder
   NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
   NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
+  # Resend's SDK validates the key at module load (src/lib/email/resend.ts).
+  # Any non-empty placeholder unblocks `next build`'s page-data collection;
+  # actual sends only happen at runtime where Vercel injects the real key.
+  RESEND_API_KEY: re_test_placeholder
 
 jobs:
   ci:
