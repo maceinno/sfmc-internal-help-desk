@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/multi-select"
 import { MatchPreview } from "./match-preview"
+import { ConflictIndicator } from "./conflict-indicator"
 import type {
   SlaPolicy,
   SlaPolicyConditions,
@@ -67,6 +68,12 @@ export interface SlaFormProps {
   /** Hide the rule-name field (used by the inline-editor variant where the
    *  name is edited via a separate Input above the form). */
   hideName?: boolean
+  /** All policies in scope (locally edited set). When provided, the form
+   *  renders a live conflict indicator showing which other rules overlap. */
+  allPolicies?: SlaPolicy[]
+  /** ID of the rule being edited, so we don't flag it as overlapping with
+   *  itself. Pass `null` for an unsaved new rule. */
+  currentRuleId?: string | null
 }
 
 // ---------------------------------------------------------------------------
@@ -76,6 +83,8 @@ export function SlaForm({
   onChange,
   catalog,
   hideName = false,
+  allPolicies,
+  currentRuleId = null,
 }: SlaFormProps) {
   const setName = (name: string) => onChange({ ...value, name })
 
@@ -389,6 +398,14 @@ export function SlaForm({
       </Section>
 
       <MatchPreview conditions={value.conditions} />
+
+      {allPolicies && (
+        <ConflictIndicator
+          conditions={value.conditions}
+          policies={allPolicies}
+          currentRuleId={currentRuleId}
+        />
+      )}
     </div>
   )
 }

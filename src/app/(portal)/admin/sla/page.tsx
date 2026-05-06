@@ -420,6 +420,8 @@ export default function SlaAdminPage() {
                         onChange={(next) => updatePolicyForm(policy.id, next)}
                         catalog={catalog}
                         hideName
+                        allPolicies={policies}
+                        currentRuleId={policy.id}
                       />
                     </div>
                   )}
@@ -453,7 +455,13 @@ export default function SlaAdminPage() {
           <DialogHeader>
             <DialogTitle>New SLA Policy</DialogTitle>
           </DialogHeader>
-          <SlaForm value={addForm} onChange={setAddForm} catalog={catalog} />
+          <SlaForm
+            value={addForm}
+            onChange={setAddForm}
+            catalog={catalog}
+            allPolicies={policies}
+            currentRuleId={null}
+          />
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddDialog(false)}>
               Cancel

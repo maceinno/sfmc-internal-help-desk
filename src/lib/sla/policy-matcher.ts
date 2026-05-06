@@ -48,6 +48,47 @@ export function conditionsMatchTicket(
 }
 
 /**
+ * Predicate: do these two SLA condition sets overlap?
+ *
+ * Two condition sets overlap when there exists at least one
+ * (ticketType, category, priority [, subcategory]) tuple that satisfies
+ * BOTH. Per-axis rule:
+ *   - 'any' satisfies anything → overlap on this axis is automatic
+ *   - both specific → must share at least one common value
+ *   - subcategory: only relevant when at least one side has a non-'any'
+ *     filter; if both are unset/any, treated as no constraint (overlap)
+ *
+ * Used by the SLA admin form to warn admins when a new/edited rule's
+ * scope overlaps another rule's. With multiple matching rules, the one
+ * with the lower `sort_order` wins.
+ */
+export function conditionsOverlap(
+  a: SlaPolicyConditions,
+  b: SlaPolicyConditions,
+): boolean {
+  const axisOverlap = <T extends string>(
+    listA: T[] | 'any',
+    listB: T[] | 'any',
+  ): boolean => {
+    if (listA === 'any' || listB === 'any') return true
+    return listA.some((v) => listB.includes(v))
+  }
+
+  if (!axisOverlap(a.ticketTypes, b.ticketTypes)) return false
+  if (!axisOverlap(a.categories, b.categories)) return false
+  if (!axisOverlap(a.priorities, b.priorities)) return false
+
+  // Subcategories: if either side is unset or 'any', no constraint.
+  const aSubs = a.subCategories
+  const bSubs = b.subCategories
+  if (aSubs && aSubs !== 'any' && bSubs && bSubs !== 'any') {
+    if (!aSubs.some((s) => bSubs.includes(s))) return false
+  }
+
+  return true
+}
+
+/**
  * Find the first SLA policy whose conditions match the given ticket.
  *
  * Policies are evaluated in ascending `sort_order`. A policy matches when

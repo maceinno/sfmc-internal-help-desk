@@ -4,7 +4,7 @@ import type {
   SlaPolicy,
   DepartmentSchedule,
 } from '@/types/ticket';
-import { findMatchingPolicy } from '@/lib/sla/policy-matcher';
+import { findMatchingPolicy, conditionsOverlap } from '@/lib/sla/policy-matcher';
 import {
   isHoliday,
   calculateBusinessHoursDeadline,
@@ -177,6 +177,95 @@ describe('findMatchingPolicy', () => {
 });
 
 // ── getActiveMetric ──────────────────────────────────────────
+
+// ── conditionsOverlap ────────────────────────────────────────
+
+describe('conditionsOverlap', () => {
+  it('any/any overlaps with anything', () => {
+    expect(
+      conditionsOverlap(
+        { ticketTypes: 'any', categories: 'any', priorities: 'any' },
+        {
+          ticketTypes: ['Lending Support'],
+          categories: ['Income Opinion'],
+          priorities: ['urgent'],
+        },
+      ),
+    ).toBe(true);
+  });
+
+  it('shared values on every axis means overlap', () => {
+    expect(
+      conditionsOverlap(
+        {
+          ticketTypes: ['Lending Support', 'IT Support'],
+          categories: ['Income Opinion'],
+          priorities: 'any',
+        },
+        {
+          ticketTypes: ['Lending Support'],
+          categories: ['Income Opinion', 'Other'],
+          priorities: ['high'],
+        },
+      ),
+    ).toBe(true);
+  });
+
+  it('disjoint ticket types means no overlap', () => {
+    expect(
+      conditionsOverlap(
+        {
+          ticketTypes: ['Lending Support'],
+          categories: 'any',
+          priorities: 'any',
+        },
+        {
+          ticketTypes: ['IT Support'],
+          categories: 'any',
+          priorities: 'any',
+        },
+      ),
+    ).toBe(false);
+  });
+
+  it('subcategory disjoint blocks overlap when both sides specify', () => {
+    expect(
+      conditionsOverlap(
+        {
+          ticketTypes: 'any',
+          categories: 'any',
+          priorities: 'any',
+          subCategories: ['FHA'],
+        },
+        {
+          ticketTypes: 'any',
+          categories: 'any',
+          priorities: 'any',
+          subCategories: ['VA'],
+        },
+      ),
+    ).toBe(false);
+  });
+
+  it('subcategory unset on one side means no constraint', () => {
+    expect(
+      conditionsOverlap(
+        {
+          ticketTypes: 'any',
+          categories: 'any',
+          priorities: 'any',
+          subCategories: ['FHA'],
+        },
+        {
+          ticketTypes: 'any',
+          categories: 'any',
+          priorities: 'any',
+          // subCategories absent
+        },
+      ),
+    ).toBe(true);
+  });
+});
 
 describe('getActiveMetric', () => {
   it('returns "firstReply" when no non-creator messages exist', () => {
