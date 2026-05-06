@@ -43,16 +43,16 @@ function getFileIcon(type: string) {
   return File
 }
 
-// Default cap is 50 MB, matching the Supabase Storage bucket limit on the
-// `attachments` bucket. Uploads bypass Vercel via /api/upload/sign +
-// direct PUT to Storage, so the old ~4.5 MB Vercel function body cap no
-// longer applies. Raise the bucket limit (and this cap) together if more
-// is needed.
+// Default cap is 100 MB, matched by the route-level cap in /api/upload/sign
+// and headroom in the Supabase Storage bucket. Uploads bypass Vercel via
+// signed URLs + direct PUT, so the old ~4.5 MB Vercel function body cap
+// no longer applies. To raise further, bump the bucket file_size_limit
+// first, then this constant + the route constant together.
 export function FileUpload({
   onFilesSelected,
   existingFiles = [],
   onRemoveFile,
-  maxSizeMB = 50,
+  maxSizeMB = 100,
   accept,
   multiple = true,
 }: FileUploadProps) {

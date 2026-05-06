@@ -15,7 +15,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 // Capped at 4 MB to match Vercel's serverless function body limit
 // (~4.5 MB) with headroom for multipart overhead. The new
-// /api/upload/sign flow lifts this cap to 50 MB.
+// /api/upload/sign flow lifts this cap to 100 MB.
 const MAX_FILE_SIZE = 4 * 1024 * 1024;
 
 export async function POST(request: Request) {

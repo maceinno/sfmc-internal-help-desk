@@ -19,10 +19,11 @@ import { createAdminClient } from "@/lib/supabase/admin";
 //   4. Client POSTs to /api/upload/finalize to flip the row to `ready`.
 // ---------------------------------------------------------------------------
 
-// 50 MB matches the Storage bucket default on Supabase Pro. Bumping this
-// requires raising the bucket-level file_size_limit too (dashboard or via the
-// platform SQL function `update_bucket`).
-const MAX_FILE_SIZE = 50 * 1024 * 1024;
+// 100 MB. The Supabase `attachments` bucket file_size_limit is set above
+// this so the route cap is the binding constraint. Bumping further
+// requires raising the bucket-level file_size_limit first (dashboard or
+// via the platform SQL function `update_bucket`).
+const MAX_FILE_SIZE = 100 * 1024 * 1024;
 
 interface SignBody {
   ticketId?: string;
