@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/multi-select"
+import { MatchPreview } from "./match-preview"
 import type {
   SlaPolicy,
   SlaPolicyConditions,
@@ -386,6 +387,8 @@ export function SlaForm({
           </div>
         </Field>
       </Section>
+
+      <MatchPreview conditions={value.conditions} />
     </div>
   )
 }
