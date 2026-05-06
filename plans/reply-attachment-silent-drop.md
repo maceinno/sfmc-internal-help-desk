@@ -1,16 +1,18 @@
 ---
 name: reply-attachment-silent-drop
-status: interim-landed
+status: fixed
 created: 2026-05-05T16:35:19Z
-updated: 2026-05-05T16:35:19Z
+updated: 2026-05-06T15:30:00Z
 source: Slack report, ticket T-1236, 2026-05-05
 ---
 
-> **Status update 2026-05-05:** the cheaper interim mitigation (size
-> pre-check + surfaced upload failures) shipped on the same PR as the
-> agent-UI bug batch. The clean fix (direct-to-Supabase signed
-> uploads) is still pending — keep this file until that lands so the
-> 4 MB cap can be lifted back to 20 MB or higher.
+> **Status update 2026-05-06:** the clean fix (direct-to-Supabase
+> signed uploads) shipped. `/api/upload/sign` mints a one-time signed
+> URL + creates a `pending` attachments row; the browser PUTs the file
+> straight to Supabase Storage; `/api/upload/finalize` flips the row
+> to `ready`. The Vercel ~4.5 MB body limit no longer applies — cap
+> is now the bucket's 50 MB. Legacy `/api/upload` stays as deprecated
+> fallback until callers fully migrate.
 
 # Reply attachments silently dropped when files exceed Vercel body limit (~4.5 MB)
 

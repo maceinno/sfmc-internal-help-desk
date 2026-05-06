@@ -35,6 +35,7 @@ import { useCannedResponses, useTeams, useCustomFields } from "@/hooks/use-admin
 import { useUIStore } from "@/stores/ui-store"
 import { useTabStore } from "@/stores/tab-store"
 import { canViewInternalNotes } from "@/lib/permissions/policies"
+import { uploadFileDirect } from "@/lib/upload/direct-upload"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import type { Ticket, Message, TicketStatus } from "@/types"
@@ -359,26 +360,20 @@ export default function TicketDetailPage({
       try {
         // Upload attachments first if any. Treat any failure as fatal so
         // we never post a reply with the user's intended attachments
-        // silently dropped. Previously the loop swallowed non-OK
-        // responses, which surfaced as "reply landed but my files
-        // didn't" — most often Vercel's body-size 413 on files >4.5 MB.
+        // silently dropped. Direct-to-Supabase signed uploads bypass
+        // Vercel's ~4.5 MB serverless function body cap; the bucket
+        // limit (~50 MB) is the new ceiling.
         const attachmentIds: string[] = []
         if (message.attachments && message.attachments.length > 0) {
           const failed: string[] = []
           for (const file of message.attachments) {
-            const formData = new FormData()
-            formData.append("file", file)
-            formData.append("ticketId", ticket.id)
-
-            const uploadRes = await fetch("/api/upload", {
-              method: "POST",
-              body: formData,
-            })
-            if (uploadRes.ok) {
-              const uploadData = await uploadRes.json()
-              if (uploadData.id) attachmentIds.push(uploadData.id)
-              else failed.push(file.name)
-            } else {
+            try {
+              const { id } = await uploadFileDirect({
+                file,
+                ticketId: ticket.id,
+              })
+              attachmentIds.push(id)
+            } catch {
               failed.push(file.name)
             }
           }

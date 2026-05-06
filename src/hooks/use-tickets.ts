@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@clerk/nextjs'
 import { toast } from 'sonner'
 import { createClerkSupabaseClient } from '@/lib/supabase/client'
+import { uploadFileDirect } from '@/lib/upload/direct-upload'
 import type {
   Ticket,
   TicketStatus,
@@ -227,14 +228,11 @@ export function useCreateTicket() {
       if (payload.attachments && payload.attachments.length > 0) {
         const failed: string[] = []
         for (const file of payload.attachments) {
-          const formData = new FormData()
-          formData.append('file', file)
-          formData.append('ticketId', ticket.id)
-          const uploadRes = await fetch('/api/upload', {
-            method: 'POST',
-            body: formData,
-          })
-          if (!uploadRes.ok) failed.push(file.name)
+          try {
+            await uploadFileDirect({ file, ticketId: ticket.id })
+          } catch {
+            failed.push(file.name)
+          }
         }
 
         if (failed.length > 0) {
