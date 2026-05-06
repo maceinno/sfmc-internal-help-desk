@@ -12,6 +12,20 @@ import type {
 // POST /api/tickets/[id]/reply — Add a reply or internal note to a ticket
 // ============================================================================
 
+// Reopen a solved ticket when a non-agent (requester or CC'd user) posts a
+// public reply via the portal. Mirrors the inbound-email webhook behavior so
+// agents don't miss follow-up comments by relying on email alone. Internal
+// notes never reopen, and agents replying to solved tickets keep their
+// "Submit as <status>" control via the composer (so this never fires for
+// agent replies).
+//
+// Kill-switch: set to `false` to restore the previous "solved stays solved"
+// behavior. We keep the suppression option in place because requester
+// "thank you" replies will inappropriately reopen tickets — see
+// `BACKLOG.md` (`sfmc-internal-help-desk` → re-eval auto-reopen heuristic)
+// for the smarter-detection follow-up.
+const AUTO_REOPEN_ON_PORTAL_COMMENT = true
+
 interface ReplyBody {
   content: string
   isInternal: boolean
@@ -245,6 +259,25 @@ export async function POST(
 
   if (touchError) {
     console.error('[reply] Failed to update ticket timestamp:', touchError)
+  }
+
+  // ── Auto-reopen solved tickets on requester/CC public reply ───────────────
+  if (
+    AUTO_REOPEN_ON_PORTAL_COMMENT &&
+    ticket.status === 'solved' &&
+    !body.isInternal &&
+    !isAgentOrAdmin
+  ) {
+    const { error: reopenError } = await supabase
+      .from('tickets')
+      .update({ status: 'open' })
+      .eq('id', ticketId)
+
+    if (reopenError) {
+      console.error('[reply] Failed to reopen solved ticket:', reopenError)
+    } else {
+      console.log(`[reply] Reopened solved ticket ${ticketId} on requester comment`)
+    }
   }
 
   // ── Send email notifications (must await — Vercel kills the function after response) ──
