@@ -268,10 +268,14 @@ export async function POST(
     !body.isInternal &&
     !isAgentOrAdmin
   ) {
+    // .eq('status', 'solved') makes the update a no-op if the status moved
+    // between our read and write — covers the canned-response setStatus path
+    // and the agent-closes-during-reply race.
     const { error: reopenError } = await supabase
       .from('tickets')
       .update({ status: 'open' })
       .eq('id', ticketId)
+      .eq('status', 'solved')
 
     if (reopenError) {
       console.error('[reply] Failed to reopen solved ticket:', reopenError)
