@@ -292,39 +292,45 @@ describe('getSlaStatus', () => {
     expect(getSlaStatus(ticket)).toBeNull();
   });
 
-  it('correctly identifies overdue tickets (legacy fallback)', () => {
-    const createdAt = '2025-06-01T09:00:00Z';
-    const ticket = makeTicket({ priority: 'urgent', createdAt });
+  it('correctly identifies overdue tickets via a catch-all policy', () => {
+    const created_at = '2025-06-01T09:00:00Z';
+    const ticket = makeTicket({ priority: 'urgent', created_at });
+    const urgentPolicy = makePolicy({
+      metrics: { firstReplyHours: 2, nextReplyHours: 4 },
+    });
 
-    // Urgent = 2 hours. Set clock 3 hours after creation.
-    const createdMs = new Date(createdAt).getTime();
+    // 2h SLA. Set clock 3 hours after creation.
+    const createdMs = new Date(created_at).getTime();
     vi.setSystemTime(new Date(createdMs + 3 * 60 * 60 * 1000));
 
-    const status = getSlaStatus(ticket);
+    const status = getSlaStatus(ticket, [urgentPolicy]);
     expect(status).not.toBeNull();
     expect(status!.isOverdue).toBe(true);
     expect(status!.timeRemainingMs).toBeLessThan(0);
   });
 
-  it('correctly identifies at-risk tickets (legacy fallback)', () => {
-    const createdAt = '2025-06-01T09:00:00Z';
-    const ticket = makeTicket({ priority: 'medium', createdAt });
+  it('correctly identifies at-risk tickets via a catch-all policy', () => {
+    const created_at = '2025-06-01T09:00:00Z';
+    const ticket = makeTicket({ priority: 'medium', created_at });
+    const mediumPolicy = makePolicy({
+      metrics: { firstReplyHours: 8, nextReplyHours: 16 },
+    });
 
-    // Medium = 8 hours. Set clock at 7 hours (87.5% used, > 75% threshold).
-    const createdMs = new Date(createdAt).getTime();
+    // 8h SLA. Set clock at 7 hours (87.5% used, > 75% threshold).
+    const createdMs = new Date(created_at).getTime();
     vi.setSystemTime(new Date(createdMs + 7 * 60 * 60 * 1000));
 
-    const status = getSlaStatus(ticket);
+    const status = getSlaStatus(ticket, [mediumPolicy]);
     expect(status).not.toBeNull();
     expect(status!.isOverdue).toBe(false);
     expect(status!.isAtRisk).toBe(true);
   });
 
   it('uses policy-based calculation when policies are provided', () => {
-    const createdAt = '2025-06-01T09:00:00Z';
+    const created_at = '2025-06-01T09:00:00Z';
     const ticket = makeTicket({
       priority: 'high',
-      createdAt,
+      created_at,
       ticket_type: 'IT Support',
     });
 
@@ -341,7 +347,7 @@ describe('getSlaStatus', () => {
     });
 
     // Set clock 3 hours after creation -> overdue on firstReply (2h)
-    const createdMs = new Date(createdAt).getTime();
+    const createdMs = new Date(created_at).getTime();
     vi.setSystemTime(new Date(createdMs + 3 * 60 * 60 * 1000));
 
     const status = getSlaStatus(ticket, [policy]);
@@ -352,14 +358,17 @@ describe('getSlaStatus', () => {
   });
 
   it('reports non-overdue status when within SLA window', () => {
-    const createdAt = '2025-06-01T09:00:00Z';
-    const ticket = makeTicket({ priority: 'low', createdAt });
+    const created_at = '2025-06-01T09:00:00Z';
+    const ticket = makeTicket({ priority: 'low', created_at });
+    const lowPolicy = makePolicy({
+      metrics: { firstReplyHours: 24, nextReplyHours: 48 },
+    });
 
-    // Low = 24 hours. Set clock 1 hour after creation.
-    const createdMs = new Date(createdAt).getTime();
+    // 24h SLA. Set clock 1 hour after creation.
+    const createdMs = new Date(created_at).getTime();
     vi.setSystemTime(new Date(createdMs + 1 * 60 * 60 * 1000));
 
-    const status = getSlaStatus(ticket);
+    const status = getSlaStatus(ticket, [lowPolicy]);
     expect(status).not.toBeNull();
     expect(status!.isOverdue).toBe(false);
     expect(status!.isAtRisk).toBe(false);
@@ -368,10 +377,10 @@ describe('getSlaStatus', () => {
 
   it('uses business hours when schedule is provided', () => {
     // Wednesday 2025-06-04 at 15:00 UTC
-    const createdAt = '2025-06-04T15:00:00.000Z';
+    const created_at = '2025-06-04T15:00:00.000Z';
     const ticket = makeTicket({
       priority: 'high',
-      createdAt,
+      created_at,
       ticket_type: 'IT Support',
     });
 
@@ -390,7 +399,7 @@ describe('getSlaStatus', () => {
     const schedule = makeSchedule();
 
     // Set clock at creation time so we can check the deadline
-    vi.setSystemTime(new Date(createdAt));
+    vi.setSystemTime(new Date(created_at));
 
     const status = getSlaStatus(ticket, [policy], [schedule]);
     expect(status).not.toBeNull();
@@ -411,6 +420,30 @@ describe('getOverdueTickets / getAtRiskTickets', () => {
     vi.useRealTimers();
   });
 
+  // Per-priority policies that mirror the legacy hardcoded SLA table
+  // (urgent 2h / high 4h / medium 8h / low 24h). Used to drive the
+  // bulk-filter helpers that take a tickets array + policies array.
+  const priorityPolicies: SlaPolicy[] = [
+    makePolicy({
+      id: 'pol-urgent',
+      conditions: { ticketTypes: 'any', categories: 'any', priorities: ['urgent'] },
+      metrics: { firstReplyHours: 2, nextReplyHours: 4 },
+      sort_order: 1,
+    }),
+    makePolicy({
+      id: 'pol-medium',
+      conditions: { ticketTypes: 'any', categories: 'any', priorities: ['medium'] },
+      metrics: { firstReplyHours: 8, nextReplyHours: 16 },
+      sort_order: 2,
+    }),
+    makePolicy({
+      id: 'pol-low',
+      conditions: { ticketTypes: 'any', categories: 'any', priorities: ['low'] },
+      metrics: { firstReplyHours: 24, nextReplyHours: 48 },
+      sort_order: 3,
+    }),
+  ];
+
   it('getOverdueTickets filters only overdue tickets', () => {
     const baseTime = new Date('2025-06-01T09:00:00Z').getTime();
     vi.setSystemTime(new Date(baseTime + 3 * 60 * 60 * 1000));
@@ -426,7 +459,7 @@ describe('getOverdueTickets / getAtRiskTickets', () => {
       created_at: '2025-06-01T09:00:00Z',
     });
 
-    const result = getOverdueTickets([overdueTicket, okTicket]);
+    const result = getOverdueTickets([overdueTicket, okTicket], priorityPolicies);
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe('T-overdue');
   });
@@ -447,7 +480,7 @@ describe('getOverdueTickets / getAtRiskTickets', () => {
       created_at: '2025-06-01T09:00:00Z',
     });
 
-    const result = getAtRiskTickets([atRiskTicket, safeTicket]);
+    const result = getAtRiskTickets([atRiskTicket, safeTicket], priorityPolicies);
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe('T-risk');
   });
@@ -456,70 +489,79 @@ describe('getOverdueTickets / getAtRiskTickets', () => {
 // ── Business Hours ───────────────────────────────────────────
 
 describe('Business hours calculations', () => {
-  it('calculateBusinessHoursDeadline skips non-business hours', () => {
-    const schedule = makeSchedule();
+  // Use UTC throughout so the tests are reproducible regardless of the
+  // runner's TZ. `new Date(2025, M, D, H)` interprets in local time and
+  // would produce different results on a developer's machine vs. CI
+  // (which runs in UTC). Pin both the schedule and the inputs to UTC.
+  const utcSchedule = (
+    overrides: Partial<DepartmentSchedule> = {},
+  ): DepartmentSchedule => makeSchedule({ timezone: 'UTC', ...overrides });
 
-    // Friday 2025-06-06 at 16:00 (1 hour before close)
-    // Requesting 4 business hours: 1h Friday + 3h Monday = Monday 11:00
-    const friday4pm = new Date(2025, 5, 6, 16, 0, 0).getTime();
+  it('calculateBusinessHoursDeadline skips non-business hours', () => {
+    const schedule = utcSchedule();
+
+    // Friday 2025-06-06 at 16:00 UTC (1 hour before close)
+    // Requesting 4 business hours: 1h Friday + 3h Monday = Monday 11:00 UTC
+    const friday4pm = Date.UTC(2025, 5, 6, 16, 0, 0);
     const deadline = calculateBusinessHoursDeadline(friday4pm, 4, schedule);
     const deadlineDate = new Date(deadline);
 
-    // Should land on Monday (June 9) at 11:00
-    expect(deadlineDate.getDay()).toBe(1); // Monday
-    expect(deadlineDate.getHours()).toBe(11);
-    expect(deadlineDate.getMinutes()).toBe(0);
+    expect(deadlineDate.getUTCDay()).toBe(1); // Monday
+    expect(deadlineDate.getUTCHours()).toBe(11);
+    expect(deadlineDate.getUTCMinutes()).toBe(0);
   });
 
   it('calculateBusinessHoursElapsed counts only business hours', () => {
-    const schedule = makeSchedule();
+    const schedule = utcSchedule();
 
-    // Friday 2025-06-06 at 16:00 to Monday 2025-06-09 at 10:00
+    // Friday 2025-06-06 16:00 UTC → Monday 2025-06-09 10:00 UTC
     // Business time: 1h (Fri 16-17) + 2h (Mon 08-10) = 3h
-    const fridayStart = new Date(2025, 5, 6, 16, 0, 0).getTime();
-    const mondayEnd = new Date(2025, 5, 9, 10, 0, 0).getTime();
+    const fridayStart = Date.UTC(2025, 5, 6, 16, 0, 0);
+    const mondayEnd = Date.UTC(2025, 5, 9, 10, 0, 0);
     const elapsed = calculateBusinessHoursElapsed(fridayStart, mondayEnd, schedule);
 
-    const expectedMs = 3 * 60 * 60 * 1000;
-    expect(elapsed).toBe(expectedMs);
+    expect(elapsed).toBe(3 * 60 * 60 * 1000);
   });
 
   it('calculateBusinessHoursDeadline skips holidays', () => {
-    const schedule = makeSchedule({
+    const schedule = utcSchedule({
       holidays: [
         { id: 'h-1', name: 'Test Holiday', date: '2025-06-05' },
       ],
     });
 
-    // Wednesday 2025-06-04 at 16:00 (1h left in day)
+    // Wednesday 2025-06-04 at 16:00 UTC (1h left in day)
     // Thursday 2025-06-05 is a holiday -> skip
-    // Friday 2025-06-06 starts at 08:00, need 3 more hours -> 11:00
-    const wed4pm = new Date(2025, 5, 4, 16, 0, 0).getTime();
+    // Friday 2025-06-06 starts at 08:00 UTC, need 3 more hours -> 11:00 UTC
+    const wed4pm = Date.UTC(2025, 5, 4, 16, 0, 0);
     const deadline = calculateBusinessHoursDeadline(wed4pm, 4, schedule);
     const deadlineDate = new Date(deadline);
 
-    expect(deadlineDate.getDate()).toBe(6); // Friday
-    expect(deadlineDate.getHours()).toBe(11);
+    expect(deadlineDate.getUTCDate()).toBe(6); // Friday
+    expect(deadlineDate.getUTCHours()).toBe(11);
   });
 });
 
 // ── isHoliday ────────────────────────────────────────────────
 
 describe('isHoliday', () => {
+  // isHoliday defaults to a UTC timezone when none is passed, so the
+  // input Date must also be constructed in UTC for the comparison to
+  // be reproducible across runner timezones.
   it('detects holidays correctly', () => {
     const holidays = [
       { date: '2025-07-04' },
       { date: '2025-12-25' },
     ];
 
-    expect(isHoliday(new Date(2025, 6, 4), holidays)).toBe(true);
-    expect(isHoliday(new Date(2025, 11, 25), holidays)).toBe(true);
+    expect(isHoliday(new Date(Date.UTC(2025, 6, 4)), holidays)).toBe(true);
+    expect(isHoliday(new Date(Date.UTC(2025, 11, 25)), holidays)).toBe(true);
   });
 
   it('returns false for non-holidays', () => {
     const holidays = [{ date: '2025-07-04' }];
-    expect(isHoliday(new Date(2025, 6, 3), holidays)).toBe(false);
-    expect(isHoliday(new Date(2025, 6, 5), holidays)).toBe(false);
+    expect(isHoliday(new Date(Date.UTC(2025, 6, 3)), holidays)).toBe(false);
+    expect(isHoliday(new Date(Date.UTC(2025, 6, 5)), holidays)).toBe(false);
   });
 
   it('returns false for an empty holiday list', () => {
