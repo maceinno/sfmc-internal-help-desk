@@ -57,6 +57,15 @@ function getDateInTimezone(date: Date, timezone: string) {
 /**
  * Create a Date from timezone-local components.
  * Finds the UTC instant that corresponds to the given local time in the timezone.
+ *
+ * Implementation note: the offset between the wall-clock components we're
+ * given and the wall-clock components the guess represents in the target
+ * timezone has to be computed across the FULL date — year/month/day plus
+ * hours/minutes — not just the time-of-day. When the timezone offset
+ * pushes the date across midnight (e.g., May 7 00:00 UTC interpreted in
+ * Chicago is May 6 19:00 — different day), an hours-only diff produces a
+ * 24-hour error. Using `Date.UTC` on each side gives us a date-aware
+ * diff that handles day/month/year rollovers correctly.
  */
 function createDateInTimezone(
   year: number,
@@ -73,13 +82,20 @@ function createDateInTimezone(
   // Get what time that guess represents in the target timezone
   const inTz = getDateInTimezone(guess, timezone);
 
-  // Calculate the offset and adjust
-  const guessMs = guess.getTime();
-  const diffHours = hours - inTz.hours;
-  const diffMinutes = minutes - inTz.minutes;
-  const offsetMs = (diffHours * 60 + diffMinutes) * 60 * 1000;
+  // Calculate the offset using full-date diff so that day/month/year
+  // rollovers across the timezone boundary are accounted for.
+  const targetMs = Date.UTC(year, month - 1, day, hours, minutes, seconds);
+  const inTzMs = Date.UTC(
+    inTz.year,
+    inTz.month - 1,
+    inTz.day,
+    inTz.hours,
+    inTz.minutes,
+    inTz.seconds,
+  );
+  const offsetMs = targetMs - inTzMs;
 
-  return new Date(guessMs + offsetMs);
+  return new Date(guess.getTime() + offsetMs);
 }
 
 /**
@@ -244,7 +260,10 @@ export function calculateBusinessHoursElapsed(
     }
 
     const periodEnd = Math.min(dayEnd.getTime(), endMs);
-    elapsed += periodEnd - cursor.getTime();
+    // Guard against the case where the cursor was just advanced to dayStart
+    // but endMs sits before dayStart — periodEnd would then be earlier than
+    // cursor and produce a negative contribution. Clamp to zero.
+    elapsed += Math.max(0, periodEnd - cursor.getTime());
     cursor = createDateInTimezone(
       tzDate.year, tzDate.month, tzDate.day + 1,
       0, 0, 0, tz,

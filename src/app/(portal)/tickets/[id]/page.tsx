@@ -31,7 +31,7 @@ import { useCurrentUser } from "@/hooks/use-current-user"
 import { useUsers } from "@/hooks/use-users"
 import { useAuth } from "@clerk/nextjs"
 import { createClerkSupabaseClient } from "@/lib/supabase/client"
-import { useCannedResponses, useTeams, useCustomFields } from "@/hooks/use-admin-config"
+import { useCannedResponses, useTeams, useCustomFields, useSlaPolicies, useDepartmentSchedules } from "@/hooks/use-admin-config"
 import { useUIStore } from "@/stores/ui-store"
 import { useTabStore } from "@/stores/tab-store"
 import { canViewInternalNotes } from "@/lib/permissions/policies"
@@ -56,6 +56,8 @@ export default function TicketDetailPage({
   const { data: cannedResponses } = useCannedResponses()
   const { data: teams } = useTeams()
   const { data: customFields } = useCustomFields()
+  const { data: slaPolicies = [] } = useSlaPolicies()
+  const { data: schedules = [] } = useDepartmentSchedules()
   const { data: allUsers = [] } = useUsers()
   const { data: allTickets = [] } = useTickets()
   const updateTicket = useUpdateTicket()
@@ -732,6 +734,8 @@ export default function TicketDetailPage({
           onCcRemove={handleCcRemove}
           teams={teams?.map((t) => ({ id: t.id, name: t.name })) ?? []}
           customFields={customFields ?? []}
+          slaPolicies={slaPolicies}
+          schedules={schedules}
         />
       </div>
 
