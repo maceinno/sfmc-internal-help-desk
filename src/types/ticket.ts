@@ -220,17 +220,33 @@ export interface SlaPolicyConditions {
   ticketTypes: TicketType[] | 'any'
   categories: TicketCategory[] | 'any'
   priorities: TicketPriority[] | 'any'
-  // subCategories intentionally removed — the admin form has no UI for it,
-  // and a stray value silently skipped matching policies. See policy-matcher.ts
-  // for the dormant-until-UI-lands note.
+  /** Optional subcategory filter. Visible in the admin form only when at
+   *  least one selected category has subcategories defined; "Leave empty
+   *  = all subcategories" copy is required wherever this is editable. */
+  subCategories?: string[] | 'any'
+}
+
+export interface SlaPolicyPerPriorityMetrics {
+  /** When set, overrides the rule's top-level firstReplyHours for tickets
+   *  at this priority. Null = first-reply tracking off at this priority. */
+  firstReplyHours?: number | null
+  /** When set, overrides the rule's top-level nextReplyHours for tickets
+   *  at this priority. Null = next-reply tracking off at this priority. */
+  nextReplyHours?: number | null
 }
 
 export interface SlaPolicyMetrics {
-  /** Null = first-reply tracking is off for this policy. */
+  /** Null = first-reply tracking is off for this policy.
+   *  Used as the fallback when no perPriority entry matches. */
   firstReplyHours: number | null
-  /** Null = next-reply tracking is off for this policy. */
+  /** Null = next-reply tracking is off for this policy.
+   *  Used as the fallback when no perPriority entry matches. */
   nextReplyHours: number | null
   warningThreshold?: number
+  /** Optional per-priority overrides. Keys are TicketPriority values; each
+   *  entry can selectively override firstReplyHours / nextReplyHours.
+   *  Resolution: lookup by ticket.priority first, fall back to top-level. */
+  perPriority?: Partial<Record<TicketPriority, SlaPolicyPerPriorityMetrics>>
 }
 
 export interface SlaPolicy {
