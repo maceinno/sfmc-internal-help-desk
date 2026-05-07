@@ -557,3 +557,184 @@ describe('isHoliday', () => {
     expect(isHoliday(new Date(2025, 0, 1), [])).toBe(false);
   });
 });
+
+// ── timeRemainingMs pauses outside business hours ────────────
+
+describe('getSlaStatus timeRemainingMs (business-hours-aware)', () => {
+  // Pin both the schedule and the inputs to UTC so the test is reproducible
+  // regardless of the runner's local timezone.
+  const utcSchedule: DepartmentSchedule = {
+    id: 'sched-utc',
+    department_name: 'IT Support',
+    timezone: 'UTC',
+    business_hours: [
+      { day: 'monday', enabled: true, startTime: '08:00', endTime: '17:00' },
+      { day: 'tuesday', enabled: true, startTime: '08:00', endTime: '17:00' },
+      { day: 'wednesday', enabled: true, startTime: '08:00', endTime: '17:00' },
+      { day: 'thursday', enabled: true, startTime: '08:00', endTime: '17:00' },
+      { day: 'friday', enabled: true, startTime: '08:00', endTime: '17:00' },
+      { day: 'saturday', enabled: false, startTime: '08:00', endTime: '17:00' },
+      { day: 'sunday', enabled: false, startTime: '08:00', endTime: '17:00' },
+    ],
+    holidays: [],
+    enabled: true,
+  };
+
+  // Anchor: Friday 2025-06-06 16:00 UTC (1h before close).
+  // 4h SLA → deadline = Monday 2025-06-09 11:00 UTC (1h Fri + 3h Mon).
+  const anchor = '2025-06-06T16:00:00.000Z';
+  const ticket: Ticket = {
+    id: 'T-bh',
+    title: 't',
+    description: 'd',
+    status: 'open',
+    priority: 'medium',
+    category: 'General',
+    ticket_type: 'IT Support',
+    created_by: 'user-1',
+    created_at: anchor,
+    updated_at: anchor,
+    messages: [],
+  };
+  const policy: SlaPolicy = {
+    id: 'p',
+    name: 'Std',
+    enabled: true,
+    conditions: { ticketTypes: 'any', categories: 'any', priorities: 'any' },
+    metrics: { firstReplyHours: 4, nextReplyHours: 8 },
+    sort_order: 1,
+  };
+
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('countdown stays the same across an overnight gap', () => {
+    // Friday 17:00 UTC — exactly at close, 1h business elapsed.
+    vi.setSystemTime(new Date(Date.UTC(2025, 5, 6, 17, 0, 0)));
+    const friClose = getSlaStatus(ticket, [policy], [utcSchedule])!;
+
+    // Saturday noon UTC — non-business hours.
+    vi.setSystemTime(new Date(Date.UTC(2025, 5, 7, 12, 0, 0)));
+    const satNoon = getSlaStatus(ticket, [policy], [utcSchedule])!;
+
+    // Same business-hours-remaining at both points (no business time
+    // elapsed during the gap).
+    expect(satNoon.timeRemainingMs).toBe(friClose.timeRemainingMs);
+    expect(friClose.timeRemainingMs).toBe(3 * 60 * 60 * 1000); // 3h
+    expect(satNoon.isOverdue).toBe(false);
+  });
+
+  it('countdown resumes when business hours start again', () => {
+    // Monday 09:00 UTC — 1h into the workday, so 1h Fri + 1h Mon = 2h
+    // business elapsed, 2h remaining.
+    vi.setSystemTime(new Date(Date.UTC(2025, 5, 9, 9, 0, 0)));
+    const monMorning = getSlaStatus(ticket, [policy], [utcSchedule])!;
+    expect(monMorning.timeRemainingMs).toBe(2 * 60 * 60 * 1000);
+    expect(monMorning.isOverdue).toBe(false);
+  });
+
+  it('overdue counter pauses outside business hours', () => {
+    // Monday 11:30 UTC — 30 min past the 11:00 UTC deadline.
+    vi.setSystemTime(new Date(Date.UTC(2025, 5, 9, 11, 30, 0)));
+    const justOverdue = getSlaStatus(ticket, [policy], [utcSchedule])!;
+    expect(justOverdue.isOverdue).toBe(true);
+    expect(justOverdue.timeRemainingMs).toBe(-30 * 60 * 1000);
+
+    // Monday 17:00 UTC — close. 6h business overdue (11:00–17:00).
+    vi.setSystemTime(new Date(Date.UTC(2025, 5, 9, 17, 0, 0)));
+    const monClose = getSlaStatus(ticket, [policy], [utcSchedule])!;
+    expect(monClose.timeRemainingMs).toBe(-6 * 60 * 60 * 1000);
+
+    // Tuesday 08:00 UTC — overnight gap from Mon 17:00 → Tue 08:00 is
+    // non-business, so still 6h overdue, NOT ~21h calendar overdue.
+    vi.setSystemTime(new Date(Date.UTC(2025, 5, 10, 8, 0, 0)));
+    const tueOpen = getSlaStatus(ticket, [policy], [utcSchedule])!;
+    expect(tueOpen.timeRemainingMs).toBe(-6 * 60 * 60 * 1000);
+  });
+
+  it('falls back to wall-clock when no schedule provided', () => {
+    // No schedule passed in — original calendar-hours behavior.
+    vi.setSystemTime(new Date(Date.UTC(2025, 5, 7, 12, 0, 0))); // Sat noon
+    const calendar = getSlaStatus(ticket, [policy])!;
+    // Anchor Fri 16:00 + 4h = Fri 20:00. Sat noon is 16h after that.
+    expect(calendar.timeRemainingMs).toBe(-16 * 60 * 60 * 1000);
+    expect(calendar.isOverdue).toBe(true);
+  });
+});
+
+// ── Schedule lookup is case-insensitive ──────────────────────
+
+describe('findScheduleForTicket case-insensitivity', () => {
+  const baseSchedule: DepartmentSchedule = {
+    id: 'sched-cs',
+    department_name: 'IT Support',
+    timezone: 'UTC',
+    business_hours: [
+      { day: 'monday', enabled: true, startTime: '08:00', endTime: '17:00' },
+      { day: 'tuesday', enabled: true, startTime: '08:00', endTime: '17:00' },
+      { day: 'wednesday', enabled: true, startTime: '08:00', endTime: '17:00' },
+      { day: 'thursday', enabled: true, startTime: '08:00', endTime: '17:00' },
+      { day: 'friday', enabled: true, startTime: '08:00', endTime: '17:00' },
+      { day: 'saturday', enabled: false, startTime: '08:00', endTime: '17:00' },
+      { day: 'sunday', enabled: false, startTime: '08:00', endTime: '17:00' },
+    ],
+    holidays: [],
+    enabled: true,
+  };
+
+  const policy: SlaPolicy = {
+    id: 'p',
+    name: 'Std',
+    enabled: true,
+    conditions: { ticketTypes: 'any', categories: 'any', priorities: 'any' },
+    metrics: { firstReplyHours: 4, nextReplyHours: 8 },
+    sort_order: 1,
+  };
+
+  function ticketAt(now: string, ticket_type: string): Ticket {
+    return {
+      id: 'T-cs',
+      title: 't',
+      description: 'd',
+      status: 'open',
+      priority: 'medium',
+      category: 'General',
+      ticket_type,
+      created_by: 'user-1',
+      created_at: now,
+      updated_at: now,
+      messages: [],
+    };
+  }
+
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('matches schedule when ticket_type case differs from department_name', () => {
+    // Anchor Fri 16:00 UTC, snap to Sat noon — should pause through weekend
+    // exactly as the case-matching test above does, proving the schedule
+    // was found despite the case drift.
+    vi.setSystemTime(new Date(Date.UTC(2025, 5, 7, 12, 0, 0)));
+
+    const lower = getSlaStatus(
+      ticketAt('2025-06-06T16:00:00.000Z', 'it support'),
+      [policy],
+      [baseSchedule],
+    )!;
+    const mixed = getSlaStatus(
+      ticketAt('2025-06-06T16:00:00.000Z', 'It SuPpOrT'),
+      [policy],
+      [baseSchedule],
+    )!;
+    const exact = getSlaStatus(
+      ticketAt('2025-06-06T16:00:00.000Z', 'IT Support'),
+      [policy],
+      [baseSchedule],
+    )!;
+
+    // All three should report the same business-hours-aware remaining time.
+    expect(lower.timeRemainingMs).toBe(exact.timeRemainingMs);
+    expect(mixed.timeRemainingMs).toBe(exact.timeRemainingMs);
+    expect(exact.timeRemainingMs).toBe(3 * 60 * 60 * 1000);
+  });
+});
