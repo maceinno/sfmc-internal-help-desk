@@ -74,9 +74,12 @@ function findScheduleForTicket(
   schedules: DepartmentSchedule[],
 ): DepartmentSchedule | null {
   if (!ticket.ticket_type) return null;
+  // Case-insensitive match: a typo or case drift between admin/categories
+  // and admin/schedules used to silently fall through to 24/7 calendar.
+  const target = ticket.ticket_type.toLowerCase();
   return (
     schedules.find(
-      (s) => s.enabled && s.department_name === ticket.ticket_type,
+      (s) => s.enabled && s.department_name.toLowerCase() === target,
     ) || null
   );
 }
@@ -157,8 +160,21 @@ export function getSlaStatus(
 
   if (percentUsed < 0) percentUsed = 0;
 
-  const timeRemainingMs = slaDeadlineMs - now;
-  const isOverdue = timeRemainingMs < 0;
+  // `timeRemainingMs` must match the calendar/business-hours mode used for
+  // the deadline and percentUsed. Without this, the deadline is correctly
+  // pushed past nights/weekends but the displayed countdown still ticks
+  // down through them — looks like the SLA "doesn't pause" even though
+  // the deadline does.
+  let timeRemainingMs: number;
+  if (schedule) {
+    timeRemainingMs =
+      now < slaDeadlineMs
+        ? calculateBusinessHoursElapsed(now, slaDeadlineMs, schedule)
+        : -calculateBusinessHoursElapsed(slaDeadlineMs, now, schedule);
+  } else {
+    timeRemainingMs = slaDeadlineMs - now;
+  }
+  const isOverdue = now >= slaDeadlineMs;
   const warningThreshold = policy.metrics.warningThreshold ?? 75;
 
   return {
