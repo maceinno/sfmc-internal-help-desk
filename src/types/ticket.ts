@@ -118,6 +118,14 @@ export interface Message {
   is_system?: boolean
   attachments?: Attachment[]
   tagged_agents?: string[]
+  /**
+   * The author's role at the time of fetch, populated when the query joins
+   * `profiles(role)`. Used by SLA calculations to detect "agent replies"
+   * authoritatively rather than via the `author_id !== created_by` proxy.
+   * Optional because not every message-fetch site joins profiles, and tests
+   * construct messages without it.
+   */
+  author_role?: 'employee' | 'agent' | 'admin'
 }
 
 /** A field value stored on a ticket for a given custom field. */

@@ -241,6 +241,144 @@ describe('getActiveMetric', () => {
   });
 });
 
+// ── getActiveMetric — role-based agent detection ─────────────
+
+describe('getActiveMetric (role-based agent detection)', () => {
+  it('treats an agent reply on their own ticket as an agent reply', () => {
+    // Agent files a ticket as themselves and follows up. Legacy heuristic
+    // (author_id !== created_by) misses this — author_id === created_by.
+    // Role-based detection catches it.
+    const ticket = makeTicket({
+      created_by: 'agent-1',
+      messages: [
+        {
+          id: 'm-1',
+          author_id: 'agent-1',
+          content: 'Public update from the agent who filed the ticket',
+          created_at: '2025-06-01T10:00:00Z',
+          is_internal: false,
+          author_role: 'agent',
+        },
+      ],
+    });
+
+    const result = getActiveMetric(ticket);
+    expect(result.metric).toBe('nextReply');
+    expect(result.anchorTime).toBe('2025-06-01T10:00:00Z');
+  });
+
+  it('does NOT treat a CC\'d colleague\'s reply as an agent reply', () => {
+    // CC'd colleague has role 'employee'. Legacy heuristic flips to
+    // nextReply because author_id !== created_by; role-based detection
+    // correctly keeps it on firstReply until a real agent replies.
+    const ticket = makeTicket({
+      created_by: 'user-1',
+      messages: [
+        {
+          id: 'm-1',
+          author_id: 'user-2',
+          content: 'A CC\'d colleague chiming in',
+          created_at: '2025-06-01T10:00:00Z',
+          is_internal: false,
+          author_role: 'employee',
+        },
+      ],
+    });
+
+    const result = getActiveMetric(ticket);
+    expect(result.metric).toBe('firstReply');
+    expect(result.anchorTime).toBe(ticket.created_at);
+  });
+
+  it('admin-role replies count as agent replies', () => {
+    const ticket = makeTicket({
+      created_by: 'user-1',
+      messages: [
+        {
+          id: 'm-1',
+          author_id: 'admin-1',
+          content: 'Admin response',
+          created_at: '2025-06-01T10:00:00Z',
+          is_internal: false,
+          author_role: 'admin',
+        },
+      ],
+    });
+
+    expect(getActiveMetric(ticket).metric).toBe('nextReply');
+  });
+
+  it('a CC\'d colleague\'s comment after an agent reply anchors nextReply', () => {
+    // Pre-fix, only the original creator's follow-ups counted; a CC'd
+    // colleague replying after an agent reply was invisible to the SLA
+    // anchor. With role data, any non-agent comment after the last agent
+    // reply anchors nextReply.
+    const ticket = makeTicket({
+      created_by: 'user-1',
+      messages: [
+        {
+          id: 'm-1',
+          author_id: 'agent-1',
+          content: 'Agent reply',
+          created_at: '2025-06-01T10:00:00Z',
+          is_internal: false,
+          author_role: 'agent',
+        },
+        {
+          id: 'm-2',
+          author_id: 'user-2', // CC'd colleague, NOT the creator
+          content: 'Thanks, one more question…',
+          created_at: '2025-06-01T11:00:00Z',
+          is_internal: false,
+          author_role: 'employee',
+        },
+      ],
+    });
+
+    const result = getActiveMetric(ticket);
+    expect(result.metric).toBe('nextReply');
+    expect(result.anchorTime).toBe('2025-06-01T11:00:00Z');
+  });
+
+  it('falls back to author_id !== created_by when author_role is missing', () => {
+    // Backward compat: callers/tests that don't fetch role data still get
+    // the pre-fix behavior (legacy proxy).
+    const ticket = makeTicket({
+      created_by: 'user-1',
+      messages: [
+        {
+          id: 'm-1',
+          author_id: 'someone-else',
+          content: 'Public reply from non-creator, no role data',
+          created_at: '2025-06-01T10:00:00Z',
+          is_internal: false,
+          // author_role intentionally omitted
+        },
+      ],
+    });
+
+    expect(getActiveMetric(ticket).metric).toBe('nextReply');
+  });
+
+  it('ignores internal notes regardless of author role', () => {
+    const ticket = makeTicket({
+      created_by: 'user-1',
+      messages: [
+        {
+          id: 'm-1',
+          author_id: 'agent-1',
+          content: 'Internal note',
+          created_at: '2025-06-01T10:00:00Z',
+          is_internal: true,
+          author_role: 'agent',
+        },
+      ],
+    });
+
+    expect(getActiveMetric(ticket).metric).toBe('firstReply');
+  });
+});
+
 // ── formatTimeRemaining ──────────────────────────────────────
 
 describe('formatTimeRemaining', () => {
