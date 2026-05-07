@@ -5,6 +5,7 @@ import { useAuth } from '@clerk/nextjs'
 import { toast } from 'sonner'
 import { createClerkSupabaseClient } from '@/lib/supabase/client'
 import { uploadFileDirect } from '@/lib/upload/direct-upload'
+import { hydrateMessages } from '@/lib/messages/hydrate'
 import type {
   Ticket,
   TicketStatus,
@@ -49,10 +50,12 @@ export function useTickets(filters: TicketFilters = {}) {
       // Include a slim message projection so SLA calculations can detect the
       // first agent reply and switch from "first reply" to "next reply" —
       // otherwise the SLA clock keeps ticking against the original post.
+      // The `author:profiles(role)` join lets the SLA calculator distinguish
+      // agent replies from end-user replies authoritatively.
       let query = supabase
         .from('tickets')
         .select(
-          '*, ticket_cc(user_id), ticket_collaborators(user_id), messages(id, author_id, created_at, is_internal, is_system)',
+          '*, ticket_cc(user_id), ticket_collaborators(user_id), messages(id, author_id, created_at, is_internal, is_system, author:profiles(role))',
         )
 
       if (filters.status) {
@@ -78,6 +81,7 @@ export function useTickets(filters: TicketFilters = {}) {
         const ticket = { ...row }
         ticket.cc = (row.ticket_cc as { user_id: string }[] | null)?.map((r) => r.user_id) ?? []
         ticket.collaborators = (row.ticket_collaborators as { user_id: string }[] | null)?.map((r) => r.user_id) ?? []
+        ticket.messages = hydrateMessages(row.messages as Array<Record<string, unknown>> | null)
         delete ticket.ticket_cc
         delete ticket.ticket_collaborators
         return ticket as unknown as Ticket
@@ -101,7 +105,7 @@ export function useTicket(id: string | null | undefined) {
       const supabase = createClerkSupabaseClient(token)
       const { data, error } = await supabase
         .from('tickets')
-        .select('*, messages(*), attachments(*), ticket_cc(user_id), ticket_collaborators(user_id), custom_field_values(field_id, value)')
+        .select('*, messages(*, author:profiles(role)), attachments(*), ticket_cc(user_id), ticket_collaborators(user_id), custom_field_values(field_id, value)')
         .eq('id', id!)
         .single()
 
@@ -112,6 +116,7 @@ export function useTicket(id: string | null | undefined) {
       ticket.cc = ((data as Record<string, unknown>).ticket_cc as { user_id: string }[] | null)?.map((r) => r.user_id) ?? []
       ticket.collaborators = ((data as Record<string, unknown>).ticket_collaborators as { user_id: string }[] | null)?.map((r) => r.user_id) ?? []
       ticket.custom_fields = (data as Record<string, unknown>).custom_field_values ?? []
+      ticket.messages = hydrateMessages(ticket.messages as Array<Record<string, unknown>> | null)
       delete ticket.ticket_cc
       delete ticket.ticket_collaborators
       delete ticket.custom_field_values

@@ -2,6 +2,7 @@ import type {
   Ticket,
   SlaPolicy,
   DepartmentSchedule,
+  Message,
 } from '@/types/ticket';
 
 import { findMatchingPolicy } from './policy-matcher';
@@ -27,9 +28,40 @@ export interface SlaStatus {
 // ── Active Metric Detection ──────────────────────────────────
 
 /**
+ * Whether a message represents an "agent reply" — i.e. a public message
+ * whose author has role agent or admin. Internal notes and system events
+ * are never agent replies.
+ *
+ * Prefers the joined `author_role` (populated when the fetch query includes
+ * `profiles(role)`) for an authoritative answer. Falls back to the legacy
+ * proxy `author_id !== created_by` when role data isn't available — that
+ * misclassifies two cases (an agent who creates and replies to their own
+ * ticket; a CC'd colleague replying), but is what the system did pre-fix
+ * and is the right safe default for callers and tests that don't fetch
+ * role data.
+ */
+function isAgentReply(m: Message, ticketCreatedBy: string): boolean {
+  if (m.is_internal || m.is_system) return false;
+  if (m.author_role === 'agent' || m.author_role === 'admin') return true;
+  if (m.author_role === 'employee') return false;
+  return m.author_id !== ticketCreatedBy;
+}
+
+/**
+ * Whether a message represents an end-user reply — anything public that
+ * isn't an agent reply. With role data, this correctly includes CC'd
+ * colleagues' comments (they also have role `employee`); without role data
+ * it falls back to the legacy "creator only" proxy.
+ */
+function isEndUserReply(m: Message, ticketCreatedBy: string): boolean {
+  if (m.is_internal || m.is_system) return false;
+  return !isAgentReply(m, ticketCreatedBy);
+}
+
+/**
  * Determine which SLA metric is currently active for a ticket.
  *
- * - `firstReply` when no non-internal, non-creator messages exist yet.
+ * - `firstReply` when no agent reply exists yet.
  * - `nextReply` once an agent has replied (anchored to the first
  *   end-user follow-up after the last agent reply, or to the last
  *   agent reply itself if there are no follow-ups).
@@ -39,25 +71,18 @@ export function getActiveMetric(ticket: Ticket): {
   anchorTime: string;
 } {
   const messages = ticket.messages ?? [];
-  const agentReplies = messages.filter(
-    (m) =>
-      !m.is_internal &&
-      !m.is_system &&
-      m.author_id !== ticket.created_by,
-  );
+  const agentReplies = messages.filter((m) => isAgentReply(m, ticket.created_by));
 
   if (agentReplies.length === 0) {
     return { metric: 'firstReply', anchorTime: ticket.created_at };
   }
 
   const lastAgentReply = agentReplies[agentReplies.length - 1];
+  const lastAgentReplyMs = new Date(lastAgentReply.created_at).getTime();
   const endUserFollowUps = messages.filter(
     (m) =>
-      !m.is_internal &&
-      !m.is_system &&
-      m.author_id === ticket.created_by &&
-      new Date(m.created_at).getTime() >
-        new Date(lastAgentReply.created_at).getTime(),
+      isEndUserReply(m, ticket.created_by) &&
+      new Date(m.created_at).getTime() > lastAgentReplyMs,
   );
 
   if (endUserFollowUps.length > 0) {
