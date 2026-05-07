@@ -4,7 +4,7 @@ import type {
   SlaPolicy,
   DepartmentSchedule,
 } from '@/types/ticket';
-import { findMatchingPolicy } from '@/lib/sla/policy-matcher';
+import { findMatchingPolicy, conditionsOverlap } from '@/lib/sla/policy-matcher';
 import {
   isHoliday,
   calculateBusinessHoursDeadline,
@@ -156,16 +156,116 @@ describe('findMatchingPolicy', () => {
     expect(result!.id).toBe('pol-first');
   });
 
-  // Note: subCategories filtering was removed from the matcher 2026-05-06
-  // because the admin SLA form has no UI to view or edit it — stray values
-  // silently skipped matching policies with no way to debug. See
-  // policy-matcher.ts and SlaPolicyConditions for the dormant-until-UI note.
-  // If/when subCategories support is reintroduced, restore a test here that
-  // covers (a) match when both sub_category is set + included, (b) non-match
-  // when set + excluded, and (c) non-match when sub_category is null.
+  it('matches subcategory conditions when specified', () => {
+    const policy = makePolicy({
+      conditions: {
+        ticketTypes: 'any',
+        categories: 'any',
+        priorities: 'any',
+        subCategories: ['Early Release'],
+      },
+    });
+
+    const matchingTicket = makeTicket({ sub_category: 'Early Release' });
+    const nonMatchingTicket = makeTicket({ sub_category: 'Other' });
+    const noSubCatTicket = makeTicket();
+
+    expect(findMatchingPolicy(matchingTicket, [policy])).not.toBeNull();
+    expect(findMatchingPolicy(nonMatchingTicket, [policy])).toBeNull();
+    expect(findMatchingPolicy(noSubCatTicket, [policy])).toBeNull();
+  });
 });
 
 // ── getActiveMetric ──────────────────────────────────────────
+
+// ── conditionsOverlap ────────────────────────────────────────
+
+describe('conditionsOverlap', () => {
+  it('any/any overlaps with anything', () => {
+    expect(
+      conditionsOverlap(
+        { ticketTypes: 'any', categories: 'any', priorities: 'any' },
+        {
+          ticketTypes: ['Lending Support'],
+          categories: ['Income Opinion'],
+          priorities: ['urgent'],
+        },
+      ),
+    ).toBe(true);
+  });
+
+  it('shared values on every axis means overlap', () => {
+    expect(
+      conditionsOverlap(
+        {
+          ticketTypes: ['Lending Support', 'IT Support'],
+          categories: ['Income Opinion'],
+          priorities: 'any',
+        },
+        {
+          ticketTypes: ['Lending Support'],
+          categories: ['Income Opinion', 'Other'],
+          priorities: ['high'],
+        },
+      ),
+    ).toBe(true);
+  });
+
+  it('disjoint ticket types means no overlap', () => {
+    expect(
+      conditionsOverlap(
+        {
+          ticketTypes: ['Lending Support'],
+          categories: 'any',
+          priorities: 'any',
+        },
+        {
+          ticketTypes: ['IT Support'],
+          categories: 'any',
+          priorities: 'any',
+        },
+      ),
+    ).toBe(false);
+  });
+
+  it('subcategory disjoint blocks overlap when both sides specify', () => {
+    expect(
+      conditionsOverlap(
+        {
+          ticketTypes: 'any',
+          categories: 'any',
+          priorities: 'any',
+          subCategories: ['FHA'],
+        },
+        {
+          ticketTypes: 'any',
+          categories: 'any',
+          priorities: 'any',
+          subCategories: ['VA'],
+        },
+      ),
+    ).toBe(false);
+  });
+
+  it('subcategory unset on one side means no constraint', () => {
+    expect(
+      conditionsOverlap(
+        {
+          ticketTypes: 'any',
+          categories: 'any',
+          priorities: 'any',
+          subCategories: ['FHA'],
+        },
+        {
+          ticketTypes: 'any',
+          categories: 'any',
+          priorities: 'any',
+          // subCategories absent
+        },
+      ),
+    ).toBe(true);
+  });
+});
 
 describe('getActiveMetric', () => {
   it('returns "firstReply" when no non-creator messages exist', () => {
@@ -533,6 +633,54 @@ describe('getSlaStatus', () => {
     expect(status!.policyName).toBe('Standard Policy');
     // The deadline should be calculated via business hours
     expect(status!.slaDeadline).toBeInstanceOf(Date);
+  });
+
+  it('per-priority overrides take precedence over top-level metrics', () => {
+    const created_at = '2025-06-01T09:00:00Z';
+    const urgentTicket = makeTicket({ priority: 'urgent', created_at });
+    const lowTicket = makeTicket({ priority: 'low', created_at });
+
+    const policy = makePolicy({
+      metrics: {
+        firstReplyHours: 8,
+        nextReplyHours: 16,
+        perPriority: {
+          urgent: { firstReplyHours: 1 },
+          // low: deliberately absent → falls back to top-level 8h
+        },
+      },
+    });
+
+    // Set clock 90 minutes after creation:
+    // - urgent's 1h SLA → overdue
+    // - low's 8h SLA → not overdue
+    const createdMs = new Date(created_at).getTime();
+    vi.setSystemTime(new Date(createdMs + 90 * 60 * 1000));
+
+    const urgentStatus = getSlaStatus(urgentTicket, [policy]);
+    expect(urgentStatus!.isOverdue).toBe(true);
+
+    const lowStatus = getSlaStatus(lowTicket, [policy]);
+    expect(lowStatus!.isOverdue).toBe(false);
+  });
+
+  it('per-priority null disables tracking at that priority', () => {
+    const created_at = '2025-06-01T09:00:00Z';
+    const ticket = makeTicket({ priority: 'low', created_at });
+    const policy = makePolicy({
+      metrics: {
+        firstReplyHours: 8,
+        nextReplyHours: 16,
+        perPriority: {
+          low: { firstReplyHours: null },
+        },
+      },
+    });
+
+    vi.setSystemTime(new Date(created_at));
+
+    // firstReplyHours resolved to null → metric returns null → no SLA.
+    expect(getSlaStatus(ticket, [policy])).toBeNull();
   });
 });
 
