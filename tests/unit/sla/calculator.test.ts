@@ -835,6 +835,134 @@ describe('Business hours calculations', () => {
   });
 });
 
+// ── Business hours in non-UTC timezones ──────────────────────
+//
+// Pre-fix, createDateInTimezone computed the offset from a guess by
+// diffing only hours/minutes (`hours - inTz.hours`). That breaks when
+// the timezone shift crosses a date boundary — e.g. May 7 00:00 UTC
+// interpreted in Chicago is May 6 19:00, so a "May 7 00:00 Chicago"
+// request returned the wrong UTC instant. Each iteration of the
+// deadline loop walked backwards a day, producing fictitious "Overdue
+// by 3278h" badges for tickets that were less than 24h old. These
+// tests pin the behavior in a non-UTC schedule so the regression can't
+// silently return.
+
+describe('Business hours calculations (America/Chicago schedule)', () => {
+  const chicagoSchedule: DepartmentSchedule = {
+    id: 'sched-chi',
+    department_name: 'Lending Support',
+    timezone: 'America/Chicago',
+    business_hours: [
+      { day: 'monday', enabled: true, startTime: '08:00', endTime: '17:00' },
+      { day: 'tuesday', enabled: true, startTime: '08:00', endTime: '17:00' },
+      { day: 'wednesday', enabled: true, startTime: '08:00', endTime: '17:00' },
+      { day: 'thursday', enabled: true, startTime: '08:00', endTime: '17:00' },
+      { day: 'friday', enabled: true, startTime: '08:00', endTime: '17:00' },
+      { day: 'saturday', enabled: false, startTime: '09:00', endTime: '13:00' },
+      { day: 'sunday', enabled: false, startTime: '09:00', endTime: '13:00' },
+    ],
+    holidays: [],
+    enabled: true,
+  };
+
+  it('deadline math walks forward (T-1358 regression)', () => {
+    // Real T-1358 inputs from prod 2026-05-06 incident:
+    // anchor: 2026-05-06 21:14:23 UTC = Wednesday 4:14 PM Chicago.
+    // 8h SLA, Lending schedule M-F 8-17 Chicago.
+    //
+    // Wednesday: 4:14-5:00 PM = 46m business
+    // Need 7h 14m more → Thursday 8:00 AM + 7h 14m = Thursday 3:14 PM Chicago
+    // Thursday 3:14 PM Chicago = 2026-05-07 20:14 UTC
+    const anchor = new Date('2026-05-06T21:14:23Z').getTime();
+    const deadline = calculateBusinessHoursDeadline(anchor, 8, chicagoSchedule);
+    const dl = new Date(deadline);
+
+    // Must be AFTER the anchor (forward walk), not before
+    expect(deadline).toBeGreaterThan(anchor);
+    // ~Thursday 3:14 PM Chicago = ~Thursday 20:14 UTC
+    expect(dl.toISOString()).toBe('2026-05-07T20:14:23.000Z');
+  });
+
+  it('elapsed math counts the right hours across a day boundary', () => {
+    // Wednesday 4:14:23 PM Chicago to Thursday 10:00 AM Chicago.
+    // Business hours: 45m 37s Wed (4:14:23 PM → 5:00 PM) + 2h Thu = 2h 45m 37s
+    const wed = new Date('2026-05-06T21:14:23Z').getTime(); // 4:14:23 PM CDT
+    const thu = new Date('2026-05-07T15:00:00Z').getTime(); // 10:00 AM CDT
+    const elapsed = calculateBusinessHoursElapsed(wed, thu, chicagoSchedule);
+
+    // 45m 37s + 2h = 9937000 ms
+    expect(elapsed).toBe(
+      (45 * 60 + 37) * 1000 + 2 * 60 * 60 * 1000,
+    );
+  });
+
+  it('elapsed math is zero across a single non-business overnight gap', () => {
+    // Wednesday 6:00 PM Chicago to Thursday 7:00 AM Chicago — entirely
+    // outside business hours. Pre-fix this returned ~9 hours; post-fix
+    // it must be zero.
+    const wedEvening = new Date('2026-05-06T23:00:00Z').getTime(); // 6 PM CDT
+    const thuMorning = new Date('2026-05-07T12:00:00Z').getTime(); // 7 AM CDT
+    expect(
+      calculateBusinessHoursElapsed(wedEvening, thuMorning, chicagoSchedule),
+    ).toBe(0);
+  });
+
+  it('multi-day deadline walks forward, not backward', () => {
+    // Friday 4:00 PM Chicago + 12h SLA.
+    // Friday 4-5 PM = 1h business
+    // Saturday/Sunday off
+    // Monday 8 AM + 11h needed = 8 AM + 9h business + need 2h next day
+    // Actually: Mon 8-17 = 9 hours. Need 11h - 9h = 2h on Tue.
+    // Tue 8 AM + 2h = 10 AM = Tue 15:00 UTC.
+    const fri = new Date('2026-05-08T21:00:00Z').getTime(); // Fri 4 PM CDT
+    const deadline = calculateBusinessHoursDeadline(fri, 12, chicagoSchedule);
+
+    expect(deadline).toBeGreaterThan(fri);
+    // Tuesday 10:00 AM Chicago = 15:00 UTC
+    expect(new Date(deadline).toISOString()).toBe('2026-05-12T15:00:00.000Z');
+  });
+
+  it('end-to-end SLA status for a fresh ticket is not absurdly overdue', () => {
+    // Reproduces the dashboard view of T-1358. Ticket created Wed
+    // 4:14 PM Chicago, snap clock to Thursday morning. Should NOT be
+    // overdue (deadline is Thursday 3:14 PM).
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-07T15:00:00Z')); // Thu 10:00 AM CDT
+
+    const ticket: Ticket = {
+      id: 'T-1358',
+      title: 't',
+      description: 'd',
+      status: 'new',
+      priority: 'medium',
+      category: 'Opinion General',
+      ticket_type: 'Lending Support',
+      created_by: 'user-1',
+      created_at: '2026-05-06T21:14:23.167Z',
+      updated_at: '2026-05-06T21:14:23.167Z',
+      messages: [],
+    };
+    const policy: SlaPolicy = {
+      id: 'p',
+      name: 'Lending — Opinion General',
+      enabled: true,
+      conditions: { ticketTypes: 'any', categories: 'any', priorities: 'any' },
+      metrics: { firstReplyHours: 8, nextReplyHours: 16 },
+      sort_order: 1,
+    };
+
+    const sla = getSlaStatus(ticket, [policy], [chicagoSchedule])!;
+
+    expect(sla.isOverdue).toBe(false);
+    // Should have ~5h 14m of business time remaining (Thu 10:00 → 15:14)
+    const hoursRemaining = sla.timeRemainingMs / (60 * 60 * 1000);
+    expect(hoursRemaining).toBeGreaterThan(5);
+    expect(hoursRemaining).toBeLessThan(6);
+
+    vi.useRealTimers();
+  });
+});
+
 // ── isHoliday ────────────────────────────────────────────────
 
 describe('isHoliday', () => {
