@@ -229,17 +229,32 @@ export function getSlaStatus(
 /**
  * Convert a millisecond duration into a human-readable string.
  *
- * - Positive values: `"Xh Ym left"`
- * - Negative values: `"Overdue by Xh Ym"`
+ * - Under 24h: `"Xh Ym"` (e.g. `"3h 15m left"`, `"Overdue by 1h 45m"`)
+ * - At or over 24h: `"Xd Yh"` (e.g. `"2d 5h left"`, `"Overdue by 136d 14h"`)
+ *
+ * Days are 24-hour units, not "business days" — when a schedule is in
+ * play, `ms` carries business-hours-elapsed and the conversion just
+ * scales it to a more readable magnitude. So "136d 14h overdue" really
+ * means 3278 hours of accumulated business overdue time, which on an
+ * M-F 8:30-5:30 schedule corresponds to roughly 17 calendar months.
  */
 export function formatTimeRemaining(ms: number): string {
   const isOverdue = ms < 0;
   const absMs = Math.abs(ms);
 
-  const hours = Math.floor(absMs / (1000 * 60 * 60));
-  const minutes = Math.floor((absMs % (1000 * 60 * 60)) / (1000 * 60));
+  const HOUR = 1000 * 60 * 60;
+  const DAY = 24 * HOUR;
 
-  const timeString = `${hours}h ${minutes}m`;
+  let timeString: string;
+  if (absMs >= DAY) {
+    const days = Math.floor(absMs / DAY);
+    const hours = Math.floor((absMs % DAY) / HOUR);
+    timeString = `${days}d ${hours}h`;
+  } else {
+    const hours = Math.floor(absMs / HOUR);
+    const minutes = Math.floor((absMs % HOUR) / (1000 * 60));
+    timeString = `${hours}h ${minutes}m`;
+  }
 
   if (isOverdue) {
     return `Overdue by ${timeString}`;

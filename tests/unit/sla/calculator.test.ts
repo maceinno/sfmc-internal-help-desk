@@ -497,9 +497,27 @@ describe('formatTimeRemaining', () => {
     expect(formatTimeRemaining(0)).toBe('0h 0m left');
   });
 
-  it('handles large durations', () => {
+  it('switches to "Xd Yh" at or over 24h', () => {
+    // Exactly 24h crosses the threshold.
+    expect(formatTimeRemaining(24 * 60 * 60 * 1000)).toBe('1d 0h left');
+  });
+
+  it('drops minutes once over 24h', () => {
+    // 48h 5m — minutes intentionally dropped at the days display.
     const ms = 48 * 60 * 60 * 1000 + 5 * 60 * 1000;
-    expect(formatTimeRemaining(ms)).toBe('48h 5m left');
+    expect(formatTimeRemaining(ms)).toBe('2d 0h left');
+  });
+
+  it('formats large overdue durations as "Overdue by Xd Yh"', () => {
+    // 3278h 0m — what the screenshot showed pre-fix.
+    const ms = -3278 * 60 * 60 * 1000;
+    expect(formatTimeRemaining(ms)).toBe('Overdue by 136d 14h');
+  });
+
+  it('keeps the "Xh Ym" format under 24h', () => {
+    // 23h 59m should still render in hours.
+    const ms = 23 * 60 * 60 * 1000 + 59 * 60 * 1000;
+    expect(formatTimeRemaining(ms)).toBe('23h 59m left');
   });
 });
 
