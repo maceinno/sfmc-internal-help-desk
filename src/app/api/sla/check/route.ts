@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getSlaStatus, formatTimeRemaining } from '@/lib/sla/calculator'
+import { hydrateMessages } from '@/lib/messages/hydrate'
 import { notifySlaAlert } from '@/lib/email/notify'
 import type { Ticket, SlaPolicy, DepartmentSchedule } from '@/types/ticket'
 
@@ -31,9 +32,13 @@ export async function GET(request: NextRequest) {
   const supabase = createAdminClient()
 
   // 1. Fetch all non-solved tickets (with their messages for SLA calc)
+  // The `author:profiles(role)` join feeds role-based agent detection in
+  // getActiveMetric so a CC'd colleague's reply doesn't get mistaken for
+  // an agent reply (and an agent who created their own ticket is still
+  // recognized when they reply).
   const { data: tickets, error: ticketsErr } = await supabase
     .from('tickets')
-    .select('*, messages(*)')
+    .select('*, messages(*, author:profiles(role))')
     .neq('status', 'solved')
 
   if (ticketsErr) {
@@ -63,7 +68,12 @@ export async function GET(request: NextRequest) {
 
   const policies = (policiesRaw ?? []) as SlaPolicy[]
   const schedules = (schedulesRaw ?? []) as DepartmentSchedule[]
-  const allTickets = (tickets ?? []) as Ticket[]
+  const allTickets = ((tickets ?? []) as Array<Record<string, unknown>>).map(
+    (t) => ({
+      ...t,
+      messages: hydrateMessages(t.messages as Array<Record<string, unknown>> | null),
+    }),
+  ) as Ticket[]
 
   let atRiskCount = 0
   let notificationsCreated = 0
