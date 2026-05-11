@@ -197,6 +197,12 @@ export const ReplyComposer = React.forwardRef<
   const [showFileUpload, setShowFileUpload] = React.useState(false)
   const [pendingCannedResponseId, setPendingCannedResponseId] = React.useState<string | undefined>()
   const [isSending, setIsSending] = React.useState(false)
+  // Inline submit error: surface API/network failures next to the composer
+  // and keep the draft intact. Toasts are easy to miss — a banner here is
+  // not. Cleared automatically when the user edits the draft (see effect
+  // below).
+  const [submitError, setSubmitError] = React.useState<string | null>(null)
+  const submitErrorDraftRef = React.useRef<string>("")
   // null = "Send (no status change)"; otherwise the status the reply will commit.
   const [pendingStatus, setPendingStatus] = React.useState<TicketStatus | null>(
     () => defaultNextStatus(currentStatus),
@@ -215,6 +221,14 @@ export const ReplyComposer = React.forwardRef<
     if (!replyText) return false
     return replyText.replace(/<[^>]*>/g, "").trim().length > 0
   }, [replyText])
+
+  // Clear the inline error once the user edits past the snapshot we took
+  // when it failed — they're trying again, no need to keep nagging.
+  React.useEffect(() => {
+    if (submitError && replyText !== submitErrorDraftRef.current) {
+      setSubmitError(null)
+    }
+  }, [replyText, submitError])
 
   // Mirror the sidebar's status pick into the Submit-as button. When the
   // ticket's current status changes from outside (e.g., agent picked a
@@ -250,6 +264,7 @@ export const ReplyComposer = React.forwardRef<
   ) => {
     if (!hasContent || isSending) return
     setIsSending(true)
+    setSubmitError(null)
     try {
       const finalNextStatus =
         source === 'sidebar'
@@ -296,6 +311,13 @@ export const ReplyComposer = React.forwardRef<
         clearTimeout(typingTimeoutRef.current)
         typingTimeoutRef.current = null
       }
+    } catch (err) {
+      // Keep the draft intact. Stash the text we attempted to send so the
+      // banner clears as soon as the user edits past it.
+      submitErrorDraftRef.current = replyText
+      setSubmitError(
+        err instanceof Error ? err.message : "Failed to submit reply",
+      )
     } finally {
       setIsSending(false)
     }
@@ -420,6 +442,30 @@ export const ReplyComposer = React.forwardRef<
         {isSending && (
           <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-0.5 overflow-hidden rounded-t-lg">
             <div className={`h-full w-1/4 ${isInternalNote ? "bg-amber-500" : "bg-blue-500"} progress-sweep`} />
+          </div>
+        )}
+        {/* Inline submit error — persists until edit/retry so users don't
+            miss what would otherwise be a transient toast. */}
+        {submitError && (
+          <div
+            role="alert"
+            className="flex items-start justify-between gap-3 rounded-t-lg border-b border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
+          >
+            <div className="flex-1">
+              <span className="font-medium">Couldn&apos;t send:</span>{" "}
+              <span>{submitError}</span>
+              <span className="ml-1 text-red-700/80">
+                Your draft is still here — try again or edit it.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSubmitError(null)}
+              className="-mr-1 rounded p-0.5 text-red-600 hover:bg-red-100"
+              aria-label="Dismiss error"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
         )}
         {/* Toggle Tabs */}
