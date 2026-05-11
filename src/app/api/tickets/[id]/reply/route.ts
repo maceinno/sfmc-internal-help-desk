@@ -81,9 +81,13 @@ export async function POST(
   }
 
   // ── Verify caller has access to this ticket ───────────────────────────────
+  // Mirrors the read-side rules in src/lib/permissions/policies.ts
+  // (canViewTicket). The regional/branch path matters: managers see in-region
+  // tickets via the regional list page, and the reply endpoint must accept
+  // the same population or they get a silent 403 on submit.
   const { data: callerProfile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, has_regional_access, managed_region_id, has_branch_access, managed_branch_id')
     .eq('id', userId)
     .single()
 
@@ -107,7 +111,39 @@ export async function POST(
       .eq('user_id', userId)
       .maybeSingle()
 
-    if (!ccRow && !collabRow) {
+    let hasRegionalOrBranchAccess = false
+    if (
+      !ccRow &&
+      !collabRow &&
+      (callerProfile?.has_regional_access || callerProfile?.has_branch_access)
+    ) {
+      const partyIds = [ticket.created_by, ticket.assigned_to].filter(
+        (id): id is string => !!id,
+      )
+      if (partyIds.length > 0) {
+        const { data: parties } = await supabase
+          .from('profiles')
+          .select('id, region_id, branch_id')
+          .in('id', partyIds)
+
+        const regionMatch =
+          !!callerProfile?.has_regional_access &&
+          !!callerProfile.managed_region_id &&
+          (parties ?? []).some(
+            (p) => p.region_id === callerProfile.managed_region_id,
+          )
+        const branchMatch =
+          !!callerProfile?.has_branch_access &&
+          !!callerProfile.managed_branch_id &&
+          (parties ?? []).some(
+            (p) => p.branch_id === callerProfile.managed_branch_id,
+          )
+
+        hasRegionalOrBranchAccess = regionMatch || branchMatch
+      }
+    }
+
+    if (!ccRow && !collabRow && !hasRegionalOrBranchAccess) {
       return NextResponse.json(
         { error: 'You do not have access to this ticket' },
         { status: 403 },
