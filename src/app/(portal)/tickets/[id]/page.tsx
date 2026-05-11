@@ -423,6 +423,10 @@ export default function TicketDetailPage({
         }
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Failed to submit reply")
+        // Re-throw so the composer's onSubmit rejects → it keeps the draft
+        // populated and surfaces an inline error. Toasts get missed; the
+        // composer banner does not.
+        throw err
       } finally {
         setIsSubmitting(false)
       }
