@@ -156,6 +156,14 @@ export interface Ticket {
   internal_notes?: string
   visibility?: TicketVisibility
   parent_ticket_id?: string
+  /** Populated by useTicket when this ticket is itself a follow-up.
+   *  Resolves the parent_ticket_id FK to a summary of the parent so the
+   *  UI banner can show its title without a second query. */
+  parent?: { id: string; title: string; status: TicketStatus } | null
+  /** Populated by useTicket when other tickets list this one as their
+   *  parent (i.e. this is the original ticket that got followed up).
+   *  Each entry is a summary suitable for the follow-ups banner. */
+  follow_ups?: { id: string; title: string; status: TicketStatus }[]
   custom_fields?: CustomFieldValue[]
   merged_into_id?: string
   merged_ticket_ids?: string[]

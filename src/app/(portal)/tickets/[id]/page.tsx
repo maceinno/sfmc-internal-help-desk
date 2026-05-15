@@ -646,6 +646,53 @@ export default function TicketDetailPage({
         </div>
       )}
 
+      {/* Follow-up Banners */}
+      {/* This ticket IS a follow-up — link back to the parent. */}
+      {ticket.parent_ticket_id && (
+        <div className="mb-2 flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+          <CornerDownRight className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+          <span className="text-sm text-blue-900">
+            Follow-up to{" "}
+            <button
+              type="button"
+              onClick={() => router.push(`/tickets/${ticket.parent_ticket_id}`)}
+              className="font-semibold text-blue-700 hover:underline"
+            >
+              #{ticket.parent_ticket_id}
+            </button>
+            {ticket.parent?.title ? (
+              <>
+                {": "}
+                <span className="text-blue-800">{ticket.parent.title}</span>
+              </>
+            ) : null}
+          </span>
+        </div>
+      )}
+
+      {/* This ticket HAS follow-ups — list them. */}
+      {ticket.follow_ups && ticket.follow_ups.length > 0 && (
+        <div className="mb-2 flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+          <CornerDownRight className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+          <span className="text-sm text-blue-900">
+            {ticket.follow_ups.length} follow-up
+            {ticket.follow_ups.length !== 1 ? "s" : ""} of this ticket:{" "}
+            {ticket.follow_ups.map((fu, idx) => (
+              <span key={fu.id}>
+                <button
+                  type="button"
+                  onClick={() => router.push(`/tickets/${fu.id}`)}
+                  className="font-semibold text-blue-700 hover:underline"
+                >
+                  #{fu.id}
+                </button>
+                {idx < ticket.follow_ups!.length - 1 ? ", " : ""}
+              </span>
+            ))}
+          </span>
+        </div>
+      )}
+
       {/* Main Layout */}
       <div className="flex flex-1 flex-col gap-6 overflow-hidden lg:flex-row">
         {/* Left: Conversation + Reply */}
