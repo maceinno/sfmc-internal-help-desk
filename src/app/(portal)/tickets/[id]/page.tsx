@@ -566,20 +566,25 @@ export default function TicketDetailPage({
         </div>
 
         <div className="flex flex-wrap items-center gap-2" data-print="hide">
-          {/* Follow-up button */}
-          {ticket.status === "solved" && !ticket.parent_ticket_id && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setFollowUpFromTicketId(ticket.id)
-                router.push("/tickets/new")
-              }}
-            >
-              <CornerDownRight className="mr-2 h-4 w-4" />
-              Create Follow-Up
-            </Button>
-          )}
+          {/* Follow-up button — only on solved tickets that are not
+              themselves follow-ups (no follow-up-of-a-follow-up) and not
+              merged sources (a merged ticket has been redirected; users
+              should follow-up the merge target instead). */}
+          {ticket.status === "solved" &&
+            !ticket.parent_ticket_id &&
+            !ticket.merged_into_id && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setFollowUpFromTicketId(ticket.id)
+                  router.push("/tickets/new")
+                }}
+              >
+                <CornerDownRight className="mr-2 h-4 w-4" />
+                Create Follow-Up
+              </Button>
+            )}
 
           {/* Merge button */}
           {isAgentOrAdmin &&
@@ -647,25 +652,43 @@ export default function TicketDetailPage({
       )}
 
       {/* Follow-up Banners */}
-      {/* This ticket IS a follow-up — link back to the parent. */}
+      {/* This ticket IS a follow-up — link back to the parent.
+          If the viewer can't see the parent (RLS filtered the embed to
+          null), show a non-link "(no access)" version so the user still
+          knows this is a follow-up but doesn't get a 404 on click. */}
       {ticket.parent_ticket_id && (
         <div className="mb-2 flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
           <CornerDownRight className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
           <span className="text-sm text-blue-900">
             Follow-up to{" "}
-            <button
-              type="button"
-              onClick={() => router.push(`/tickets/${ticket.parent_ticket_id}`)}
-              className="font-semibold text-blue-700 hover:underline"
-            >
-              #{ticket.parent_ticket_id}
-            </button>
-            {ticket.parent?.title ? (
+            {ticket.parent ? (
               <>
-                {": "}
-                <span className="text-blue-800">{ticket.parent.title}</span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    router.push(`/tickets/${ticket.parent_ticket_id}`)
+                  }
+                  className="font-semibold text-blue-700 hover:underline"
+                >
+                  #{ticket.parent_ticket_id}
+                </button>
+                {ticket.parent.title ? (
+                  <>
+                    {": "}
+                    <span className="text-blue-800">
+                      {ticket.parent.title}
+                    </span>
+                  </>
+                ) : null}
               </>
-            ) : null}
+            ) : (
+              <>
+                <span className="font-semibold">#{ticket.parent_ticket_id}</span>{" "}
+                <span className="text-blue-700/70">
+                  (you don&apos;t have access to view it)
+                </span>
+              </>
+            )}
           </span>
         </div>
       )}
