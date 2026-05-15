@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getProfileId } from '@/lib/clerk/resolve-id'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { assertTicketAccess } from '@/lib/permissions/assert-ticket-access'
 import { applyRoutingRules } from '@/lib/routing/rule-engine'
 import { notifyTicketCreated } from '@/lib/email/notify'
 import type {
@@ -101,6 +102,42 @@ export async function POST(request: Request) {
     }
 
     createdBy = requester.id
+  }
+
+  // ── Verify the caller has access to the declared parent ticket ────────────
+  // The "Create Follow-Up" UI button only renders on tickets the user can
+  // see, but `parentTicketId` arrives in the request body — so a
+  // programmatic caller could declare any parent id. Enforce here that the
+  // caller has at least read-level access to the parent. Using the actual
+  // session user (userId), not the on-behalf-of `createdBy`, because it's
+  // the human clicking the button whose access we care about.
+  if (body.parentTicketId) {
+    const { data: parentRow } = await supabase
+      .from('tickets')
+      .select('created_by, assigned_to')
+      .eq('id', body.parentTicketId)
+      .maybeSingle()
+
+    if (!parentRow) {
+      return NextResponse.json(
+        { error: 'Parent ticket not found' },
+        { status: 404 },
+      )
+    }
+
+    const parentAccess = await assertTicketAccess(
+      supabase,
+      userId,
+      body.parentTicketId,
+      parentRow,
+      'respond',
+    )
+    if (!parentAccess.ok) {
+      return NextResponse.json(
+        { error: 'You do not have access to the parent ticket' },
+        { status: 403 },
+      )
+    }
   }
 
   // ── Apply routing rules ────────────────────────────────────────────────────
