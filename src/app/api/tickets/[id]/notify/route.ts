@@ -78,6 +78,25 @@ export async function POST(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  // All events this endpoint records (status / assignment / priority /
+  // category / subcategory / department / team changes) are surfaced in the
+  // UI only to agents and admins — the sidebar controls that trigger
+  // postNotify() are gated to those roles. So accept only agent/admin
+  // callers; any other principal trying to POST is either a stale tab
+  // racing a role change, a misconfigured caller, or abuse. Auto-reopen
+  // on reply does NOT route through here — it updates the ticket directly
+  // from the reply route — so this tightening doesn't suppress that flow.
+  const supabase = createAdminClient()
+  const { data: callerProfile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', userId)
+    .single()
+
+  if (callerProfile?.role !== 'agent' && callerProfile?.role !== 'admin') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   const { id: ticketId } = await params
 
   let body: NotifyBody

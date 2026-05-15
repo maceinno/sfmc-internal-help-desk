@@ -160,6 +160,90 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Failed to save message' }, { status: 500 })
   }
 
+  // ── Persist attachments from the email ────────────────────────────────────
+  // Only `content_disposition: 'attachment'` rows are user-attached files.
+  // Inline parts (signature logos, embedded HTML images) are skipped to keep
+  // the ticket thread clean. Each attachment row is created with status
+  // 'ready' since we control the upload to Supabase Storage end-to-end here.
+  // Failures are logged but non-fatal — the message itself already landed,
+  // so we'd rather record the comment with a missing-file note than lose
+  // the whole webhook.
+  const attachmentsToProcess = (fullEmail.attachments ?? []).filter(
+    (a) => a.content_disposition === 'attachment',
+  )
+  const MAX_INBOUND_ATTACHMENT_BYTES = 100 * 1024 * 1024 // matches /upload/sign
+  for (const att of attachmentsToProcess) {
+    if (att.size > MAX_INBOUND_ATTACHMENT_BYTES) {
+      console.warn(
+        `[inbound-email] Skipping oversized attachment on ${ticketId}: ${att.filename ?? att.id} (${att.size} bytes)`,
+      )
+      continue
+    }
+
+    const { data: attMeta, error: attMetaError } =
+      await resend.emails.receiving.attachments.get({
+        emailId: body.email_id,
+        id: att.id,
+      })
+
+    if (attMetaError || !attMeta?.download_url) {
+      console.error(
+        `[inbound-email] Failed to get attachment metadata for ${att.id} on ${ticketId}:`,
+        attMetaError,
+      )
+      continue
+    }
+
+    const blobRes = await fetch(attMeta.download_url)
+    if (!blobRes.ok) {
+      console.error(
+        `[inbound-email] Failed to fetch attachment bytes (${blobRes.status}) for ${att.id} on ${ticketId}`,
+      )
+      continue
+    }
+    const bytes = new Uint8Array(await blobRes.arrayBuffer())
+
+    const safeName = att.filename ?? `attachment-${att.id}`
+    const uniqueId = crypto.randomUUID()
+    const storagePath = `${ticketId}/${uniqueId}_${safeName}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('attachments')
+      .upload(storagePath, bytes, {
+        contentType: att.content_type || 'application/octet-stream',
+        upsert: false,
+      })
+
+    if (uploadError) {
+      console.error(
+        `[inbound-email] Storage upload failed for ${safeName} on ${ticketId}:`,
+        uploadError,
+      )
+      continue
+    }
+
+    const { error: rowError } = await supabase.from('attachments').insert({
+      ticket_id: ticketId,
+      message_id: message.id,
+      file_name: safeName,
+      file_size: att.size,
+      file_type: att.content_type || 'application/octet-stream',
+      storage_path: storagePath,
+      uploaded_by: senderProfile.id,
+      status: 'ready',
+    })
+
+    if (rowError) {
+      console.error(
+        `[inbound-email] attachments row insert failed for ${safeName} on ${ticketId}:`,
+        rowError,
+      )
+      // Best-effort cleanup of the orphaned blob so storage doesn't accumulate
+      // pending files when only the DB row failed.
+      await supabase.storage.from('attachments').remove([storagePath])
+    }
+  }
+
   // ── Touch ticket updated_at ───────────────────────────────────────────────
   await supabase
     .from('tickets')

@@ -46,9 +46,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Ticket not found' }, { status: 404 })
   }
 
+  // Mirrors src/lib/permissions/policies.ts canViewTicket + the reply route
+  // and /api/upload/sign access gates. Without the regional/branch path
+  // here, managers see the ticket and post replies but their attachment
+  // thumbnails / downloads 403 silently.
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role')
+    .select(
+      'role, has_regional_access, managed_region_id, has_branch_access, managed_branch_id',
+    )
     .eq('id', userId)
     .single()
 
@@ -72,7 +78,39 @@ export async function POST(request: Request) {
       .eq('user_id', userId)
       .maybeSingle()
 
-    if (!ccRow && !collabRow) {
+    let hasRegionalOrBranchAccess = false
+    if (
+      !ccRow &&
+      !collabRow &&
+      (profile?.has_regional_access || profile?.has_branch_access)
+    ) {
+      const partyIds = [ticket.created_by, ticket.assigned_to].filter(
+        (id): id is string => !!id,
+      )
+      if (partyIds.length > 0) {
+        const { data: parties } = await supabase
+          .from('profiles')
+          .select('id, region_id, branch_id')
+          .in('id', partyIds)
+
+        const regionMatch =
+          !!profile?.has_regional_access &&
+          !!profile.managed_region_id &&
+          (parties ?? []).some(
+            (p) => p.region_id === profile.managed_region_id,
+          )
+        const branchMatch =
+          !!profile?.has_branch_access &&
+          !!profile.managed_branch_id &&
+          (parties ?? []).some(
+            (p) => p.branch_id === profile.managed_branch_id,
+          )
+
+        hasRegionalOrBranchAccess = regionMatch || branchMatch
+      }
+    }
+
+    if (!ccRow && !collabRow && !hasRegionalOrBranchAccess) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
   }

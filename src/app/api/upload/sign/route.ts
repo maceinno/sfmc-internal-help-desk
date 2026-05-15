@@ -5,11 +5,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // POST /api/upload/sign — Mint a one-time signed upload URL for direct-to-
 // Supabase Storage uploads.
 // ---------------------------------------------------------------------------
-// The legacy /api/upload route accepts the file body itself, which means files
-// >~4.5 MB get 413'd by Vercel's serverless function body limit. This route
-// instead returns a short-lived URL that the browser PUTs the file to directly,
-// bypassing the Vercel function for the byte path. The cap then becomes
-// whatever the Supabase Storage bucket allows.
+// The previous /api/upload route accepted the file body itself, which meant
+// files >~4.5 MB got 413'd by Vercel's serverless function body limit. This
+// route instead returns a short-lived URL that the browser PUTs the file to
+// directly, bypassing the Vercel function for the byte path. The cap then
+// becomes whatever the Supabase Storage bucket allows. The old route has
+// been removed; this is the only attachment-upload entry point.
 //
 // Flow:
 //   1. Client POSTs metadata (ticketId + file info) here.
