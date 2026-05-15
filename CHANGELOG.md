@@ -7,13 +7,83 @@ Newest entries go on top.
 This file mirrors the data rendered in-app at **/whats-new**
 (source: `src/data/changelog.ts`). When you add a fix, update both files.
 
+In-app, each entry has an expandable "How to test" panel with role-keyed
+verification steps. Those instructions live in the `howToTest` field on
+the entry in `changelog.ts` and are mirrored below as collapsible
+`<details>` blocks, one per role.
+
+## 2026-05-15
+
+### Follow-up tickets
+
+- **Follow-up tickets now link to their parent (and vice versa).** When you create a follow-up to a solved ticket, the new ticket and the original both show a blue banner at the top with a clickable link to the other. Multiple follow-ups of the same original all show together in the parent's banner. If you don't have access to a related ticket (e.g. it's in a region you don't manage), the banner tells you that instead of leading to a dead end.
+
+  <details><summary>How to test — Employee</summary>
+
+  1. Open one of your solved tickets and click "Create Follow-Up" at the top right.
+  2. Submit the follow-up form — you land on the new ticket.
+  3. Top of the new ticket: blue "Follow-up to #T-XXXX" banner with the original ticket's title.
+  4. Click the #T-XXXX link — it jumps back to the original. The original shows "1 follow-up of this ticket" with the new id.
+  5. Click the new id from the original — it jumps back. Chain is navigable both directions.
+  </details>
+
+  <details><summary>How to test — Agent</summary>
+
+  1. Open any solved ticket in your queue that has no parent and is not a merged source — "Create Follow-Up" appears at the top right.
+  2. Click, fill, submit. New ticket has parent banner; original lists the new ticket as a follow-up.
+  3. Non-agent viewers of the parent only see follow-ups they have access to (RLS-filtered).
+  </details>
+
+  <details><summary>How to test — Admin</summary>
+
+  1. Same flow as agent. Admins see follow-ups across every region/branch.
+  2. When a non-admin viewer's parent embed comes back null (RLS-filtered), the banner falls back to a non-link "(you don't have access to view it)" message.
+  </details>
+
+- **Create Follow-Up no longer appears on merged tickets.** Merged source tickets are redirected to the merge target. Previously, "Create Follow-Up" still showed on the source — which would orphan a new ticket against the redirected source. Button is now hidden; follow-up the merge target instead.
+
+  <details><summary>How to test — Agent / Admin</summary>
+
+  1. Open a ticket with the purple "merged into #T-YYYY" banner.
+  2. "Create Follow-Up" no longer shows in the top-right toolbar.
+  3. Open #T-YYYY (the merge target) — if solved, "Create Follow-Up" is there as expected.
+  </details>
+
 ## 2026-05-14
 
 ### Attachments
 
 - **CC'd users can now attach files.** If you were CC'd on a ticket and tried to attach a document, the upload was silently rejected even though the comment itself went through. Attachments from CC'd users now work the same as the original requester's. Most visible on follow-up tickets, where the original conversation participants are usually on the CC list.
+
+  <details><summary>How to test — Employee / Agent</summary>
+
+  1. Have someone CC you on a ticket you didn't create.
+  2. Open it, drag a document into the conversation area (or use the paperclip in the composer).
+  3. Write a short reply and click Submit.
+  4. The file appears inline with your reply, and clicking it downloads correctly. Before this fix, the file would silently disappear.
+  </details>
+
+  <details><summary>How to test — Admin</summary>
+
+  1. Admins were never blocked, so testing as admin won't catch the regression. Log in as an employee or agent CC'd on a ticket and follow the steps above.
+  </details>
+
 - **Email replies with attached files now post the files.** When someone replied to a ticket by email with files attached, the comment came through but the files quietly disappeared. The inbound-email handler now uploads attached files to the ticket alongside the reply. Embedded signature logos and other inline HTML images are filtered out so they don't clutter the thread.
+
+  <details><summary>How to test — Anyone</summary>
+
+  1. Receive a ticket reply notification email and reply directly from your mail client with one or more files attached (PDF, image, spreadsheet, etc.).
+  2. Within ~30 seconds, open the ticket in the portal. The reply is in the thread AND the attached files appear as downloadable attachments on that reply.
+  3. Confirm: your email signature's embedded logo did NOT add itself as an attachment — only the files you intentionally attached.
+  </details>
+
 - **Branch + region managers see attachment thumbnails and downloads.** Image previews and download links on tickets were 403-ing for branch / region managers even on tickets they could otherwise open and reply to. Fixed — attachments now load the same way they do for the assignee and the requester.
+
+  <details><summary>How to test — Branch or region manager (any role)</summary>
+
+  1. If you're a branch or region manager (set in Admin → Users), open any ticket in your branch / region that has attachments.
+  2. Image attachments render as inline thumbnails; clicking a file name downloads it. Before this fix, both would 403 silently.
+  </details>
 
 ## 2026-05-11
 
@@ -21,9 +91,31 @@ This file mirrors the data rendered in-app at **/whats-new**
 
 - **Your draft no longer disappears if the send fails.** Previously, if a reply or internal note failed to send (network blip, lost access, server error), the comment field cleared and a brief toast flashed by — easy to miss, and the typed text was gone. Now the comment stays in the composer with a red banner above it showing what went wrong, until you edit the draft or retry.
 
+  <details><summary>How to test — Any role</summary>
+
+  1. Open any ticket you have access to.
+  2. Type a few sentences of a reply.
+  3. Turn off your wifi briefly (or use airplane mode) and click Submit.
+  4. The reply does NOT post. Your typed text stays in the composer. A red banner appears above the editor with the error message.
+  5. Turn wifi back on, edit the draft (even one keystroke), and the banner clears.
+  6. Click Submit again — the reply now posts.
+  </details>
+
 ### Branch + region manager access
 
 - **Managers can reply on tickets they oversee.** Branch and region managers could view tickets in their scope through the regional / branch list pages, but the Submit button on a reply silently did nothing. Submit now lands the reply the same as it does for the assignee. Applies to any ticket whose creator or assignee falls under the manager's managed region or branch.
+
+  <details><summary>How to test — Branch or region manager (any role)</summary>
+
+  1. If you have regional / branch manager access set (Admin → Users), open "My Region" or "My Branch" from the sidebar.
+  2. Pick a ticket in your scope that you didn't create and aren't assigned to.
+  3. Type a reply and click Submit. The reply lands in the thread.
+  </details>
+
+  <details><summary>How to test — Admin</summary>
+
+  1. Admins were never blocked. Log in as (or impersonate) an employee or agent with regional/branch access set to verify.
+  </details>
 
 ## 2026-05-01
 

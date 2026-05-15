@@ -9,9 +9,23 @@
  * fix, update both files.
  */
 
+/**
+ * "How to test" instructions for a changelog item, keyed by role. Each
+ * entry is an ordered list of plain-English steps a user of that role
+ * can follow to confirm the fix works for them. Omit a role to indicate
+ * the change isn't user-visible for that role (or there's no specific
+ * way for them to verify it).
+ */
+export interface ChangelogHowToTest {
+  employee?: string[]
+  agent?: string[]
+  admin?: string[]
+}
+
 export interface ChangelogItem {
   title: string
   body?: string
+  howToTest?: ChangelogHowToTest
 }
 
 export interface ChangelogSection {
@@ -29,6 +43,53 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-05-15',
+    sections: [
+      {
+        heading: 'Follow-up tickets',
+        items: [
+          {
+            title: 'Follow-up tickets now link to their parent (and vice versa)',
+            body: 'When you create a follow-up to a solved ticket, the new ticket and the original ticket now both show a blue banner at the top with a clickable link to the other one. Multiple follow-ups of the same original ticket all show in the parent\'s banner. If you don\'t have access to a related ticket (e.g. it\'s in a different region you don\'t manage), the banner tells you that instead of leading to a dead end.',
+            howToTest: {
+              employee: [
+                'Open one of your solved tickets and click "Create Follow-Up" at the top right.',
+                'Submit the follow-up form — you land on the new ticket.',
+                'Look at the top of the new ticket: you should see a blue "Follow-up to #T-XXXX" banner with the original ticket\'s title.',
+                'Click the #T-XXXX link — it jumps back to the original ticket. The original now shows a "1 follow-up of this ticket" banner with the follow-up\'s id.',
+                'Click the follow-up id from the original — it jumps back to the follow-up. The chain is navigable in both directions.',
+              ],
+              agent: [
+                'Open any solved ticket in a queue you handle that has no parent and is not a merged source — "Create Follow-Up" appears at the top right.',
+                'Click it, fill in the form, submit.',
+                'The new ticket shows the parent banner; the original now shows it has 1 follow-up.',
+                'If a non-agent later opens the same parent but can\'t see one of its follow-ups (e.g. it was reassigned to a team they\'re not on), the parent\'s banner will only list the follow-ups they can see — not a leak.',
+              ],
+              admin: [
+                'Same flow as agent. Admins additionally see follow-ups across every region/branch.',
+                'Visit a ticket where the parent is set but the embed comes back null (rare — you have to engineer it with RLS for non-admins). The banner falls back to a non-link "(you don\'t have access to view it)" message for that user.',
+              ],
+            },
+          },
+          {
+            title: 'Create Follow-Up no longer appears on merged tickets',
+            body: 'When two tickets are merged, the original (source) ticket is redirected to the merge target. Previously the source still offered a "Create Follow-Up" button — clicking it would orphan a new ticket against the redirected source. The button is now hidden on merged sources; follow-up the merge target instead.',
+            howToTest: {
+              agent: [
+                'Open a ticket that has the purple "This ticket was merged into #T-YYYY" banner.',
+                'The top-right toolbar no longer shows "Create Follow-Up".',
+                'Click through to the merge target (#T-YYYY) — if it\'s solved, the Create Follow-Up button is there as expected.',
+              ],
+              admin: [
+                'Same as agent.',
+              ],
+            },
+          },
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-05-14',
     sections: [
       {
@@ -37,14 +98,54 @@ export const CHANGELOG: ChangelogEntry[] = [
           {
             title: 'CC\'d users can now attach files',
             body: 'If you were CC\'d on a ticket and tried to attach a document, the upload was silently rejected even though the comment itself went through. Attachments from CC\'d users now work the same as the original requester\'s. Most visible on follow-up tickets, where the original conversation participants are usually on the CC list.',
+            howToTest: {
+              employee: [
+                'Have someone CC you on a ticket you didn\'t create.',
+                'Open it, drag a document into the conversation area (or use the paperclip button in the composer).',
+                'Write a short reply and click Submit.',
+                'The file should appear inline with your reply, and clicking it should download correctly. Before this fix, the file would silently disappear.',
+              ],
+              agent: [
+                'Same as employee — confirm CC\'d users (not just requesters/assignees) can attach files.',
+                'You can verify on any existing ticket where you\'re CC\'d rather than assigned.',
+              ],
+              admin: [
+                'Test as either role above. Admins were never blocked, so testing as an admin won\'t catch the regression — log in as an employee CC\'d on a ticket to confirm.',
+              ],
+            },
           },
           {
             title: 'Email replies with attached files now post the files',
             body: 'When someone replied to a ticket by email with files attached, the comment came through but the files quietly disappeared. The inbound-email handler now uploads attached files to the ticket alongside the reply. Embedded signature logos and other inline HTML images are filtered out so they don\'t clutter the thread.',
+            howToTest: {
+              employee: [
+                'Receive a ticket reply notification email and reply directly from your mail client with one or more files attached (PDF, image, spreadsheet, etc.).',
+                'Within ~30 seconds, open the ticket in the portal. The reply should be in the thread AND the attached files should appear as downloadable attachments on that reply.',
+                'Confirm: your email signature\'s embedded logo did NOT add itself as an attachment — only the files you intentionally attached.',
+              ],
+              agent: [
+                'Same as employee.',
+              ],
+              admin: [
+                'Same as employee. If a user reports the fix didn\'t work, check the Vercel logs for the inbound-email handler — per-attachment failures are logged but don\'t block the reply itself.',
+              ],
+            },
           },
           {
             title: 'Branch + region managers see attachment thumbnails and downloads',
             body: 'Image previews and download links on tickets were 403-ing for branch / region managers even on tickets they could otherwise open and reply to. Fixed — attachments now load the same way they do for the assignee and the requester.',
+            howToTest: {
+              employee: [
+                'If you\'re a branch or region manager (set in Admin → Users), open any ticket in your branch / region that has attachments.',
+                'Image attachments render as inline thumbnails; clicking a file name downloads it. Before this fix, both would 403 silently.',
+              ],
+              agent: [
+                'Same as employee — if you have regional or branch access set, attachments now load on managed tickets.',
+              ],
+              admin: [
+                'Verify by impersonating (or logging in as) a regional manager and opening a ticket in their region that has files. Admins always had access, so testing as admin won\'t reproduce the bug.',
+              ],
+            },
           },
         ],
       },
@@ -59,6 +160,22 @@ export const CHANGELOG: ChangelogEntry[] = [
           {
             title: 'Your draft no longer disappears if the send fails',
             body: 'Previously, if a reply or internal note failed to send (network blip, lost access, server error), the comment field cleared and a brief toast flashed by — easy to miss, and the typed text was gone. Now the comment stays in the composer with a red banner above it showing what went wrong, until you edit the draft or retry.',
+            howToTest: {
+              employee: [
+                'Open any ticket you have access to.',
+                'Type a few sentences of a reply.',
+                'Turn off your wifi briefly (or use airplane mode), then click Submit.',
+                'The reply does NOT post. Your typed text stays in the composer. A red banner appears above the editor with the error message.',
+                'Turn wifi back on, edit the draft (even a single keystroke), and the banner clears.',
+                'Click Submit again — the reply now posts.',
+              ],
+              agent: [
+                'Same as employee. Works for both public replies and internal notes.',
+              ],
+              admin: [
+                'Same as employee/agent.',
+              ],
+            },
           },
         ],
       },
@@ -68,6 +185,19 @@ export const CHANGELOG: ChangelogEntry[] = [
           {
             title: 'Managers can reply on tickets they oversee',
             body: 'Branch and region managers could view tickets in their scope through the regional / branch list pages, but the Submit button on a reply silently did nothing. Submit now lands the reply the same as it does for the assignee. Applies to any ticket whose creator or assignee falls under the manager\'s managed region or branch.',
+            howToTest: {
+              employee: [
+                'If you have regional or branch manager access (set in Admin → Users), open the "My Region" or "My Branch" sidebar entry.',
+                'Pick a ticket in your scope that you didn\'t create and aren\'t assigned to.',
+                'Type a reply and click Submit. The reply lands in the thread as expected.',
+              ],
+              agent: [
+                'Same as employee. If you have regional / branch access set, you can now reply on every ticket in that scope.',
+              ],
+              admin: [
+                'Admins were never blocked here. To verify the fix you need to log in as (or impersonate) an employee or agent with regional/branch access set.',
+              ],
+            },
           },
         ],
       },
