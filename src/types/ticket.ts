@@ -67,7 +67,7 @@ export interface Attachment {
   message_id?: string
   ticket_id?: string
   /** 'pending' while a direct-to-Supabase upload is in flight; 'ready' once
-   *  the blob lands. Legacy /api/upload rows are 'ready' by DB default. */
+   *  the blob lands. Pre-direct-upload rows are 'ready' by DB default. */
   status?: 'pending' | 'ready'
 }
 
