@@ -7,6 +7,24 @@ Newest entries go on top.
 This file mirrors the data rendered in-app at **/whats-new**
 (source: `src/data/changelog.ts`). When you add a fix, update both files.
 
+## 2026-05-14
+
+### Attachments
+
+- **CC'd users can now attach files.** If you were CC'd on a ticket and tried to attach a document, the upload was silently rejected even though the comment itself went through. Attachments from CC'd users now work the same as the original requester's. Most visible on follow-up tickets, where the original conversation participants are usually on the CC list.
+- **Email replies with attached files now post the files.** When someone replied to a ticket by email with files attached, the comment came through but the files quietly disappeared. The inbound-email handler now uploads attached files to the ticket alongside the reply. Embedded signature logos and other inline HTML images are filtered out so they don't clutter the thread.
+- **Branch + region managers see attachment thumbnails and downloads.** Image previews and download links on tickets were 403-ing for branch / region managers even on tickets they could otherwise open and reply to. Fixed — attachments now load the same way they do for the assignee and the requester.
+
+## 2026-05-11
+
+### Reply composer
+
+- **Your draft no longer disappears if the send fails.** Previously, if a reply or internal note failed to send (network blip, lost access, server error), the comment field cleared and a brief toast flashed by — easy to miss, and the typed text was gone. Now the comment stays in the composer with a red banner above it showing what went wrong, until you edit the draft or retry.
+
+### Branch + region manager access
+
+- **Managers can reply on tickets they oversee.** Branch and region managers could view tickets in their scope through the regional / branch list pages, but the Submit button on a reply silently did nothing. Submit now lands the reply the same as it does for the assignee. Applies to any ticket whose creator or assignee falls under the manager's managed region or branch.
+
 ## 2026-05-01
 
 ### Ticket detail
