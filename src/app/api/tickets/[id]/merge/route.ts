@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getProfileId } from '@/lib/clerk/resolve-id'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { assertTicketAccess } from '@/lib/permissions/assert-ticket-access'
 
 // ============================================================================
 // POST /api/tickets/[id]/merge — Merge this ticket into another
@@ -24,24 +25,31 @@ export async function POST(
 
   const supabase = createAdminClient()
 
-  // Verify the user is an agent or admin
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', userId)
+  // ── Verify source ticket exists and caller is agent/admin ────────────────
+  const { data: sourceTicket, error: sourceError } = await supabase
+    .from('tickets')
+    .select('id, title, status, created_by, assigned_to')
+    .eq('id', sourceTicketId)
     .single()
 
-  if (profileError || !profile) {
+  if (sourceError || !sourceTicket) {
     return NextResponse.json(
-      { error: 'User profile not found' },
-      { status: 403 },
+      { error: 'Source ticket not found' },
+      { status: 404 },
     )
   }
 
-  if (profile.role !== 'agent' && profile.role !== 'admin') {
+  const access = await assertTicketAccess(
+    supabase,
+    userId,
+    sourceTicketId,
+    sourceTicket,
+    'admin',
+  )
+  if (!access.ok) {
     return NextResponse.json(
       { error: 'Only agents and admins can merge tickets' },
-      { status: 403 },
+      { status: access.status },
     )
   }
 
@@ -67,20 +75,6 @@ export async function POST(
     return NextResponse.json(
       { error: 'Cannot merge a ticket into itself' },
       { status: 400 },
-    )
-  }
-
-  // ── Verify both tickets exist ──────────────────────────────────────────────
-  const { data: sourceTicket, error: sourceError } = await supabase
-    .from('tickets')
-    .select('id, title, status')
-    .eq('id', sourceTicketId)
-    .single()
-
-  if (sourceError || !sourceTicket) {
-    return NextResponse.json(
-      { error: 'Source ticket not found' },
-      { status: 404 },
     )
   }
 
