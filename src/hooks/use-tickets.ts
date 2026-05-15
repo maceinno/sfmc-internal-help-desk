@@ -103,9 +103,18 @@ export function useTicket(id: string | null | undefined) {
       if (!token) throw new Error('No auth token')
 
       const supabase = createClerkSupabaseClient(token)
+      // `parent` follows the parent_ticket_id FK outward to the parent
+      // row (to-one — uses the FK column name directly so PostgREST
+      // treats it as the forward reference). `follow_ups` walks back
+      // through the same FK on other rows (to-many — uses the
+      // `tickets!parent_ticket_id` form so PostgREST treats it as the
+      // inverse). Title is included so the UI banners can show a
+      // meaningful label without a second round-trip.
       const { data, error } = await supabase
         .from('tickets')
-        .select('*, messages(*, author:profiles(role)), attachments(*), ticket_cc(user_id), ticket_collaborators(user_id), custom_field_values(field_id, value)')
+        .select(
+          '*, messages(*, author:profiles(role)), attachments(*), ticket_cc(user_id), ticket_collaborators(user_id), custom_field_values(field_id, value), parent:parent_ticket_id(id, title, status), follow_ups:tickets!parent_ticket_id(id, title, status)',
+        )
         .eq('id', id!)
         .single()
 
