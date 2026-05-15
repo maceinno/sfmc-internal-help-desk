@@ -1,13 +1,14 @@
 import { getProfileId } from "@/lib/clerk/resolve-id";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { assertTicketAccess } from "@/lib/permissions/assert-ticket-access";
+import { sanitizeStorageName } from "@/lib/upload/sanitize";
 
 // ---------------------------------------------------------------------------
-// POST /api/upload/sign — Mint a one-time signed upload URL for direct-to-
+// POST /api/upload/sign - Mint a one-time signed upload URL for direct-to-
 // Supabase Storage uploads.
 // ---------------------------------------------------------------------------
 // The previous /api/upload route accepted the file body itself, which meant
-// files >~4.5 MB got 413'd by Vercel's serverless function body limit. This
+// files > ~4.5 MB got 413'd by Vercel's serverless function body limit. This
 // route instead returns a short-lived URL that the browser PUTs the file to
 // directly, bypassing the Vercel function for the byte path. The cap then
 // becomes whatever the Supabase Storage bucket allows. The old route has
@@ -39,13 +40,13 @@ interface SignBody {
 }
 
 export async function POST(request: Request) {
-  // ── Authenticate ──────────────────────────────────────────────────────────
+  // -- Authenticate ----------------------------------------------------------
   const userId = await getProfileId();
   if (!userId) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // ── Parse + validate body ─────────────────────────────────────────────────
+  // -- Parse + validate body -------------------------------------------------
   let body: SignBody;
   try {
     body = (await request.json()) as SignBody;
@@ -85,7 +86,7 @@ export async function POST(request: Request) {
     );
   }
 
-  // ── Verify caller has access to the ticket ────────────────────────────────
+  // -- Verify caller has access to the ticket --------------------------------
   const supabase = createAdminClient();
   const { data: ticketRow } = await supabase
     .from("tickets")
@@ -108,9 +109,14 @@ export async function POST(request: Request) {
     return Response.json({ error: access.error }, { status: access.status });
   }
 
-  // ── Mint signed upload URL ────────────────────────────────────────────────
+  // -- Mint signed upload URL ------------------------------------------------
+  // Use the sanitized name only for the bucket key. The DB row's `file_name`
+  // column keeps the user's original filename for display. See
+  // `src/lib/upload/sanitize.ts` for why this is necessary (macOS Screenshot
+  // filenames embed U+202F which breaks the signed-URL PUT).
   const uniqueId = crypto.randomUUID();
-  const storagePath = `${ticketId}/${uniqueId}_${fileName}`;
+  const safeName = sanitizeStorageName(fileName);
+  const storagePath = `${ticketId}/${uniqueId}_${safeName}`;
 
   const { data: signed, error: signError } = await supabase.storage
     .from("attachments")
@@ -124,7 +130,7 @@ export async function POST(request: Request) {
     );
   }
 
-  // ── Insert pending attachment row ─────────────────────────────────────────
+  // -- Insert pending attachment row -----------------------------------------
   const version =
     typeof body.version === "number" && !isNaN(body.version)
       ? body.version
