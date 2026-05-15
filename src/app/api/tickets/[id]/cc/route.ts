@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getProfileId } from '@/lib/clerk/resolve-id'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { assertTicketAccess } from '@/lib/permissions/assert-ticket-access'
 import { notifyCcAdded } from '@/lib/email/notify'
 
 // POST /api/tickets/[id]/cc — add a CC user and email them.
@@ -49,18 +50,15 @@ export async function POST(
     return NextResponse.json({ error: 'Ticket not found' }, { status: 404 })
   }
 
-  const { data: callerProfile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', callerId)
-    .single()
-
-  const isAgentOrAdmin =
-    callerProfile?.role === 'agent' || callerProfile?.role === 'admin'
-  const isCreator = ticket.created_by === callerId
-
-  if (!isAgentOrAdmin && !isCreator) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const access = await assertTicketAccess(
+    supabase,
+    callerId,
+    ticketId,
+    ticket,
+    'manage',
+  )
+  if (!access.ok) {
+    return NextResponse.json({ error: access.error }, { status: access.status })
   }
 
   // Idempotent insert: if the user is already CC'd, treat as success but
