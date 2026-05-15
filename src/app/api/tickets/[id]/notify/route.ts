@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getProfileId } from '@/lib/clerk/resolve-id'
 import { notifyStatusChanged, notifyAssignmentChanged } from '@/lib/email/notify'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { assertTicketAccess } from '@/lib/permissions/assert-ticket-access'
 
 const STATUS_LABEL: Record<string, string> = {
   new: 'New',
@@ -79,25 +80,34 @@ export async function POST(
   }
 
   // All events this endpoint records (status / assignment / priority /
-  // category / subcategory / department / team changes) are surfaced in the
-  // UI only to agents and admins — the sidebar controls that trigger
-  // postNotify() are gated to those roles. So accept only agent/admin
-  // callers; any other principal trying to POST is either a stale tab
-  // racing a role change, a misconfigured caller, or abuse. Auto-reopen
-  // on reply does NOT route through here — it updates the ticket directly
-  // from the reply route — so this tightening doesn't suppress that flow.
-  const supabase = createAdminClient()
-  const { data: callerProfile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', userId)
-    .single()
+  // category / subcategory / department / team changes) are surfaced in
+  // the UI only to agents and admins — `admin` action enforces that.
+  // Auto-reopen on reply doesn't route through here (it updates the
+  // ticket directly from the reply route), so the tightening doesn't
+  // suppress that flow.
+  const { id: ticketId } = await params
 
-  if (callerProfile?.role !== 'agent' && callerProfile?.role !== 'admin') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const supabase = createAdminClient()
+  const { data: ticketRow } = await supabase
+    .from('tickets')
+    .select('created_by, assigned_to')
+    .eq('id', ticketId)
+    .maybeSingle()
+
+  if (!ticketRow) {
+    return NextResponse.json({ error: 'Ticket not found' }, { status: 404 })
   }
 
-  const { id: ticketId } = await params
+  const access = await assertTicketAccess(
+    supabase,
+    userId,
+    ticketId,
+    ticketRow,
+    'admin',
+  )
+  if (!access.ok) {
+    return NextResponse.json({ error: access.error }, { status: access.status })
+  }
 
   let body: NotifyBody
   try {

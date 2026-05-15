@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getProfileId } from '@/lib/clerk/resolve-id'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { assertTicketAccess } from '@/lib/permissions/assert-ticket-access'
 import { notifyNewReply, notifyUserTagged } from '@/lib/email/notify'
 import type {
   TicketStatus,
@@ -81,75 +82,17 @@ export async function POST(
   }
 
   // ── Verify caller has access to this ticket ───────────────────────────────
-  // Mirrors the read-side rules in src/lib/permissions/policies.ts
-  // (canViewTicket). The regional/branch path matters: managers see in-region
-  // tickets via the regional list page, and the reply endpoint must accept
-  // the same population or they get a silent 403 on submit.
-  const { data: callerProfile } = await supabase
-    .from('profiles')
-    .select('role, has_regional_access, managed_region_id, has_branch_access, managed_branch_id')
-    .eq('id', userId)
-    .single()
-
-  const isAgentOrAdmin = callerProfile?.role === 'agent' || callerProfile?.role === 'admin'
-  const isCreator = ticket.created_by === userId
-  const isAssignee = ticket.assigned_to === userId
-
-  if (!isAgentOrAdmin && !isCreator && !isAssignee) {
-    // Check if CC'd or collaborator
-    const { data: ccRow } = await supabase
-      .from('ticket_cc')
-      .select('user_id')
-      .eq('ticket_id', ticketId)
-      .eq('user_id', userId)
-      .maybeSingle()
-
-    const { data: collabRow } = await supabase
-      .from('ticket_collaborators')
-      .select('user_id')
-      .eq('ticket_id', ticketId)
-      .eq('user_id', userId)
-      .maybeSingle()
-
-    let hasRegionalOrBranchAccess = false
-    if (
-      !ccRow &&
-      !collabRow &&
-      (callerProfile?.has_regional_access || callerProfile?.has_branch_access)
-    ) {
-      const partyIds = [ticket.created_by, ticket.assigned_to].filter(
-        (id): id is string => !!id,
-      )
-      if (partyIds.length > 0) {
-        const { data: parties } = await supabase
-          .from('profiles')
-          .select('id, region_id, branch_id')
-          .in('id', partyIds)
-
-        const regionMatch =
-          !!callerProfile?.has_regional_access &&
-          !!callerProfile.managed_region_id &&
-          (parties ?? []).some(
-            (p) => p.region_id === callerProfile.managed_region_id,
-          )
-        const branchMatch =
-          !!callerProfile?.has_branch_access &&
-          !!callerProfile.managed_branch_id &&
-          (parties ?? []).some(
-            (p) => p.branch_id === callerProfile.managed_branch_id,
-          )
-
-        hasRegionalOrBranchAccess = regionMatch || branchMatch
-      }
-    }
-
-    if (!ccRow && !collabRow && !hasRegionalOrBranchAccess) {
-      return NextResponse.json(
-        { error: 'You do not have access to this ticket' },
-        { status: 403 },
-      )
-    }
+  const access = await assertTicketAccess(
+    supabase,
+    userId,
+    ticketId,
+    ticket,
+    'respond',
+  )
+  if (!access.ok) {
+    return NextResponse.json({ error: access.error }, { status: access.status })
   }
+  const { isAgentOrAdmin } = access
 
   // ── Insert message ─────────────────────────────────────────────────────────
   const { data: message, error: messageError } = await supabase
