@@ -9,6 +9,7 @@ import {
   Paperclip,
   Printer,
   GitMerge,
+  CornerDownRight,
   Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -61,6 +62,7 @@ export default function TicketDetailPage({
   const { data: allTickets = [] } = useTickets()
   const updateTicket = useUpdateTicket()
   const queryClient = useQueryClient()
+  const { setFollowUpFromTicketId } = useUIStore()
   const setActiveTicketId = useUIStore((s) => s.setActiveTicketId)
   const openTab = useTabStore((s) => s.openTab)
 
@@ -564,12 +566,20 @@ export default function TicketDetailPage({
         </div>
 
         <div className="flex flex-wrap items-center gap-2" data-print="hide">
-          {/* Follow-up button — disabled per user request 2026-05-14:
-              follow-ups appeared to leave attachments/comments unusable on
-              the resulting child tickets. Hiding the entry point until the
-              root cause is identified. The form pre-fill path
-              (`followUpFromTicketId` in create-ticket-form.tsx) is now
-              unreachable but left in place for an easy re-enable. */}
+          {/* Follow-up button */}
+          {ticket.status === "solved" && !ticket.parent_ticket_id && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setFollowUpFromTicketId(ticket.id)
+                router.push("/tickets/new")
+              }}
+            >
+              <CornerDownRight className="mr-2 h-4 w-4" />
+              Create Follow-Up
+            </Button>
+          )}
 
           {/* Merge button */}
           {isAgentOrAdmin &&

@@ -84,6 +84,12 @@ export async function POST(request: Request) {
   }
 
   // ── Verify caller has access to the ticket ────────────────────────────────
+  // Must mirror the read-side `canViewTicket` policy + the /api/tickets/[id]/reply
+  // allow-list so CC users and regional/branch managers can attach files to
+  // tickets they can see and comment on. Earlier this route accepted only
+  // creator/assignee/agent/admin, which silently 403'd anyone replying as a
+  // CC or regional viewer — most visible on follow-up tickets where the
+  // conversation is carried by parent-ticket CCs.
   const supabase = createAdminClient();
   const { data: ticketRow } = await supabase
     .from("tickets")
@@ -97,7 +103,9 @@ export async function POST(request: Request) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role")
+    .select(
+      "role, has_regional_access, managed_region_id, has_branch_access, managed_branch_id",
+    )
     .eq("id", userId)
     .single();
 
@@ -107,10 +115,58 @@ export async function POST(request: Request) {
   const isAssignee = ticketRow.assigned_to === userId;
 
   if (!isAgentOrAdmin && !isCreator && !isAssignee) {
-    return Response.json(
-      { error: "You do not have access to this ticket." },
-      { status: 403 },
-    );
+    const { data: ccRow } = await supabase
+      .from("ticket_cc")
+      .select("user_id")
+      .eq("ticket_id", ticketId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    const { data: collabRow } = await supabase
+      .from("ticket_collaborators")
+      .select("user_id")
+      .eq("ticket_id", ticketId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    let hasRegionalOrBranchAccess = false;
+    if (
+      !ccRow &&
+      !collabRow &&
+      (profile?.has_regional_access || profile?.has_branch_access)
+    ) {
+      const partyIds = [ticketRow.created_by, ticketRow.assigned_to].filter(
+        (id): id is string => !!id,
+      );
+      if (partyIds.length > 0) {
+        const { data: parties } = await supabase
+          .from("profiles")
+          .select("id, region_id, branch_id")
+          .in("id", partyIds);
+
+        const regionMatch =
+          !!profile?.has_regional_access &&
+          !!profile.managed_region_id &&
+          (parties ?? []).some(
+            (p) => p.region_id === profile.managed_region_id,
+          );
+        const branchMatch =
+          !!profile?.has_branch_access &&
+          !!profile.managed_branch_id &&
+          (parties ?? []).some(
+            (p) => p.branch_id === profile.managed_branch_id,
+          );
+
+        hasRegionalOrBranchAccess = regionMatch || branchMatch;
+      }
+    }
+
+    if (!ccRow && !collabRow && !hasRegionalOrBranchAccess) {
+      return Response.json(
+        { error: "You do not have access to this ticket." },
+        { status: 403 },
+      );
+    }
   }
 
   // ── Mint signed upload URL ────────────────────────────────────────────────
