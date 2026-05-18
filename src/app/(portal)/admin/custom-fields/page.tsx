@@ -81,6 +81,30 @@ function emptyField(): Partial<CustomField> {
   }
 }
 
+/**
+ * Turn a user-typed field Name into the slug used for `custom_fields.id`.
+ * Examples:
+ *   "borrower_name"  -> "borrower-name"
+ *   "Loan Type"      -> "loan-type"
+ *   "Competitor!!!"  -> "competitor"
+ *   ""               -> "field"
+ *
+ * Used at INSERT time because `custom_fields.id` is `text PRIMARY KEY` with
+ * no DB default; the column needs a value. Matches the convention seen in
+ * the initial seed data (`custom-borrower-name`, `custom-loan-type`, etc.).
+ */
+function slugify(name: string): string {
+  const slug = name
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, '-')
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 50)
+  return slug || 'field'
+}
+
 // ── Page ────────────────────────────────────────────────────────
 
 export default function CustomFieldsPage() {
@@ -138,9 +162,18 @@ export default function CustomFieldsPage() {
           .eq('id', field.id)
         if (error) throw error
       } else {
+        // `custom_fields.id` is `text PRIMARY KEY` with no DB default, so an
+        // INSERT must supply one. Match the seed-data convention
+        // (`custom-borrower-name`, `custom-loan-type`, etc.) by slugifying
+        // the user's Name. The `name` column has its own UNIQUE constraint
+        // that catches collisions; if the derived id happens to collide
+        // separately (rare — same slug from a differently-cased name) the
+        // INSERT errors with a primary-key conflict that surfaces via the
+        // `handleSave` toast.
+        const id = `custom-${slugify(field.name ?? '')}`
         const { error } = await supabase
           .from('custom_fields')
-          .insert(payload)
+          .insert({ id, ...payload })
         if (error) throw error
       }
     },
@@ -216,8 +249,13 @@ export default function CustomFieldsPage() {
         isCreating ? 'Custom field created' : 'Custom field updated',
       )
       setEditField(null)
-    } catch {
-      toast.error('Failed to save custom field')
+    } catch (err) {
+      // Surface the underlying Supabase / Postgres error in the toast so
+      // future schema-mismatch failures aren't silent (see the missing-id
+      // INSERT bug from 2026-05-18 — generic "Failed to save" hid the
+      // actual NOT NULL constraint violation for weeks).
+      const msg = err instanceof Error ? err.message : String(err)
+      toast.error(`Failed to save custom field: ${msg}`, { duration: 8000 })
     }
   }, [editField, isCreating, upsertField])
 
