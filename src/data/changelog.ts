@@ -43,6 +43,36 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-05-18',
+    sections: [
+      {
+        heading: 'Ticket status',
+        items: [
+          {
+            title: 'Pending and On Hold tickets now flip back to Open when the requester comments',
+            body: 'Previously this only happened for Solved tickets — comments on Pending or On Hold tickets stayed in that status, so agents had to remember to spot-check those queues for replies. Now any non-agent comment (portal reply or email reply) on a ticket in Solved, Pending, or On Hold flips it back to Open so the agent sees it in their working queue. Agents replying to their own tickets are unaffected — their "Submit as <status>" control still applies whatever status they pick.',
+            howToTest: {
+              employee: [
+                'Open one of your tickets that an agent has moved to "Pending" (waiting on you).',
+                'Type a reply in the composer and click Submit.',
+                'The ticket\'s status badge changes to "Open" within a few seconds. Same flow works for "On Hold" tickets and the existing "Solved" behavior is unchanged.',
+              ],
+              agent: [
+                'Pick a ticket you\'ve moved to Pending or On Hold.',
+                'Have the requester (or anyone CC\'d) reply via the portal or via email.',
+                'On your next refresh / realtime tick, the ticket appears under the Open queue. The inline conversation thread shows the new comment as usual.',
+                'If you (the agent) reply on a Pending / On Hold ticket, status does NOT auto-flip — your composer\'s "Submit as <status>" caret continues to control whatever status the ticket moves to.',
+              ],
+              admin: [
+                'Same flow as agent. Verify by impersonating an employee or agent if needed; admin-only testing won\'t catch the role gate.',
+              ],
+            },
+          },
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-05-15',
     sections: [
       {

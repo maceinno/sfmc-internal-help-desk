@@ -13,19 +13,33 @@ import type {
 // POST /api/tickets/[id]/reply — Add a reply or internal note to a ticket
 // ============================================================================
 
-// Reopen a solved ticket when a non-agent (requester or CC'd user) posts a
-// public reply via the portal. Mirrors the inbound-email webhook behavior so
-// agents don't miss follow-up comments by relying on email alone. Internal
-// notes never reopen, and agents replying to solved tickets keep their
-// "Submit as <status>" control via the composer (so this never fires for
-// agent replies).
+// Flip a ticket back to `open` when a non-agent (requester or CC'd user)
+// posts a public reply via the portal. Covers three "agent-is-waiting"
+// statuses:
+//   - `solved`  — closed but a follow-up came in.
+//   - `pending` — agent waiting on the requester; their reply IS the
+//                 thing being waited on.
+//   - `on_hold` — agent waiting on a third party; an inbound comment is
+//                 news the agent needs to see.
 //
-// Kill-switch: set to `false` to restore the previous "solved stays solved"
+// Mirrors the inbound-email webhook so agents don't miss follow-up
+// comments by relying on email alone. Internal notes never reopen, and
+// agents replying keep their "Submit as <status>" control via the
+// composer (so this never fires for agent replies).
+//
+// Kill-switch: set to `false` to restore the previous "status stays put"
 // behavior. We keep the suppression option in place because requester
 // "thank you" replies will inappropriately reopen tickets — see
 // `BACKLOG.md` (`sfmc-internal-help-desk` → re-eval auto-reopen heuristic)
 // for the smarter-detection follow-up.
 const AUTO_REOPEN_ON_PORTAL_COMMENT = true
+
+// Statuses where a non-agent comment should flip the ticket to `open`.
+const AGENT_WAITING_STATUSES: ReadonlyArray<TicketStatus> = [
+  'solved',
+  'pending',
+  'on_hold',
+]
 
 interface ReplyBody {
   content: string
@@ -243,23 +257,25 @@ export async function POST(
   // ── Auto-reopen solved tickets on requester/CC public reply ───────────────
   if (
     AUTO_REOPEN_ON_PORTAL_COMMENT &&
-    ticket.status === 'solved' &&
+    AGENT_WAITING_STATUSES.includes(ticket.status as TicketStatus) &&
     !body.isInternal &&
     !isAgentOrAdmin
   ) {
-    // .eq('status', 'solved') makes the update a no-op if the status moved
-    // between our read and write — covers the canned-response setStatus path
-    // and the agent-closes-during-reply race.
+    // .in('status', AGENT_WAITING_STATUSES) makes the update a no-op if
+    // the status moved between our read and write — covers the canned-
+    // response setStatus path and the agent-closes-during-reply race.
     const { error: reopenError } = await supabase
       .from('tickets')
       .update({ status: 'open' })
       .eq('id', ticketId)
-      .eq('status', 'solved')
+      .in('status', AGENT_WAITING_STATUSES as unknown as string[])
 
     if (reopenError) {
-      console.error('[reply] Failed to reopen solved ticket:', reopenError)
+      console.error('[reply] Failed to reopen ticket:', reopenError)
     } else {
-      console.log(`[reply] Reopened solved ticket ${ticketId} on requester comment`)
+      console.log(
+        `[reply] Reopened ${ticket.status} ticket ${ticketId} on requester comment`,
+      )
     }
   }
 
