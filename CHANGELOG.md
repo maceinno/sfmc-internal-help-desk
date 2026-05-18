@@ -12,6 +12,32 @@ verification steps. Those instructions live in the `howToTest` field on
 the entry in `changelog.ts` and are mirrored below as collapsible
 `<details>` blocks, one per role.
 
+## 2026-05-18
+
+### Ticket status
+
+- **Pending and On Hold tickets now flip back to Open when the requester comments.** Previously this only happened for Solved tickets — comments on Pending or On Hold tickets stayed in that status, so agents had to remember to spot-check those queues for replies. Now any non-agent comment (portal reply or email reply) on a ticket in Solved, Pending, or On Hold flips it back to Open so the agent sees it in their working queue. Agents replying to their own tickets are unaffected — their "Submit as <status>" control still applies whatever status they pick.
+
+  <details><summary>How to test — Employee</summary>
+
+  1. Open one of your tickets that an agent has moved to "Pending" (waiting on you).
+  2. Type a reply in the composer and click Submit.
+  3. The ticket's status badge changes to "Open" within a few seconds. Same flow works for "On Hold" tickets and the existing "Solved" behavior is unchanged.
+  </details>
+
+  <details><summary>How to test — Agent</summary>
+
+  1. Pick a ticket you've moved to Pending or On Hold.
+  2. Have the requester (or anyone CC'd) reply via the portal or via email.
+  3. On your next refresh / realtime tick, the ticket appears under the Open queue. The inline conversation thread shows the new comment as usual.
+  4. If you (the agent) reply on a Pending / On Hold ticket, status does NOT auto-flip — your composer's "Submit as <status>" caret continues to control whatever status the ticket moves to.
+  </details>
+
+  <details><summary>How to test — Admin</summary>
+
+  1. Same flow as agent. Verify by impersonating an employee or agent if needed; admin-only testing won't catch the role gate.
+  </details>
+
 ## 2026-05-15
 
 ### Follow-up tickets

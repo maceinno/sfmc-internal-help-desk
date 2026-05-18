@@ -250,14 +250,24 @@ export async function POST(request: Request) {
     .update({ updated_at: new Date().toISOString() })
     .eq('id', ticketId)
 
-  // ── Reopen ticket if it was solved ────────────────────────────────────────
-  if (ticket.status === 'solved') {
+  // ── Reopen ticket if the agent was waiting on someone ────────────────────
+  // Covers the three "agent-is-waiting" statuses (`solved` / `pending` /
+  // `on_hold`); the inbound email is the awaited reply. Keep in sync with
+  // the same set in `src/app/api/tickets/[id]/reply/route.ts`.
+  if (
+    ticket.status === 'solved' ||
+    ticket.status === 'pending' ||
+    ticket.status === 'on_hold'
+  ) {
     await supabase
       .from('tickets')
       .update({ status: 'open' })
       .eq('id', ticketId)
+      .in('status', ['solved', 'pending', 'on_hold'])
 
-    console.log(`[inbound-email] Reopened solved ticket ${ticketId}`)
+    console.log(
+      `[inbound-email] Reopened ${ticket.status} ticket ${ticketId}`,
+    )
   }
 
   // ── Send notifications to other parties ───────────────────────────────────
