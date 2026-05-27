@@ -1,0 +1,15 @@
+name: Notify umbrella (auto pin bump)
+
+# Auto-installed by maceinno/mace-tech/scripts/install-bump-workflow.sh.
+# When this repo pushes to a stable branch, the reusable workflow in
+# mace-tech bumps the parent submodule pin. The chain self-walks up to
+# the umbrella via each parent's identical notify-umbrella push.
+
+on:
+  push:
+    branches: [main, preview, staging]
+
+jobs:
+  notify:
+    uses: maceinno/mace-tech/.github/workflows/bump-pin.yml@main
+    secrets: inherit
