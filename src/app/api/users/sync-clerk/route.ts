@@ -43,7 +43,7 @@ export async function POST(request: Request) {
   // Read the profile from Supabase (source of truth)
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('name, role, has_branch_access, has_regional_access')
+    .select('name, role, has_branch_access, has_regional_access, is_active')
     .eq('id', userId)
     .single()
 
@@ -71,6 +71,9 @@ export async function POST(request: Request) {
       role: profile.role,
       hasBranchAccess: profile.has_branch_access,
       hasRegionalAccess: profile.has_regional_access,
+      // Keep the deactivation flag authoritative on every sync so a routine
+      // profile edit can't silently un-block a deactivated user.
+      active: profile.is_active !== false,
     },
   })
 

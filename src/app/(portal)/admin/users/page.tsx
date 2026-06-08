@@ -10,6 +10,8 @@ import {
   Users,
   UserPlus,
   Eye,
+  Ban,
+  UserCheck,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react'
@@ -65,6 +67,12 @@ const ROLE_OPTIONS: { value: User['role']; label: string }[] = [
 const ROLE_FILTER_OPTIONS = [
   { value: 'all', label: 'All Roles' },
   ...ROLE_OPTIONS,
+]
+
+const STATUS_FILTER_OPTIONS = [
+  { value: 'active', label: 'Active' },
+  { value: 'inactive', label: 'Deactivated' },
+  { value: 'all', label: 'All Statuses' },
 ]
 
 // ── Types ──────────────────────────────────────────────────────
@@ -125,6 +133,7 @@ export default function UsersPage() {
 
   const [searchQuery, setSearchQuery] = useState('')
   const [roleFilter, setRoleFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('active')
   const [currentPage, setCurrentPage] = useState(1)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [form, setForm] = useState<UserFormState | null>(null)
@@ -150,6 +159,10 @@ export default function UsersPage() {
     if (roleFilter !== 'all') {
       list = list.filter((u) => u.role === roleFilter)
     }
+    if (statusFilter !== 'all') {
+      const wantActive = statusFilter === 'active'
+      list = list.filter((u) => (u.is_active !== false) === wantActive)
+    }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase()
       list = list.filter(
@@ -159,12 +172,12 @@ export default function UsersPage() {
       )
     }
     return list
-  }, [users, searchQuery, roleFilter])
+  }, [users, searchQuery, roleFilter, statusFilter])
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchQuery, roleFilter])
+  }, [searchQuery, roleFilter, statusFilter])
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(filtered.length / ROWS_PER_PAGE))
@@ -275,6 +288,43 @@ export default function UsersPage() {
     },
     onError: (err: Error) => {
       toast.error(`Failed to create user: ${err.message}`)
+    },
+  })
+
+  // ── Deactivate / reactivate ────────────────────────────────
+  // The user pending a deactivate/reactivate confirmation. We use an inline
+  // Dialog (not window.confirm) per the org no-browser-popups rule.
+  const [confirmUser, setConfirmUser] = useState<User | null>(null)
+
+  const deactivateMutation = useMutation({
+    mutationFn: async ({ userId, active }: { userId: string; active: boolean }) => {
+      const res = await fetch('/api/users/deactivate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, active }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body.error ?? 'Failed to update user status')
+      return body as { ok: boolean; requeued?: number; warning?: string }
+    },
+    onSuccess: async (body, vars) => {
+      await queryClient.invalidateQueries({ queryKey: ['admin', 'users'] })
+      setConfirmUser(null)
+      if (vars.active) {
+        toast.success('User reactivated')
+      } else if (body.warning) {
+        toast.warning(body.warning)
+      } else {
+        const n = body.requeued ?? 0
+        toast.success(
+          n > 0
+            ? `User deactivated — ${n} open ticket${n === 1 ? '' : 's'} returned to the team queue`
+            : 'User deactivated',
+        )
+      }
+    },
+    onError: (err: Error) => {
+      toast.error(err.message)
     },
   })
 
@@ -416,6 +466,22 @@ export default function UsersPage() {
             ))}
           </SelectContent>
         </Select>
+        <Select value={statusFilter} onValueChange={(val) => setStatusFilter(val ?? 'active')}>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue>
+              {(val: string) =>
+                STATUS_FILTER_OPTIONS.find((o) => o.value === val)?.label ?? 'Active'
+              }
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {STATUS_FILTER_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Table */}
@@ -449,8 +515,17 @@ export default function UsersPage() {
               </TableHeader>
               <TableBody>
                 {paginatedUsers.map((u) => (
-                  <TableRow key={u.id}>
-                    <TableCell className="font-medium">{u.name}</TableCell>
+                  <TableRow key={u.id} className={u.is_active === false ? 'opacity-60' : undefined}>
+                    <TableCell className="font-medium">
+                      <span className={u.is_active === false ? 'line-through' : undefined}>
+                        {u.name}
+                      </span>
+                      {u.is_active === false && (
+                        <Badge variant="destructive" className="ml-2 text-[10px]">
+                          Deactivated
+                        </Badge>
+                      )}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">
                       {u.email}
                     </TableCell>
@@ -537,6 +612,18 @@ export default function UsersPage() {
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          title={u.is_active === false ? 'Reactivate user' : 'Deactivate user'}
+                          onClick={() => setConfirmUser(u)}
+                        >
+                          {u.is_active === false ? (
+                            <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+                          ) : (
+                            <Ban className="w-3.5 h-3.5 text-destructive" />
+                          )}
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -589,6 +676,64 @@ export default function UsersPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Deactivate / reactivate confirmation (inline Dialog — no window.confirm) */}
+      <Dialog
+        open={!!confirmUser}
+        onOpenChange={(open) => {
+          if (!open) setConfirmUser(null)
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {confirmUser?.is_active === false ? 'Reactivate user?' : 'Deactivate user?'}
+            </DialogTitle>
+            <DialogDescription>
+              {confirmUser?.is_active === false ? (
+                <>
+                  <strong>{confirmUser?.name}</strong> will be able to sign in
+                  again and be assigned new tickets. Tickets handed off when they
+                  were deactivated are not automatically reassigned back.
+                </>
+              ) : (
+                <>
+                  <strong>{confirmUser?.name}</strong> will be signed out and
+                  blocked from signing in. Any open ticket assigned to them is set
+                  back to <strong>New</strong> and returned to its team&apos;s
+                  queue; tickets they submitted stay with whoever is solving them.
+                  Their account and history are kept — this is reversible.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmUser(null)}
+              disabled={deactivateMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant={confirmUser?.is_active === false ? 'default' : 'destructive'}
+              disabled={deactivateMutation.isPending}
+              onClick={() => {
+                if (!confirmUser) return
+                deactivateMutation.mutate({
+                  userId: confirmUser.id,
+                  active: confirmUser.is_active === false,
+                })
+              }}
+            >
+              {deactivateMutation.isPending && (
+                <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+              )}
+              {confirmUser?.is_active === false ? 'Reactivate' : 'Deactivate'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Edit Dialog ───────────────────────────────────────── */}
       {form && (
