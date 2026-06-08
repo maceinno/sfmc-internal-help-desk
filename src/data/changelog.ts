@@ -43,6 +43,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-06-08',
+    label: 'User management',
+    sections: [
+      {
+        heading: 'Deactivating users',
+        items: [
+          {
+            title: 'Admins can now deactivate (and reactivate) a user',
+            body: 'When someone leaves or should no longer have access, an admin can deactivate their account from Admin → Users. A deactivated person is signed out and blocked from signing back in, and is removed from ticket auto-routing and assignment — but their account and full ticket history are kept. It is not a delete, and it is fully reversible. When an agent is deactivated, any open ticket assigned to them is set back to New and returned to their team\'s queue (the team is emailed); tickets the person only submitted stay assigned to whoever is solving them.',
+            howToTest: {
+              admin: [
+                'Go to Admin → Users. Each row now has a Deactivate action, and there is a status filter that defaults to "Active".',
+                'Deactivate an agent who has open assigned tickets and confirm in the dialog. They can no longer sign in; their open tickets show as New in their team\'s queue and the team gets an email. Tickets they only submitted stay with their current solver.',
+                'Switch the status filter to "Deactivated" to find them (red badge), then use Reactivate to restore access.',
+                'You cannot deactivate your own account — the system blocks it.',
+              ],
+            },
+          },
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-05-18',
     sections: [
       {

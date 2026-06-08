@@ -12,6 +12,20 @@ verification steps. Those instructions live in the `howToTest` field on
 the entry in `changelog.ts` and are mirrored below as collapsible
 `<details>` blocks, one per role.
 
+## 2026-06-08 — User management
+
+### Deactivating users
+
+- **Admins can now deactivate (and reactivate) a user.** When someone leaves or should no longer have access, an admin can deactivate their account from Admin → Users. A deactivated person is signed out and blocked from signing back in, and is removed from ticket auto-routing and assignment — but their account and full ticket history are kept. It is not a delete, and it is fully reversible. When an agent is deactivated, any open ticket assigned to them is set back to New and returned to their team's queue (the team is emailed); tickets the person only submitted stay assigned to whoever is solving them.
+
+  <details><summary>How to test — Admin</summary>
+
+  1. Go to Admin → Users. Each row now has a Deactivate action, and there is a status filter that defaults to "Active".
+  2. Deactivate an agent who has open assigned tickets and confirm in the dialog. They can no longer sign in; their open tickets show as New in their team's queue and the team gets an email. Tickets they only submitted stay with their current solver.
+  3. Switch the status filter to "Deactivated" to find them (red badge), then use Reactivate to restore access.
+  4. You cannot deactivate your own account — the system blocks it.
+  </details>
+
 ## 2026-05-18
 
 ### Ticket status
