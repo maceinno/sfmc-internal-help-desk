@@ -137,7 +137,7 @@ export async function notifyTicketCreated(ticket: {
 
     const { data: members, error: membersErr } = await supabase
       .from('profiles')
-      .select('id, email, name, role, is_out_of_office')
+      .select('id, email, name, role, is_out_of_office, is_active')
       .contains('team_ids', [ticket.assigned_team])
 
     if (membersErr) {
@@ -149,6 +149,7 @@ export async function notifyTicketCreated(ticket: {
       (m) =>
         (m.role === 'agent' || m.role === 'admin') &&
         !m.is_out_of_office &&
+        m.is_active !== false &&
         m.id !== ticket.created_by &&
         m.email,
     )
@@ -173,6 +174,76 @@ export async function notifyTicketCreated(ticket: {
     }
   } catch (err) {
     console.error('[email] notifyTicketCreated team fan-out crashed:', err)
+  }
+}
+
+/**
+ * A ticket was kicked back to a team's queue because its assignee was
+ * deactivated. The caller has already set it to `new` and unassigned it;
+ * this fans the notification out to active, non-OOO members of the team
+ * (mirrors the team-queue fan-out in notifyTicketCreated). One call per
+ * affected ticket.
+ */
+export async function notifyTicketsRequeued(p: {
+  ticketId: string
+  title: string
+  category: string
+  priority: string
+  teamId: string
+  formerAgentName: string
+}) {
+  try {
+    const supabase = createAdminClient()
+
+    const { data: team } = await supabase
+      .from('teams')
+      .select('id, name')
+      .eq('id', p.teamId)
+      .single()
+
+    if (!team) {
+      console.warn(`[email] notifyTicketsRequeued: team ${p.teamId} not found`)
+      return
+    }
+
+    const { data: members, error: membersErr } = await supabase
+      .from('profiles')
+      .select('id, email, name, role, is_out_of_office, is_active')
+      .contains('team_ids', [p.teamId])
+
+    if (membersErr) {
+      console.error('[email] notifyTicketsRequeued: failed to load team members:', membersErr)
+      return
+    }
+
+    const recipients = (members ?? []).filter(
+      (m) =>
+        (m.role === 'agent' || m.role === 'admin') &&
+        !m.is_out_of_office &&
+        m.is_active !== false &&
+        m.email,
+    )
+
+    console.log(
+      `[email] notifyTicketsRequeued: fanning ${p.ticketId} out to ${recipients.length} member(s) of team ${team.name}`,
+    )
+
+    for (const member of recipients) {
+      await send(
+        member.email,
+        templates.ticketRequeuedTeam({
+          ticketId: p.ticketId,
+          title: p.title,
+          category: p.category,
+          priority: p.priority,
+          teamName: team.name,
+          formerAgentName: p.formerAgentName,
+        }),
+        p.ticketId,
+      )
+    }
+  } catch (err) {
+    console.error('[email] notifyTicketsRequeued crashed:', err)
   }
 }
 
