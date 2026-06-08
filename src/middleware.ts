@@ -48,6 +48,8 @@ interface PublicMetadata {
   role?: UserRole;
   hasBranchAccess?: boolean;
   hasRegionalAccess?: boolean;
+  /** false = deactivated (hard-blocked). Mirrors profiles.is_active. */
+  active?: boolean;
   [key: string]: unknown;
 }
 
@@ -82,6 +84,15 @@ export default clerkMiddleware(async (auth, request) => {
 
   const metadata = sessionClaims?.metadata as PublicMetadata | undefined;
   const role = getRole(metadata);
+
+  // --- Deactivated users (hard block) ---------------------------------------
+  // Deactivated accounts are banned in Clerk, which revokes their sessions —
+  // so they normally fail the `!userId` check above. This is the belt-and-
+  // suspenders guard for the brief window before session revocation
+  // propagates to the edge: bounce to sign-in (where Clerk refuses the ban).
+  if (metadata?.active === false) {
+    return redirectToSignIn();
+  }
 
   // --- Admin routes ---------------------------------------------------------
   if (isAdminRoute(request)) {

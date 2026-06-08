@@ -47,11 +47,12 @@ export function applyRoutingRules(
       }
 
       if (rule.assign_to_team) {
-        // Find agents in this team who are not out of office
+        // Find agents in this team who are active and not out of office
         const teamMembers = users.filter(
           (u) =>
             (u.team_ids ?? []).includes(rule.assign_to_team!) &&
             u.role !== 'employee' &&
+            u.is_active !== false &&
             !u.is_out_of_office,
         )
 

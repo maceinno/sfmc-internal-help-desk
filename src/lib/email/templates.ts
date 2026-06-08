@@ -154,6 +154,38 @@ export function ticketCreatedTeam(p: {
   }
 }
 
+export function ticketRequeuedTeam(p: {
+  ticketId: string
+  title: string
+  category: string
+  priority: string
+  teamName: string
+  formerAgentName: string
+}) {
+  return {
+    subject: `[${p.ticketId}] Back in ${p.teamName} queue: ${p.title}`,
+    html: layout(`
+      <h2 style="margin:0 0 8px;font-size:20px;color:#111827;">Ticket Returned to Your Team Queue</h2>
+      <p style="margin:0 0 16px;color:#6b7280;font-size:14px;">
+        <strong>${p.formerAgentName}</strong> was deactivated, so this ticket was set back to <strong>New</strong> and returned to the <strong>${p.teamName}</strong> queue. Open it to claim it or reassign.
+      </p>
+      <table cellpadding="0" cellspacing="0" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+        <tr><td style="padding:12px 16px;background:#f9fafb;font-size:13px;color:#6b7280;width:100px;">Ticket</td>
+            <td style="padding:12px 16px;font-size:14px;font-weight:600;color:#111827;">${p.ticketId}</td></tr>
+        <tr><td style="padding:12px 16px;background:#f9fafb;font-size:13px;color:#6b7280;border-top:1px solid #e5e7eb;">Subject</td>
+            <td style="padding:12px 16px;font-size:14px;color:#111827;border-top:1px solid #e5e7eb;">${p.title}</td></tr>
+        <tr><td style="padding:12px 16px;background:#f9fafb;font-size:13px;color:#6b7280;border-top:1px solid #e5e7eb;">Team</td>
+            <td style="padding:12px 16px;font-size:14px;color:#111827;border-top:1px solid #e5e7eb;">${p.teamName}</td></tr>
+        <tr><td style="padding:12px 16px;background:#f9fafb;font-size:13px;color:#6b7280;border-top:1px solid #e5e7eb;">Category</td>
+            <td style="padding:12px 16px;font-size:14px;color:#111827;border-top:1px solid #e5e7eb;">${p.category}</td></tr>
+        <tr><td style="padding:12px 16px;background:#f9fafb;font-size:13px;color:#6b7280;border-top:1px solid #e5e7eb;">Priority</td>
+            <td style="padding:12px 16px;font-size:14px;color:#111827;border-top:1px solid #e5e7eb;">${badge(p.priority, '#92400e', '#fef3c7')}</td></tr>
+      </table>
+      ${button(ticketUrl(p.ticketId), 'View & Claim')}
+    `),
+  }
+}
+
 export interface ConversationMessage {
   authorName: string
   content: string
