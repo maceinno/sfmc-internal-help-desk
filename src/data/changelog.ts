@@ -43,6 +43,28 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-06-11',
+    label: 'Email delivery',
+    sections: [
+      {
+        heading: 'Bounce visibility',
+        items: [
+          {
+            title: 'Admins can now see which addresses are bouncing or suppressed',
+            body: 'New Admin → Email Delivery page. It lists every address our email provider has bounced or suppressed — a suppressed address silently receives nothing, not even its account invite, which is the usual reason a new user "never got the email." You can look up any address\'s delivery history and re-send an invite. Clearing a suppression itself is still done in the Resend dashboard (the provider doesn\'t allow it over the API); the page explains the two-step fix and links out.',
+            howToTest: {
+              admin: [
+                'Go to Admin → Email Delivery. The "Delivery issues" list shows bounced/suppressed addresses with the reason and timestamp.',
+                'Type any address into the look-up box to see its full delivery history.',
+                'Use "Resend invite" to re-send a sign-in link. Note: if the address is still suppressed in Resend, clear it there first or the resend is dropped.',
+              ],
+            },
+          },
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-06-08',
     label: 'User management',
     sections: [

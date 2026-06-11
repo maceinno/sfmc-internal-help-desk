@@ -12,6 +12,19 @@ verification steps. Those instructions live in the `howToTest` field on
 the entry in `changelog.ts` and are mirrored below as collapsible
 `<details>` blocks, one per role.
 
+## 2026-06-11 — Email delivery
+
+### Bounce visibility
+
+- **Admins can now see which addresses are bouncing or suppressed.** New Admin → Email Delivery page. It lists every address our email provider has bounced or suppressed — a suppressed address silently receives nothing, not even its account invite, which is the usual reason a new user "never got the email." You can look up any address's delivery history and re-send an invite. Clearing a suppression itself is still done in the Resend dashboard (the provider doesn't allow it over the API); the page explains the two-step fix and links out.
+
+  <details><summary>How to test — Admin</summary>
+
+  1. Go to Admin → Email Delivery. The "Delivery issues" list shows bounced/suppressed addresses with the reason and timestamp.
+  2. Type any address into the look-up box to see its full delivery history.
+  3. Use "Resend invite" to re-send a sign-in link. Note: if the address is still suppressed in Resend, clear it there first or the resend is dropped.
+  </details>
+
 ## 2026-06-08 — User management
 
 ### Deactivating users
