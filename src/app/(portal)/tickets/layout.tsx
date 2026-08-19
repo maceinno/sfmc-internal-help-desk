@@ -21,6 +21,7 @@ import {
 } from '@/hooks/use-admin-config'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { filterQueueScope } from '@/lib/permissions/policies'
+import { withNewDepartmentsCollapsed } from '@/lib/views/department-views'
 import { useUIStore } from '@/stores/ui-store'
 import { useGlobalPresence } from '@/hooks/use-global-presence'
 import { getSlaStatus } from '@/lib/sla'
@@ -34,6 +35,7 @@ import type {
   SlaPolicy,
   DepartmentSchedule,
 } from '@/types/ticket'
+import type { DepartmentCategoryGroup } from '@/hooks/use-admin-config'
 
 interface ViewEntry {
   id: string
@@ -44,6 +46,13 @@ interface ViewGroup {
   name: string
   views: ViewEntry[]
 }
+
+/**
+ * Stable empty default for the department-categories query. Must be defined
+ * once at module scope: an inline `= []` in the destructure is a new array
+ * per render, and anything memoised on it then recomputes forever.
+ */
+const EMPTY_DEPARTMENT_GROUPS: DepartmentCategoryGroup[] = []
 
 function buildViewGroups(
   configs: ViewConfig[],
@@ -206,7 +215,13 @@ export default function TicketsLayout({
     }
   }, [searchParams, setActiveViewId])
 
-  const { data: departmentGroups = [] } = useDepartmentCategories()
+  // NOTE the shared empty default. Destructuring with a literal `= []` hands
+  // back a BRAND-NEW array on every render while the query has no data, which
+  // invalidates every memo and effect keyed off it — that is what turned the
+  // collapsed-groups effect below into an infinite loop. A stable constant
+  // keeps the identity fixed until real data arrives.
+  const { data: departmentGroups = EMPTY_DEPARTMENT_GROUPS } =
+    useDepartmentCategories()
   const departmentNames = useMemo(
     () => departmentGroups.map((g) => g.ticket_type),
     [departmentGroups],
@@ -218,13 +233,13 @@ export default function TicketsLayout({
     Record<string, boolean>
   >({ Other: true })
   useEffect(() => {
-    setCollapsedGroups((prev) => {
-      const next = { ...prev }
-      for (const dept of departmentNames) {
-        if (next[dept] === undefined) next[dept] = true
-      }
-      return next
-    })
+    // The updater returns `prev` untouched when there's nothing new, so this
+    // is a no-op rather than a state change. Without that, this effect and
+    // its own dependency re-triggered each other until React gave up with
+    // "Maximum update depth exceeded". See withNewDepartmentsCollapsed.
+    setCollapsedGroups((prev) =>
+      withNewDepartmentsCollapsed(prev, departmentNames),
+    )
   }, [departmentNames])
 
   // Column collapse state for the master-detail layout. Persisted in
