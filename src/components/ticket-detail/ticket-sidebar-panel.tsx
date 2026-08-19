@@ -25,7 +25,7 @@ import { UserAutocomplete } from "@/components/shared/user-autocomplete"
 import { SlaIndicator } from "@/components/tickets/sla-indicator"
 import { useTimezone } from "@/hooks/use-timezone"
 import { useDepartmentCategories } from "@/hooks/use-admin-config"
-import { canEditTicket, canViewInternalNotes } from "@/lib/permissions/policies"
+import { canEditTicket, canManageCc, canViewInternalNotes } from "@/lib/permissions/policies"
 import type {
   Ticket,
   TicketStatus,
@@ -92,6 +92,11 @@ export function TicketSidebarPanel({
   const isEditable = canEditTicket(currentUser, ticket)
   const isAgentOrAdmin =
     currentUser.role === "agent" || currentUser.role === "admin"
+
+  // Agents, admins, and the person who raised the ticket. See canManageCc —
+  // the rule lives in policies.ts so it stays in step with the server route
+  // that actually performs the change.
+  const ccEditable = canManageCc(currentUser, ticket)
 
   // DB-backed department/category taxonomy — same source as the create form.
   const { data: departmentGroups = [] } = useDepartmentCategories()
@@ -225,7 +230,7 @@ export function TicketSidebarPanel({
   return (
     <div className="w-full space-y-6 overflow-y-auto lg:w-80">
       {/* SLA Card */}
-      <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+      <div className="print-keep-together rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
         <h3 className="mb-3 border-b border-gray-100 pb-3 font-semibold text-gray-900">
           SLA Status
         </h3>
@@ -238,7 +243,7 @@ export function TicketSidebarPanel({
       </div>
 
       {/* Ticket Details */}
-      <div className="space-y-4 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+      <div className="print-keep-together space-y-4 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
         <h3 className="border-b border-gray-100 pb-3 font-semibold text-gray-900">
           Ticket Details
         </h3>
@@ -490,7 +495,7 @@ export function TicketSidebarPanel({
       </div>
 
       {/* People Card: CC & Collaborators */}
-      <div className="space-y-4 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+      <div className="print-keep-together space-y-4 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between border-b border-gray-100 pb-3">
           <h3 className="flex items-center font-semibold text-gray-900">
             <Users className="mr-2 h-4 w-4 text-muted-foreground" />
@@ -542,11 +547,13 @@ export function TicketSidebarPanel({
                   >
                     CC
                   </Badge>
-                  {isAgentOrAdmin && (
+                  {ccEditable && (
                     <button
                       type="button"
                       onClick={() => handleCcRemove(userId)}
                       className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-destructive"
+                      title={`Remove ${user?.name ?? userId} from CC`}
+                      aria-label={`Remove ${user?.name ?? userId} from CC`}
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -597,8 +604,8 @@ export function TicketSidebarPanel({
           </p>
         )}
 
-        {/* Add CC (agents/admins only) */}
-        {isAgentOrAdmin && (
+        {/* Add CC — agents, admins, and whoever raised the ticket */}
+        {ccEditable && (
           <div>
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               Add CC
@@ -615,7 +622,7 @@ export function TicketSidebarPanel({
       </div>
 
       {/* Ticket Info */}
-      <div className="space-y-3 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+      <div className="print-keep-together space-y-3 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
         <h3 className="border-b border-gray-100 pb-3 font-semibold text-gray-900">
           Info
         </h3>

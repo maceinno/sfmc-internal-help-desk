@@ -7,6 +7,8 @@ import { useTimezone } from '@/hooks/use-timezone'
 import { ArrowRight, Loader2 } from 'lucide-react'
 import { useTickets } from '@/hooks/use-tickets'
 import { useUsers } from '@/hooks/use-users'
+import { useCurrentUser } from '@/hooks/use-current-user'
+import { filterQueueScope } from '@/lib/permissions/policies'
 import { useSlaPolicies, useDepartmentSchedules } from '@/hooks/use-admin-config'
 import { getAtRiskTickets, getOverdueTickets, getSlaStatus } from '@/lib/sla'
 import { StatsCards } from '@/components/dashboard/stats-cards'
@@ -16,9 +18,17 @@ import { PriorityBadge } from '@/components/tickets/priority-badge'
 import { SlaIndicator } from '@/components/tickets/sla-indicator'
 
 export default function DashboardPage() {
-  const { data: tickets = [], isLoading: ticketsLoading } = useTickets()
+  const { data: fetchedTickets = [], isLoading: ticketsLoading } = useTickets()
   const { data: allUsers = [] } = useUsers()
+  const { profile } = useCurrentUser()
   const { data: policies = [] } = useSlaPolicies()
+
+  // Agents may open any ticket, but their dashboard is about THEIR workload —
+  // counting every department's backlog here would make the numbers useless.
+  const tickets = useMemo(
+    () => (profile ? filterQueueScope(profile, fetchedTickets, allUsers) : fetchedTickets),
+    [profile, fetchedTickets, allUsers],
+  )
   const { data: schedules = [] } = useDepartmentSchedules()
   const router = useRouter()
   const { formatDateTime } = useTimezone()

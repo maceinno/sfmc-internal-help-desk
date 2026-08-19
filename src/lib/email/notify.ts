@@ -68,6 +68,9 @@ export async function notifyTicketCreated(ticket: {
   assigned_to: string | null
   assigned_team?: string | null
   cc?: string[]
+  /** Requester's own text, shown in the team-queue email so agents can
+   *  triage from the inbox. Optional — older callers may omit it. */
+  description?: string | null
 }) {
   const ccUserIds = (ticket.cc ?? []).filter((id) => id !== ticket.created_by)
   const userIds = [ticket.created_by, ...ccUserIds]
@@ -168,6 +171,7 @@ export async function notifyTicketCreated(ticket: {
           priority: ticket.priority,
           creatorName: creator?.name ?? 'Unknown',
           teamName: team.name,
+          description: ticket.description ?? undefined,
         }),
         ticket.id,
       )
@@ -191,6 +195,8 @@ export async function notifyTicketsRequeued(p: {
   priority: string
   teamId: string
   formerAgentName: string
+  /** Ticket body, so queue members can triage from the email. */
+  description?: string | null
 }) {
   try {
     const supabase = createAdminClient()
@@ -238,6 +244,7 @@ export async function notifyTicketsRequeued(p: {
           priority: p.priority,
           teamName: team.name,
           formerAgentName: p.formerAgentName,
+          description: p.description ?? undefined,
         }),
         p.ticketId,
       )

@@ -4,6 +4,8 @@ import { useMemo, useState } from 'react'
 import { TicketFilters } from './ticket-filters'
 import { TicketTable } from './ticket-table'
 import { getSlaStatus } from '@/lib/sla'
+import { buildUserIndex, ticketMatchesSearch } from '@/lib/tickets/search'
+import { useReplySearch } from '@/hooks/use-reply-search'
 import { useSlaPolicies, useDepartmentSchedules } from '@/hooks/use-admin-config'
 import type { Ticket, User } from '@/types/ticket'
 import type { PresenceUser } from '@/hooks/use-ticket-presence'
@@ -77,21 +79,37 @@ export function TicketList({ tickets, allTickets, title, users, presenceMap }: T
     setSortDirection('asc')
   }
 
+  // id → user, for matching a search term against requester/assignee names
+  // and emails without re-scanning the user array per ticket.
+  const usersById = useMemo(() => buildUserIndex(users), [users])
+
+  const isSearching = searchTerm.trim().length > 0
+
+  // Reply bodies aren't in the loaded list, so they're searched server-side
+  // and merged in below. Everything else matches locally and instantly.
+  const { matches: replyMatches, isLoading: repliesLoading } =
+    useReplySearch(searchTerm)
+
+  const replyMatchIds = useMemo(
+    () => new Set(replyMatches.map((m) => m.ticketId)),
+    [replyMatches],
+  )
+
   // Filtered + sorted tickets
   const displayTickets = useMemo(() => {
     let filtered = tickets
 
-    // Search — when the term looks like a ticket ID (e.g. "T-1093"),
-    // search across ALL tickets so agents can find tickets outside the
-    // current view. Otherwise search within the current view only.
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase()
-      const isTicketIdSearch = /^t-\d+$/i.test(searchTerm.trim())
-      const pool = isTicketIdSearch && allTickets ? allTickets : filtered
+    // Search runs across EVERY ticket the user can see, not just the view
+    // that happens to be on screen. Searching from an "Open" list used to
+    // hide solved tickets, which made a search for a loan number look like
+    // "no such ticket". The dropdown filters below still narrow the results,
+    // so a deliberate status filter is respected.
+    if (searchTerm.trim()) {
+      const pool = allTickets ?? filtered
       filtered = pool.filter(
         (t) =>
-          t.title.toLowerCase().includes(term) ||
-          t.id.toLowerCase().includes(term),
+          ticketMatchesSearch(t, searchTerm, { usersById }) ||
+          replyMatchIds.has(t.id),
       )
     }
 
@@ -166,7 +184,21 @@ export function TicketList({ tickets, allTickets, title, users, presenceMap }: T
     schedules,
     allTickets,
     users,
+    usersById,
+    replyMatchIds,
   ])
+
+  // How many of the shown results are here *because of* a reply — i.e. the
+  // term appears nowhere on the ticket itself. Worth calling out, otherwise
+  // those rows look like false positives.
+  const replyMatchesShown = useMemo(() => {
+    if (!isSearching) return 0
+    return displayTickets.filter(
+      (t) =>
+        replyMatchIds.has(t.id) &&
+        !ticketMatchesSearch(t, searchTerm, { usersById }),
+    ).length
+  }, [displayTickets, replyMatchIds, isSearching, searchTerm, usersById])
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-white">
@@ -176,6 +208,16 @@ export function TicketList({ tickets, allTickets, title, users, presenceMap }: T
           <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
           <p className="text-sm text-gray-500 mt-0.5">
             {displayTickets.length} ticket{displayTickets.length !== 1 ? 's' : ''}
+            {isSearching && (
+              <span className="text-gray-400">
+                {' '}
+                — searching all tickets, every status
+                {repliesLoading
+                  ? ', still checking replies…'
+                  : replyMatchesShown > 0 &&
+                    `, ${replyMatchesShown} matched in a reply`}
+              </span>
+            )}
           </p>
         </div>
       </div>

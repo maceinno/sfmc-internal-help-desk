@@ -131,3 +131,54 @@ See `.env.local.example` for required variables:
 - `npm run lint` — ESLint
 - `npx tsc --noEmit` — type check
 - `npx vitest run` — run tests
+
+## Admin surfaces that hold MANY integrations — design standard
+
+Products accumulate integrations (messaging, AI, credit, title, LOS, email,
+property data). The admin screen that configures them is what reliably rots,
+because each new one is added the cheapest way: append another section to the
+page that already exists. One Mace client's integrations page reached **1808
+lines and 14 stacked accordions with a search filter added just to cope with its
+own length** — every commit locally reasonable, the result unusable.
+
+Build it right the first time:
+
+1. **Registry-driven, not layout surgery.** A new integration is a DATA entry
+   (key, label, group, status, fields) rendered by a generic list + detail view.
+   If adding one means writing JSX in a page component, the design is wrong.
+2. **Group by PURPOSE behind tabs or a sub-nav** — Messaging · AI · Data
+   providers · Email · Tooling · Logs · Compliance. Render only the active
+   group, and keep it deep-linkable (`?section=…`) so links survive.
+3. **Status at a glance** — configured / connected / error, visible WITHOUT
+   expanding anything. "What is broken right now?" is the page's first job.
+4. **One component file per section.** The page composes; it does not implement.
+5. **Only integrations belong there.** Logs, consent/compliance registers, test
+   benches and intake config get their own home.
+6. **THE TRIGGER — restructure BEFORE adding.** Past ~8 sections or ~500 lines,
+   the next integration does not get appended: restructure first, and say so
+   plainly. The cost is small at 8 sections and brutal at 14.
+7. **Never trade functionality for tidiness.** Every control that worked before
+   works after; if something looks removable, ask.
+
+Full rule: `mace-tech/.claude/rules/integration-admin-ui.md`.
+
+### Applies GOING FORWARD — existing code is grandfathered
+
+This standard governs **new** work. It is explicitly **not** a mandate to
+refactor what already ships here.
+
+- **Do NOT rewrite existing admin sections, integrations or pages to comply.**
+  Working code that predates this standard stays as-is. Legacy smell is
+  accepted debt, not a bug to fix on sight.
+- **New** integrations, new admin sections and substantial rewrites of an
+  existing section DO follow it.
+- If you are extending a legacy area and the standard would force a large
+  refactor, keep the change small and in the local style, then say once that
+  the area is a candidate for restructuring. Do not restructure unasked.
+- A restructure happens only when the operator asks for it, or when the
+  section you were told to change is already past the trigger and adding to it
+  would make things materially worse — in which case say so and get agreement
+  BEFORE starting.
+
+The point is to stop the next 1808-line page from forming, not to churn the
+ones that already exist.

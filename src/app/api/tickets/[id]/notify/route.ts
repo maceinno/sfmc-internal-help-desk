@@ -28,6 +28,15 @@ function priorityLabel(priority: string): string {
 }
 
 /**
+ * Keep a quoted value short enough to read as one line in the thread, and
+ * flatten newlines so a pasted multi-line subject can't break the layout.
+ */
+function clip(value: string, max = 120): string {
+  const flat = value.replace(/\s+/g, ' ').trim()
+  return flat.length > max ? flat.slice(0, max) + '...' : flat
+}
+
+/**
  * POST /api/tickets/[id]/notify
  *
  * Called by the client after a successful ticket field update. Two
@@ -49,6 +58,7 @@ type NotifyType =
   | 'subcategory_changed'
   | 'department_changed'
   | 'team_changed'
+  | 'title_changed'
 
 interface NotifyBody {
   type: NotifyType
@@ -90,7 +100,7 @@ export async function POST(
   const supabase = createAdminClient()
   const { data: ticketRow } = await supabase
     .from('tickets')
-    .select('created_by, assigned_to')
+    .select('created_by, assigned_to, title')
     .eq('id', ticketId)
     .maybeSingle()
 
@@ -98,22 +108,27 @@ export async function POST(
     return NextResponse.json({ error: 'Ticket not found' }, { status: 404 })
   }
 
-  const access = await assertTicketAccess(
-    supabase,
-    userId,
-    ticketId,
-    ticketRow,
-    'admin',
-  )
-  if (!access.ok) {
-    return NextResponse.json({ error: access.error }, { status: access.status })
-  }
-
   let body: NotifyBody
   try {
     body = await request.json()
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+  }
+
+  // A subject change is the one event an EMPLOYEE can trigger: they may
+  // rename a ticket they raised (see `canEditTicket`), and if this endpoint
+  // rejected them the rename would still save but leave no trace of who did
+  // it. So that one type uses the 'manage' allow-list (creator or
+  // agent/admin) while everything else stays agent/admin only.
+  const access = await assertTicketAccess(
+    supabase,
+    userId,
+    ticketId,
+    ticketRow,
+    body.type === 'title_changed' ? 'manage' : 'admin',
+  )
+  if (!access.ok) {
+    return NextResponse.json({ error: access.error }, { status: access.status })
   }
 
   // Build the human-readable system-event content for whichever event
@@ -144,6 +159,22 @@ export async function POST(
       const from = body.oldValue || '—'
       const to = body.newValue || '—'
       return `changed department from ${from} to ${to}`
+    }
+    if (body.type === 'title_changed') {
+      const from = (body.oldValue ?? '').trim()
+      // The NEW subject is read back from the ticket row, not taken from the
+      // request. This endpoint writes into the message thread, and a system
+      // event carries more authority than a reply — so the one field a
+      // creator could otherwise put arbitrary text into is sourced from the
+      // database instead. If the update didn't actually land, nothing is
+      // recorded.
+      const to = (ticketRow?.title ?? '').trim()
+      if (!to || from === to) return null
+      // Quoted, because subjects contain their own punctuation and the
+      // unquoted form reads as gibberish in the thread.
+      return from
+        ? `changed the subject from "${clip(from)}" to "${clip(to)}"`
+        : `set the subject to "${clip(to)}"`
     }
     if (body.type === 'team_changed') {
       const supabase = createAdminClient()

@@ -2,6 +2,35 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ViewFilterConfig } from '@/types/ticket'
 
 /**
+ * Add any not-yet-known department to the collapsed map, defaulting it to
+ * collapsed — and return the EXACT SAME OBJECT when there is nothing to add.
+ *
+ * Returning `prev` unchanged is the whole point, not an optimisation. This
+ * runs from a `useEffect` in the tickets layout, and the previous version
+ * built `{ ...prev }` every time. That is a new object identity, so React
+ * treated every run as a real state change and re-rendered; the effect's
+ * dependency (`departmentNames`) is itself rebuilt whenever the department
+ * query has no data yet — `useDepartmentCategories()` destructures with a
+ * `= []` default, which is a fresh array on each render — so the effect re-ran,
+ * set state again, and the two ping-ponged until React aborted with
+ * "Maximum update depth exceeded" and the tickets page died.
+ *
+ * With an unchanged return there is no state update, so the cycle cannot
+ * start regardless of how often the effect fires.
+ */
+export function withNewDepartmentsCollapsed(
+  prev: Record<string, boolean>,
+  departmentNames: readonly string[],
+): Record<string, boolean> {
+  const missing = departmentNames.filter((d) => prev[d] === undefined)
+  if (missing.length === 0) return prev
+
+  const next = { ...prev }
+  for (const dept of missing) next[dept] = true
+  return next
+}
+
+/**
  * Per-department template views. Each department gets these five.
  * Mirrors the original prototype's "New / Open / Pending / On Hold /
  * Unsolved" set, but filters by ticket_type via ticketTypeFilter.

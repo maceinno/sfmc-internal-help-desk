@@ -55,7 +55,11 @@ export function useTickets(filters: TicketFilters = {}) {
       let query = supabase
         .from('tickets')
         .select(
-          '*, ticket_cc(user_id), ticket_collaborators(user_id), messages(id, author_id, created_at, is_internal, is_system, author:profiles(role))',
+          // `custom_field_values` is included so the list can be searched by
+          // Lead/Loan Number and Borrower Name — those never appear in the
+          // subject, so without them a loan-number search finds nothing.
+          // It is a narrow projection (field id + value) over ~6k rows.
+          '*, ticket_cc(user_id), ticket_collaborators(user_id), custom_field_values(field_id, value), messages(id, author_id, created_at, is_internal, is_system, author:profiles(role))',
         )
 
       if (filters.status) {
@@ -82,8 +86,12 @@ export function useTickets(filters: TicketFilters = {}) {
         ticket.cc = (row.ticket_cc as { user_id: string }[] | null)?.map((r) => r.user_id) ?? []
         ticket.collaborators = (row.ticket_collaborators as { user_id: string }[] | null)?.map((r) => r.user_id) ?? []
         ticket.messages = hydrateMessages(row.messages as Array<Record<string, unknown>> | null)
+        // Same shape the detail hook produces, so search code can read
+        // `custom_fields` without caring which query loaded the ticket.
+        ticket.custom_fields = row.custom_field_values ?? []
         delete ticket.ticket_cc
         delete ticket.ticket_collaborators
+        delete ticket.custom_field_values
         return ticket as unknown as Ticket
       })
     },
@@ -190,6 +198,8 @@ export interface CreateTicketPayload {
 
 export interface UpdateTicketPayload {
   id: string
+  /** Ticket subject. Editable after creation — see the header on the detail page. */
+  title?: string
   status?: TicketStatus
   priority?: TicketPriority
   category?: TicketCategory
@@ -282,6 +292,7 @@ export function useUpdateTicket() {
 
       // Convert camelCase keys to snake_case for the DB
       const dbUpdates: Record<string, unknown> = {}
+      if (updates.title !== undefined) dbUpdates.title = updates.title
       if (updates.status !== undefined) dbUpdates.status = updates.status
       if (updates.priority !== undefined) dbUpdates.priority = updates.priority
       if (updates.category !== undefined) dbUpdates.category = updates.category
