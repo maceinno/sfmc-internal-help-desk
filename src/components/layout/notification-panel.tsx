@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
-import { Bell, AlertTriangle } from 'lucide-react'
+import { Bell, AlertTriangle, ArrowRightLeft } from 'lucide-react'
 import { useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead } from '@/hooks/use-notifications'
 import { useTimezone } from '@/hooks/use-timezone'
 import { useNotificationStore } from '@/stores/notification-store'
@@ -68,6 +68,10 @@ export function NotificationPanel() {
                   {notif.type === 'sla_at_risk' ? (
                     <div className="w-8 h-8 rounded-full border border-amber-500/50 bg-amber-500/20 flex items-center justify-center">
                       <AlertTriangle className="w-4 h-4 text-amber-400" />
+                    </div>
+                  ) : notif.type === 'ticket_moved' ? (
+                    <div className="w-8 h-8 rounded-full border border-blue-500/50 bg-blue-500/20 flex items-center justify-center">
+                      <ArrowRightLeft className="w-4 h-4 text-blue-400" />
                     </div>
                   ) : (
                     <div className="w-8 h-8 rounded-full border border-slate-600 bg-slate-700 flex items-center justify-center">

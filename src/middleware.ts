@@ -17,13 +17,17 @@ const isPublicRoute = createRouteMatcher([
 ]);
 
 /** Routes restricted to admin role only. */
-const isAdminRoute = createRouteMatcher(["/admin(.*)", "/whats-new(.*)"]);
+const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
 
 /** Routes restricted to agent or admin roles. */
 const isAgentRoute = createRouteMatcher([
   "/dashboard(.*)",
   "/tickets",
   "/reports(.*)",
+  // What's New is written for the people doing the work, and its "how to
+  // test" steps are keyed by role — but it was admin-only, so no agent could
+  // read a word of it. Agents and admins now can; employees still cannot.
+  "/whats-new(.*)",
 ]);
 
 /** Routes that require branch-level access. */

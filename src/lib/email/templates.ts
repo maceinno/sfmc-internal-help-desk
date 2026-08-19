@@ -63,6 +63,45 @@ function badge(label: string, color: string, bg: string) {
   return `<span style="display:inline-block;background:${bg};color:${color};padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;">${label}</span>`
 }
 
+const STATUS_COLORS: Record<string, { color: string; bg: string }> = {
+  new: { color: '#1e40af', bg: '#dbeafe' },
+  open: { color: '#15803d', bg: '#dcfce7' },
+  pending: { color: '#92400e', bg: '#fef3c7' },
+  on_hold: { color: '#6b7280', bg: '#f3f4f6' },
+  solved: { color: '#166534', bg: '#bbf7d0' },
+}
+
+const STATUS_NAMES: Record<string, string> = {
+  new: 'New',
+  open: 'Open',
+  pending: 'Pending',
+  on_hold: 'On Hold',
+  solved: 'Solved',
+}
+
+function statusName(status: string): string {
+  return STATUS_NAMES[status] ?? status.replace(/_/g, ' ')
+}
+
+/**
+ * "This reply also marked the ticket Solved" — the line that lets ONE email
+ * carry both a reply and the status change an agent made in the same action.
+ *
+ * Agents replying with "Submit as Solved" used to generate two emails a
+ * couple of seconds apart (the reply, then a separate status notification).
+ * Folding the status into the reply email is what makes suppressing the
+ * second one safe: nothing is lost, it just arrives once.
+ */
+function statusWithReplyBlock(status: string | undefined): string {
+  if (!status) return ''
+  const sc = STATUS_COLORS[status] ?? { color: '#374151', bg: '#f3f4f6' }
+  return `
+      <div style="margin-bottom:16px;padding:12px 16px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;">
+        <span style="font-size:13px;color:#6b7280;">This reply also set the ticket status to</span>
+        ${badge(statusName(status), sc.color, sc.bg)}
+      </div>`
+}
+
 /**
  * Render a ticket's own text (description or reply body) as a trimmed,
  * read-only block. Handles both Tiptap HTML and the plain text that the
@@ -253,6 +292,12 @@ export function newReply(p: {
   isInternal: boolean
   description?: string
   conversation?: ConversationMessage[]
+  /**
+   * Set when the same action that posted this reply also changed the
+   * ticket's status ("Submit as Solved"). Renders the status inline so this
+   * single email covers both — see `statusWithReplyBlock`.
+   */
+  statusChangedTo?: string
 }) {
   // Replies may be HTML (rich-text composer) or plain text (legacy /
   // email-inbound). Strip to plain text for the email so list bullets
@@ -306,6 +351,7 @@ export function newReply(p: {
       <p style="margin:0 0 16px;color:#6b7280;font-size:14px;">
         <strong>${p.authorName}</strong> ${p.isInternal ? 'added an internal note to' : 'replied to'} ticket <strong>${p.ticketId}</strong>.
       </p>
+      ${statusWithReplyBlock(p.statusChangedTo)}
       <div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:16px;margin-bottom:16px;">
         <div style="margin-bottom:4px;">
           <strong style="font-size:13px;color:#111827;">${p.authorName}</strong>
@@ -436,6 +482,10 @@ export function ccNotification(p: {
   content: string
   description?: string
   conversation?: ConversationMessage[]
+  /** Passed straight through to `newReply` below — CC'd followers need to
+   *  see the status change in this email too, since the separate status
+   *  email is suppressed when a reply carried it. */
+  statusChangedTo?: string
 }) {
   const preview = p.content.length > 500 ? p.content.slice(0, 500) + '...' : p.content
 
@@ -454,6 +504,60 @@ export function ccNotification(p: {
       'replied to',
       'posted on'
     ),
+  }
+}
+
+/**
+ * A ticket has been handed to another department's queue.
+ *
+ * Goes to the RECEIVING queue — the people who now own the work. Says where
+ * it came from and who sent it, because "why is this in our queue?" is the
+ * first question, and states plainly that nobody is assigned so it doesn't
+ * sit untouched while everyone assumes a colleague picked it up.
+ */
+export function ticketMovedToQueue(p: {
+  ticketId: string
+  title: string
+  fromLabel: string
+  toLabel: string
+  movedByName: string
+  priority?: string
+  unassigned: boolean
+  description?: string
+}) {
+  const ownership = p.unassigned
+    ? `<p style="margin:12px 0 0;font-size:13px;color:#92400e;">
+         Nobody is assigned to it — it is waiting in the
+         <strong>${p.toLabel}</strong> queue for someone to pick up.
+       </p>`
+    : ''
+
+  return {
+    subject: `[${p.ticketId}] Moved to ${p.toLabel}: ${p.title}`,
+    html: layout(`
+      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:16px;margin-bottom:16px;">
+        <h2 style="margin:0 0 4px;font-size:18px;color:#1d4ed8;">Ticket Moved to Your Queue</h2>
+        <p style="margin:0;font-size:14px;color:#374151;">
+          <strong>${p.movedByName}</strong> moved this ticket from
+          <strong>${p.fromLabel}</strong> to <strong>${p.toLabel}</strong>.
+        </p>
+        ${ownership}
+      </div>
+      <table cellpadding="0" cellspacing="0" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+        <tr><td style="padding:12px 16px;background:#f9fafb;font-size:13px;color:#6b7280;width:100px;">Ticket</td>
+            <td style="padding:12px 16px;font-size:14px;font-weight:600;color:#111827;">${p.ticketId}</td></tr>
+        <tr><td style="padding:12px 16px;background:#f9fafb;font-size:13px;color:#6b7280;border-top:1px solid #e5e7eb;">Subject</td>
+            <td style="padding:12px 16px;font-size:14px;color:#111827;border-top:1px solid #e5e7eb;">${p.title}</td></tr>
+        ${p.priority ? `<tr><td style="padding:12px 16px;background:#f9fafb;font-size:13px;color:#6b7280;border-top:1px solid #e5e7eb;">Priority</td>
+            <td style="padding:12px 16px;font-size:14px;color:#111827;border-top:1px solid #e5e7eb;text-transform:capitalize;">${p.priority}</td></tr>` : ''}
+      </table>
+      ${button(ticketUrl(p.ticketId), 'View Ticket')}
+      ${requestBlock(p.description, {
+        label: 'Original Request',
+        maxChars: 300,
+        divider: 'dashed',
+      })}
+    `),
   }
 }
 
@@ -488,9 +592,21 @@ export function slaAlert(p: {
   title: string
   status: 'at_risk' | 'breached'
   timeInfo: string
+  /**
+   * Set when the ticket has no assignee and this went to a whole queue.
+   * Says so in the email — otherwise every member reads "you are late on
+   * this" and each assumes one of the others owns it.
+   */
+  queueName?: string
 }) {
   const isBreached = p.status === 'breached'
   const headerColor = isBreached ? '#dc2626' : '#d97706'
+  const unassignedNote = p.queueName
+    ? `<p style="margin:12px 0 0;font-size:13px;color:#92400e;">
+         Nobody is assigned to this ticket yet — it is sitting in the
+         <strong>${p.queueName}</strong> queue, and everyone in that queue got this email.
+       </p>`
+    : ''
   return {
     subject: `[${p.ticketId}] SLA ${isBreached ? 'BREACHED' : 'AT RISK'}: ${p.title}`,
     html: layout(`
@@ -499,6 +615,7 @@ export function slaAlert(p: {
           ${isBreached ? 'SLA Breached' : 'SLA At Risk'}
         </h2>
         <p style="margin:0;font-size:14px;color:#374151;">${p.timeInfo}</p>
+        ${unassignedNote}
       </div>
       <table cellpadding="0" cellspacing="0" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
         <tr><td style="padding:12px 16px;background:#f9fafb;font-size:13px;color:#6b7280;width:100px;">Ticket</td>

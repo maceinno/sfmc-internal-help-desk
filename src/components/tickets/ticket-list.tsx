@@ -5,6 +5,10 @@ import { TicketFilters } from './ticket-filters'
 import { TicketTable } from './ticket-table'
 import { getSlaStatus } from '@/lib/sla'
 import { buildUserIndex, ticketMatchesSearch } from '@/lib/tickets/search'
+import {
+  ALL_CATEGORIES,
+  matchesCategoryFilter,
+} from '@/lib/tickets/category-filter'
 import { useReplySearch } from '@/hooks/use-reply-search'
 import { useSlaPolicies, useDepartmentSchedules } from '@/hooks/use-admin-config'
 import type { Ticket, User } from '@/types/ticket'
@@ -57,7 +61,7 @@ export function TicketList({ tickets, allTickets, title, users, presenceMap }: T
   const [priorityFilter, setPriorityFilter] =
     useState<PriorityFilterValue>('all')
   const [categoryFilter, setCategoryFilter] =
-    useState<CategoryFilterValue>('all')
+    useState<CategoryFilterValue>(ALL_CATEGORIES)
 
   // Sort state — null means "no user-applied sort" (natural query order).
   // Column header click cycles: null → asc → desc → null.
@@ -128,9 +132,11 @@ export function TicketList({ tickets, allTickets, title, users, presenceMap }: T
       filtered = filtered.filter((t) => t.priority === priorityFilter)
     }
 
-    // Category
-    if (categoryFilter !== 'all') {
-      filtered = filtered.filter((t) => t.category === categoryFilter)
+    // Category (or a whole department) — the filter value carries the
+    // department, so a category name shared by several departments only
+    // matches the one that was picked.
+    if (categoryFilter !== ALL_CATEGORIES) {
+      filtered = filtered.filter((t) => matchesCategoryFilter(t, categoryFilter))
     }
 
     // No sort applied → preserve the query's natural order.

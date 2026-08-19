@@ -228,7 +228,11 @@ export function TicketSidebarPanel({
   }
 
   return (
-    <div className="w-full space-y-6 overflow-y-auto lg:w-80">
+    // No internal scroll below `lg`: stacked under the conversation on a
+    // phone, this panel's own height is what pushed the reply box off screen.
+    // It now flows with the page there, and keeps its scroll area beside the
+    // conversation from `lg` up.
+    <div className="w-full space-y-6 lg:w-80 lg:overflow-y-auto">
       {/* SLA Card */}
       <div className="print-keep-together rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
         <h3 className="mb-3 border-b border-gray-100 pb-3 font-semibold text-gray-900">

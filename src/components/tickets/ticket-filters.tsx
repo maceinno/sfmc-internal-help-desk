@@ -3,13 +3,19 @@
 import { useMemo } from 'react'
 import { Search } from 'lucide-react'
 import { useDepartmentCategories } from '@/hooks/use-admin-config'
-import type { TicketStatus, TicketPriority, TicketCategory, Ticket } from '@/types/ticket'
+import {
+  ALL_CATEGORIES,
+  categoryFilterValue,
+  departmentFilterValue,
+  type CategoryFilterValue,
+} from '@/lib/tickets/category-filter'
+import type { TicketStatus, TicketPriority, Ticket } from '@/types/ticket'
 
 // ── Filter / Sort value types ──────────────────────────────────
 
 export type StatusFilterValue = TicketStatus | 'all' | 'overdue'
 export type PriorityFilterValue = TicketPriority | 'all'
-export type CategoryFilterValue = TicketCategory | 'all'
+export type { CategoryFilterValue }
 export type SortField = keyof Pick<
   Ticket,
   'updated_at' | 'created_at' | 'priority' | 'status' | 'assigned_to' | 'created_by'
@@ -65,14 +71,26 @@ export function TicketFilters({
   onCategoryFilterChange,
 }: TicketFiltersProps) {
   const { data: departmentGroups = [] } = useDepartmentCategories()
-  const CATEGORY_OPTIONS = useMemo(
-    () => [
-      { value: 'all' as const, label: 'All Categories' },
-      ...departmentGroups.map((g) => ({
-        value: g.ticket_type as TicketCategory,
-        label: g.ticket_type,
+
+  // One group per department, each offering "All <department>" followed by
+  // that department's own categories. The categories carry their department
+  // with them so picking "Other" under Marketing doesn't also match IT's
+  // "Other" — nine of the ten departments define a category by that name.
+  const CATEGORY_GROUPS = useMemo(
+    () =>
+      departmentGroups.map((g) => ({
+        department: g.ticket_type,
+        options: [
+          {
+            value: departmentFilterValue(g.ticket_type),
+            label: `All ${g.ticket_type}`,
+          },
+          ...g.categories.map((c) => ({
+            value: categoryFilterValue(g.ticket_type, c.name),
+            label: c.name,
+          })),
+        ],
       })),
-    ],
     [departmentGroups],
   )
   return (
@@ -117,18 +135,22 @@ export function TicketFilters({
         ))}
       </select>
 
-      {/* Category */}
+      {/* Category — grouped under the department each one belongs to */}
       <select
         value={categoryFilter}
-        onChange={(e) =>
-          onCategoryFilterChange(e.target.value as CategoryFilterValue)
-        }
-        className="h-8 text-sm border border-gray-300 rounded-md px-2 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+        onChange={(e) => onCategoryFilterChange(e.target.value)}
+        aria-label="Filter by department or category"
+        className="h-8 max-w-[240px] text-sm border border-gray-300 rounded-md px-2 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
       >
-        {CATEGORY_OPTIONS.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
+        <option value={ALL_CATEGORIES}>All Categories</option>
+        {CATEGORY_GROUPS.map((group) => (
+          <optgroup key={group.department} label={group.department}>
+            {group.options.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </optgroup>
         ))}
       </select>
     </div>
