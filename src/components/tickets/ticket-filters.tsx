@@ -82,7 +82,7 @@ export function TicketFilters({
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
         <input
           type="text"
-          placeholder="Search title or ID..."
+          placeholder="Search subject, description, loan #, borrower, person..."
           className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
           value={searchTerm}
           onChange={(e) => onSearchChange(e.target.value)}

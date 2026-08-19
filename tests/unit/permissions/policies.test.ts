@@ -4,6 +4,7 @@ import type { User, Ticket } from '@/types/ticket'
 import {
   canViewTicket,
   canEditTicket,
+  canManageCc,
   canViewInternalNotes,
   canAccessAdmin,
   canViewBranchTickets,
@@ -15,6 +16,8 @@ import {
   filterVisibleTickets,
   filterBranchTickets,
   filterRegionTickets,
+  filterQueueScope,
+  isTicketInQueueScope,
 } from '@/lib/permissions/policies'
 
 // ============================================================================
@@ -155,7 +158,6 @@ describe('canViewTicket', () => {
 
   it('agent can view ticket assigned to their team', () => {
     expect(canViewTicket(agent1, ticketByEmp1, allUsers)).toBe(true) // team-closing
-    expect(canViewTicket(agent1, ticketByEmp2, allUsers)).toBe(false) // team-it
   })
 
   it('agent can view ticket they are assigned to', () => {
@@ -175,9 +177,18 @@ describe('canViewTicket', () => {
     expect(canViewTicket(agent1, ccTicket, allUsers)).toBe(true)
   })
 
-  it('agent cannot view unrelated ticket without team/cc/assignment match', () => {
-    // agent1 team = team-closing, ticketByEmp2 team = team-it, not CC'd, not assignee
-    expect(canViewTicket(agent1, ticketByEmp2, allUsers)).toBe(false)
+  // Changed 2026-08-19. Agents used to be confined to their own teams, which
+  // is why a loan number in another department's queue was unfindable. They
+  // now see every ticket, matching migration 017 and the server-side gate in
+  // assert-ticket-access.ts. Employees are unaffected — see below.
+  it('agent can view a ticket in another department', () => {
+    // agent1 team = team-closing, ticketByEmp2 team = team-it, not CC'd,
+    // not assignee — previously false.
+    expect(canViewTicket(agent1, ticketByEmp2, allUsers)).toBe(true)
+  })
+
+  it('agent can view a ticket with no team at all', () => {
+    expect(canViewTicket(agent1, unassignedTicket, allUsers)).toBe(true)
   })
 
   it('agent with branch access can view tickets from their branch', () => {
@@ -406,14 +417,11 @@ describe('filterVisibleTickets', () => {
     expect(result).toHaveLength(allTickets.length)
   })
 
-  it('agent sees only team/assigned/created/CC tickets', () => {
+  it('agent sees every ticket, including other departments', () => {
     const result = filterVisibleTickets(agent1, allTickets, allUsers)
-    // agent1 (team-closing): ticketByEmp1 (team-closing), ccTicket (CC'd)
-    expect(result).toContain(ticketByEmp1)
-    expect(result).toContain(ccTicket)
-    expect(result).not.toContain(ticketByEmp2)
-    // unassignedTicket has no team, agent1 is not creator/assignee/CC
-    expect(result).not.toContain(unassignedTicket)
+    expect(result).toHaveLength(allTickets.length)
+    // ticketByEmp2 is team-it and agent1 is team-closing — previously hidden.
+    expect(result).toContain(ticketByEmp2)
   })
 
   it('employee sees only own and CC\'d tickets', () => {
@@ -464,5 +472,125 @@ describe('filterRegionTickets', () => {
 
   it('returns empty for user without region access', () => {
     expect(filterRegionTickets(employee1, allTickets, allUsers)).toHaveLength(0)
+  })
+})
+
+// ============================================================================
+// isTicketInQueueScope / filterQueueScope
+//
+// The browsing scope. Deliberately narrower than canViewTicket: agents may
+// OPEN any ticket (so cross-department search works), but their day-to-day
+// lists — agent views, dashboard counts, reports — stay on their own teams.
+// ============================================================================
+
+describe('isTicketInQueueScope', () => {
+  it('admin has everything in scope', () => {
+    for (const t of allTickets) {
+      expect(isTicketInQueueScope(adminUser, t, allUsers)).toBe(true)
+    }
+  })
+
+  it("agent has their own team's ticket in scope", () => {
+    expect(isTicketInQueueScope(agent1, ticketByEmp1, allUsers)).toBe(true)
+  })
+
+  it("agent does NOT have another department's ticket in scope", () => {
+    // agent1 = team-closing, ticketByEmp2 = team-it.
+    expect(isTicketInQueueScope(agent1, ticketByEmp2, allUsers)).toBe(false)
+  })
+
+  it('but that same ticket is still OPENABLE — scope is not access', () => {
+    // This pairing is the whole point of the split. If these two ever agree,
+    // cross-department search has silently been undone.
+    expect(isTicketInQueueScope(agent1, ticketByEmp2, allUsers)).toBe(false)
+    expect(canViewTicket(agent1, ticketByEmp2, allUsers)).toBe(true)
+  })
+
+  it("agent keeps a CC'd ticket in scope even in another department", () => {
+    // ccTicket is team-it; agent1 is CC'd on it.
+    expect(isTicketInQueueScope(agent1, ccTicket, allUsers)).toBe(true)
+  })
+
+  it('agent keeps a ticket assigned to them in scope regardless of team', () => {
+    const otherTeamMine = makeTicket({
+      id: 'T-2001',
+      created_by: 'emp-2',
+      assigned_to: 'agent-1',
+      assigned_team: 'team-it',
+    })
+    expect(isTicketInQueueScope(agent1, otherTeamMine, allUsers)).toBe(true)
+  })
+
+  it('agent keeps a ticket they raised themselves in scope', () => {
+    const raisedByAgent = makeTicket({
+      id: 'T-2002',
+      created_by: 'agent-1',
+      assigned_team: 'team-it',
+    })
+    expect(isTicketInQueueScope(agent1, raisedByAgent, allUsers)).toBe(true)
+  })
+
+  it('branch manager keeps their branch tickets in scope', () => {
+    expect(
+      isTicketInQueueScope(agentBranchManager, unassignedTicket, allUsers),
+    ).toBe(true)
+  })
+})
+
+describe('filterQueueScope', () => {
+  it('admin sees the full list', () => {
+    expect(filterQueueScope(adminUser, allTickets, allUsers)).toHaveLength(
+      allTickets.length,
+    )
+  })
+
+  it('agent list matches what they saw before the access change', () => {
+    const result = filterQueueScope(agent1, allTickets, allUsers)
+    expect(result).toContain(ticketByEmp1) // own team
+    expect(result).toContain(ccTicket) // CC'd
+    expect(result).not.toContain(ticketByEmp2) // another department
+    expect(result).not.toContain(unassignedTicket) // no team, no relation
+  })
+
+  it('employee list is unchanged by any of this', () => {
+    const result = filterQueueScope(employee1, allTickets, allUsers)
+    expect(result).toContain(ticketByEmp1) // own
+    expect(result).toContain(unassignedTicket) // own
+    expect(result).toContain(ccTicket) // CC'd
+    expect(result).not.toContain(ticketByEmp2) // someone else's
+  })
+})
+
+// ============================================================================
+// canManageCc
+//
+// Opened 2026-08-19 so the person who raised a ticket can add a colleague
+// after the fact. Must stay in step with the server's 'manage' allow-list.
+// ============================================================================
+
+describe('canManageCc', () => {
+  it('admin can manage CC on any ticket', () => {
+    expect(canManageCc(adminUser, ticketByEmp1)).toBe(true)
+    expect(canManageCc(adminUser, ticketByEmp2)).toBe(true)
+  })
+
+  it('agent can manage CC on any ticket', () => {
+    expect(canManageCc(agent1, ticketByEmp1)).toBe(true)
+    expect(canManageCc(agent1, ticketByEmp2)).toBe(true)
+  })
+
+  it('the employee who raised the ticket can manage its CC list', () => {
+    // This is the new behaviour — previously the control was hidden.
+    expect(canManageCc(employee1, ticketByEmp1)).toBe(true)
+  })
+
+  it("an employee cannot manage CC on someone else's ticket", () => {
+    expect(canManageCc(employee1, ticketByEmp2)).toBe(false)
+  })
+
+  it('being CC\'d does not by itself allow managing the CC list', () => {
+    // employee1 is CC'd on ccTicket but did not raise it.
+    expect(ccTicket.cc).toContain('emp-1')
+    expect(canManageCc(employee1, ccTicket)).toBe(false)
   })
 })

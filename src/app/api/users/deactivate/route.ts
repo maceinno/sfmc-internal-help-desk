@@ -127,7 +127,7 @@ export async function POST(request: Request) {
   if (!active) {
     const { data: assigned, error: assignedErr } = await supabase
       .from('tickets')
-      .select('id, assigned_team, title, category, priority')
+      .select('id, assigned_team, title, category, priority, description')
       .eq('assigned_to', userId)
       .neq('status', 'solved')
 
@@ -165,6 +165,7 @@ export async function POST(request: Request) {
           priority: t.priority,
           teamId: team,
           formerAgentName: target.name,
+          description: t.description,
         })
       }
     }

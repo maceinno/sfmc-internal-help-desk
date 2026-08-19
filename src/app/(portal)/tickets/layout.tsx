@@ -20,6 +20,7 @@ import {
   useDepartmentSchedules,
 } from '@/hooks/use-admin-config'
 import { useCurrentUser } from '@/hooks/use-current-user'
+import { filterQueueScope } from '@/lib/permissions/policies'
 import { useUIStore } from '@/stores/ui-store'
 import { useGlobalPresence } from '@/hooks/use-global-presence'
 import { getSlaStatus } from '@/lib/sla'
@@ -280,11 +281,19 @@ export default function TicketsLayout({
   const activeView =
     allViews.find((v) => v.id === resolvedViewId) ?? allViews[0]
 
+  // Views are a WORK QUEUE, so they stay scoped to the agent's own teams even
+  // though agents may now open any ticket. Search deliberately bypasses this
+  // — it runs against the full `tickets` list passed as `allTickets` below.
+  const queueTickets = useMemo(() => {
+    if (!profile) return tickets
+    return filterQueueScope(profile, tickets, allUsers)
+  }, [profile, tickets, allUsers])
+
   const viewCounts = useMemo(() => {
     const counts: Record<string, number> = {}
     for (const view of allViews) {
       counts[view.id] = applyViewFilter(
-        tickets,
+        queueTickets,
         view.id,
         viewConfigs,
         profile?.id ?? '',
@@ -293,19 +302,26 @@ export default function TicketsLayout({
       ).length
     }
     return counts
-  }, [tickets, allViews, viewConfigs, profile?.id, slaPolicies, schedules])
+  }, [queueTickets, allViews, viewConfigs, profile?.id, slaPolicies, schedules])
 
   const filteredTickets = useMemo(
     () =>
       applyViewFilter(
-        tickets,
+        queueTickets,
         resolvedViewId,
         viewConfigs,
         profile?.id ?? '',
         slaPolicies,
         schedules,
       ),
-    [tickets, resolvedViewId, viewConfigs, profile?.id, slaPolicies, schedules],
+    [
+      queueTickets,
+      resolvedViewId,
+      viewConfigs,
+      profile?.id,
+      slaPolicies,
+      schedules,
+    ],
   )
 
   const users: User[] = useMemo(() => {

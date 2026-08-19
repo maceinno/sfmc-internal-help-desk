@@ -141,11 +141,39 @@
    Approach: anything tagged `data-print="hide"` is hidden; everything
    else has its scroll constraints released so the conversation expands
    naturally to print across pages.
+
+   The print region is marked `.print-expand`. Releasing that element and
+   its DESCENDANTS is not enough on its own — every ANCESTOR shell above it
+   also has to be released, and the ancestors are where the clipping
+   actually happened: `(portal)/layout.tsx` and `tickets/layout.tsx` wrap
+   the page in `h-screen` + `overflow-hidden` boxes, so print saw exactly
+   one viewport and everything after it was dropped. That is the "only
+   prints page 1" symptom. `*:has(.print-expand)` reaches upwards and
+   covers current and future shells without touching the markup.
    ───────────────────────────────────────────────────────────────────── */
 @media print {
+  /* Paper margins — the on-screen padding belongs to the app chrome, which
+     is hidden below, so without this the content runs to the sheet edge. */
+  @page {
+    margin: 12mm;
+  }
+
   [data-print="hide"],
   .no-print {
     display: none !important;
+  }
+
+  /* Every ancestor of the print region: release its height/scroll cage and
+     drop it to plain block flow. These are layout shells only — their
+     flex/grid behaviour exists to make panes scroll on screen, and on paper
+     a flex box that has to fragment across a page break is the second way
+     content gets clipped. */
+  *:has(.print-expand) {
+    display: block !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
   }
 
   /* Release fixed-height + scroll constraints across the layout shells
@@ -158,6 +186,26 @@
     max-height: none !important;
     min-height: 0 !important;
     overflow: visible !important;
+  }
+
+  /* Side-by-side panes stack on paper: conversation first, then the ticket
+     details. Marked containers only, so message rows keep their own layout
+     (avatar beside the text). */
+  .print-stack {
+    display: block !important;
+  }
+  .print-stack > * {
+    width: auto !important;
+    max-width: none !important;
+    flex: none !important;
+  }
+
+  /* Don't split one reply across a page break when it can be avoided. A
+     message taller than a page still breaks — the browser overrides this
+     rather than losing content. */
+  .print-keep-together {
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 
   /* Fixed-position chrome (toolbars, sticky footers, popovers) shouldn't

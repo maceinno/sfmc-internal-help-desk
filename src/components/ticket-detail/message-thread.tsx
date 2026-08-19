@@ -91,7 +91,7 @@ export function MessageThread({
   }, [messages.length, sortOrder])
 
   const renderOriginalRequest = () => (
-    <div className="flex gap-4">
+    <div className="print-keep-together flex gap-4">
       <div className="shrink-0">
         <Avatar>
           {creator?.avatar_url && (
@@ -217,7 +217,7 @@ export function MessageThread({
     return (
       <div
         key={message.id}
-        className="flex items-center gap-2 py-1 text-xs text-muted-foreground"
+        className="print-keep-together flex items-center gap-2 py-1 text-xs text-muted-foreground"
       >
         <div className="h-px flex-1 bg-gray-200" />
         <span>
@@ -245,8 +245,8 @@ export function MessageThread({
         key={message.id}
         className={
           message.is_internal
-            ? "-mx-6 border-y border-amber-100 bg-amber-50/50 px-6 py-4"
-            : ""
+            ? "print-keep-together -mx-6 border-y border-amber-100 bg-amber-50/50 px-6 py-4"
+            : "print-keep-together"
         }
       >
         <div className="flex gap-4">
@@ -296,7 +296,7 @@ export function MessageThread({
   }
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden">
+    <div className="print-stack flex flex-1 flex-col overflow-hidden">
       {/* Sort Toggle Bar */}
       {messages.length > 0 && (() => {
         // Count only real replies (not system events) for the header.
@@ -324,7 +324,10 @@ export function MessageThread({
       })()}
 
       {/* Messages */}
-      <div ref={scrollContainerRef} className="flex-1 space-y-8 overflow-y-auto p-6">
+      <div
+        ref={scrollContainerRef}
+        className="print-stack flex-1 space-y-8 overflow-y-auto p-6"
+      >
         {sortOrder === "oldest" && renderOriginalRequest()}
         {sortedMessages.map(renderMessage)}
         {sortOrder === "newest" && renderOriginalRequest()}

@@ -1,6 +1,7 @@
 export {
   canViewTicket,
   canEditTicket,
+  canManageCc,
   canViewInternalNotes,
   canAccessAdmin,
   canViewBranchTickets,
@@ -12,4 +13,6 @@ export {
   filterVisibleTickets,
   filterBranchTickets,
   filterRegionTickets,
+  isTicketInQueueScope,
+  filterQueueScope,
 } from './policies'

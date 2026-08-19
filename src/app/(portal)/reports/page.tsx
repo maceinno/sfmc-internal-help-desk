@@ -17,6 +17,8 @@ import {
 } from 'recharts'
 import { useTickets } from '@/hooks/use-tickets'
 import { useUsers } from '@/hooks/use-users'
+import { useCurrentUser } from '@/hooks/use-current-user'
+import { filterQueueScope } from '@/lib/permissions/policies'
 import { useSlaPolicies } from '@/hooks/use-admin-config'
 import { findMatchingPolicy } from '@/lib/sla/policy-matcher'
 
@@ -54,9 +56,17 @@ const CATEGORY_COLORS = [
 // ============================================================================
 
 export default function ReportsPage() {
-  const { data: tickets = [], isLoading: ticketsLoading } = useTickets()
+  const { data: fetchedTickets = [], isLoading: ticketsLoading } = useTickets()
   const { data: users = [], isLoading: usersLoading } = useUsers()
+  const { profile } = useCurrentUser()
   const { data: slaPolicies = [] } = useSlaPolicies()
+
+  // Same reasoning as the dashboard: agents can now open any ticket, but a
+  // report is about their own departments' work, not the whole company's.
+  const tickets = useMemo(
+    () => (profile ? filterQueueScope(profile, fetchedTickets, users) : fetchedTickets),
+    [profile, fetchedTickets, users],
+  )
 
   const isLoading = ticketsLoading || usersLoading
 

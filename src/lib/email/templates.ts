@@ -63,6 +63,37 @@ function badge(label: string, color: string, bg: string) {
   return `<span style="display:inline-block;background:${bg};color:${color};padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;">${label}</span>`
 }
 
+/**
+ * Render a ticket's own text (description or reply body) as a trimmed,
+ * read-only block. Handles both Tiptap HTML and the plain text that the
+ * email-inbound path produces. Returns '' for empty input so callers can
+ * interpolate unconditionally.
+ *
+ * Shared so every email trims request text the same way.
+ */
+function requestBlock(
+  text: string | null | undefined,
+  opts: { label: string; maxChars: number; divider?: 'dashed' | 'none' },
+) {
+  const plain = htmlToPlainText(text)
+  if (!plain) return ''
+  const preview =
+    plain.length > opts.maxChars ? plain.slice(0, opts.maxChars) + '...' : plain
+  const wrapperStyle =
+    opts.divider === 'dashed'
+      ? 'margin-top:16px;padding-top:16px;border-top:1px dashed #d1d5db;'
+      : 'margin-top:16px;'
+  return `
+      <div style="${wrapperStyle}">
+        <p style="margin:0 0 8px;font-size:12px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">
+          ${opts.label}
+        </p>
+        <div style="padding:12px;background:#f9fafb;border-radius:6px;">
+          <p style="margin:0;font-size:13px;color:#4b5563;white-space:pre-wrap;line-height:1.5;">${preview}</p>
+        </div>
+      </div>`
+}
+
 // ── Template functions ──────────────────────────────────────────
 
 export function ticketCreatedCreator(p: {
@@ -129,7 +160,17 @@ export function ticketCreatedTeam(p: {
   priority: string
   creatorName: string
   teamName: string
+  /** The requester's own words. Tiptap HTML or plain text; both handled. */
+  description?: string
 }) {
+  // Queue recipients triage from their inbox, so the request itself goes
+  // above the fold — trimmed, because a pasted-in wall of text shouldn't
+  // fill the email.
+  const requestHtml = requestBlock(p.description, {
+    label: 'Request',
+    maxChars: 500,
+  })
+
   return {
     subject: `[${p.ticketId}] New ticket in ${p.teamName} queue: ${p.title}`,
     html: layout(`
@@ -149,6 +190,7 @@ export function ticketCreatedTeam(p: {
         <tr><td style="padding:12px 16px;background:#f9fafb;font-size:13px;color:#6b7280;border-top:1px solid #e5e7eb;">Priority</td>
             <td style="padding:12px 16px;font-size:14px;color:#111827;border-top:1px solid #e5e7eb;">${badge(p.priority, '#92400e', '#fef3c7')}</td></tr>
       </table>
+      ${requestHtml}
       ${button(ticketUrl(p.ticketId), 'View & Claim')}
     `),
   }
@@ -161,7 +203,16 @@ export function ticketRequeuedTeam(p: {
   priority: string
   teamName: string
   formerAgentName: string
+  /** The requester's own words. Tiptap HTML or plain text; both handled. */
+  description?: string
 }) {
+  // Same reasoning as ticketCreatedTeam: whoever picks this up out of the
+  // queue triages from their inbox, so the request goes above the button.
+  const requestHtml = requestBlock(p.description, {
+    label: 'Request',
+    maxChars: 500,
+  })
+
   return {
     subject: `[${p.ticketId}] Back in ${p.teamName} queue: ${p.title}`,
     html: layout(`
@@ -181,6 +232,7 @@ export function ticketRequeuedTeam(p: {
         <tr><td style="padding:12px 16px;background:#f9fafb;font-size:13px;color:#6b7280;border-top:1px solid #e5e7eb;">Priority</td>
             <td style="padding:12px 16px;font-size:14px;color:#111827;border-top:1px solid #e5e7eb;">${badge(p.priority, '#92400e', '#fef3c7')}</td></tr>
       </table>
+      ${requestHtml}
       ${button(ticketUrl(p.ticketId), 'View & Claim')}
     `),
   }
@@ -241,20 +293,11 @@ export function newReply(p: {
 
   // Include original ticket description at the bottom. Tiptap-stored
   // HTML gets reduced to readable plain text so the email stays consistent.
-  let descriptionHtml = ''
-  if (p.description) {
-    const descText = htmlToPlainText(p.description)
-    const descPreview = descText.length > 300 ? descText.slice(0, 300) + '...' : descText
-    descriptionHtml = `
-      <div style="margin-top:16px;padding-top:16px;border-top:1px dashed #d1d5db;">
-        <p style="margin:0 0 8px;font-size:12px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;">
-          Original Request
-        </p>
-        <div style="padding:12px;background:#f9fafb;border-radius:6px;">
-          <p style="margin:0;font-size:13px;color:#4b5563;white-space:pre-wrap;line-height:1.5;">${descPreview}</p>
-        </div>
-      </div>`
-  }
+  const descriptionHtml = requestBlock(p.description, {
+    label: 'Original Request',
+    maxChars: 300,
+    divider: 'dashed',
+  })
 
   return {
     subject: `Re: [${p.ticketId}] ${p.title}`,

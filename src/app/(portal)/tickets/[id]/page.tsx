@@ -26,6 +26,7 @@ import { ReplyComposer, type ReplyComposerHandle } from "@/components/ticket-det
 import { TicketSidebarPanel } from "@/components/ticket-detail/ticket-sidebar-panel"
 import { AttachmentList } from "@/components/ticket-detail/attachment-list"
 import { MergeModal } from "@/components/ticket-detail/merge-modal"
+import { EditableSubject } from "@/components/ticket-detail/editable-subject"
 import { useTicket, useTickets, useUpdateTicket } from "@/hooks/use-tickets"
 import { useCurrentUser } from "@/hooks/use-current-user"
 import { useUsers } from "@/hooks/use-users"
@@ -34,7 +35,7 @@ import { createClerkSupabaseClient } from "@/lib/supabase/client"
 import { useCannedResponses, useTeams, useCustomFields, useSlaPolicies, useDepartmentSchedules } from "@/hooks/use-admin-config"
 import { useUIStore } from "@/stores/ui-store"
 import { useTabStore } from "@/stores/tab-store"
-import { canViewInternalNotes } from "@/lib/permissions/policies"
+import { canEditTicket, canViewInternalNotes } from "@/lib/permissions/policies"
 import { uploadFileDirect } from "@/lib/upload/direct-upload"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
@@ -153,6 +154,7 @@ export default function TicketDetailPage({
 
   // Human-friendly labels for the auto-save toast.
   const FIELD_LABELS: Record<string, string> = {
+    title: 'Subject',
     status: 'Status',
     priority: 'Priority',
     category: 'Category',
@@ -246,6 +248,16 @@ export default function TicketDetailPage({
             }
             if (field === 'assignedTo' && value && oldValue !== value) {
               postNotify({ type: 'assignment_changed', newAssigneeId: value })
+            }
+            if (field === 'title' && oldValue !== value) {
+              // Renaming a ticket changes what it is called everywhere —
+              // the list, the tabs, future emails — so leave a trace of who
+              // changed it and from what.
+              postNotify({
+                type: 'title_changed',
+                oldValue,
+                newValue: value,
+              })
             }
             if (field === 'priority' && oldValue !== value) {
               postNotify({
@@ -561,7 +573,12 @@ export default function TicketDetailPage({
               <PriorityBadge priority={ticket.priority} />
               {isAgentOrAdmin && <PresenceIndicator viewers={presenceViewers} />}
             </div>
-            <h2 className="mt-0.5 text-base text-gray-600 break-words">{ticket.title}</h2>
+            <EditableSubject
+              value={ticket.title}
+              canEdit={canEditTicket(currentUser, ticket)}
+              isSaving={updateTicket.isPending}
+              onSave={(next) => handleUpdateField('title', next)}
+            />
           </div>
         </div>
 
@@ -716,8 +733,9 @@ export default function TicketDetailPage({
         </div>
       )}
 
-      {/* Main Layout */}
-      <div className="flex flex-1 flex-col gap-6 overflow-hidden lg:flex-row">
+      {/* Main Layout — `print-stack` drops the two columns to block flow when
+          printing so the conversation paginates instead of being clipped. */}
+      <div className="print-stack flex flex-1 flex-col gap-6 overflow-hidden lg:flex-row">
         {/* Left: Conversation + Reply */}
         <div
           className={`relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border bg-white shadow-sm transition-colors ${

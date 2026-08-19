@@ -101,12 +101,12 @@ function ticketMatchesRegion(
  *
  * Rules (derived from the prototype's `visibleTickets` filter):
  *   - Admin: can view every ticket.
- *   - Agent: can view a ticket when *any* of these are true:
- *       1. The ticket's assignedTeam is in the agent's teamIds.
- *       2. The agent is the assignee.
- *       3. The agent created the ticket.
- *       4. The agent is in the ticket's CC list.
- *       5. The agent has branch/region access and the ticket matches.
+ *   - Agent: can view every ticket. Widened 2026-08-19 so agents can search
+ *     and open tickets in other departments; mirrors migration 017 on the
+ *     database side and the long-standing behaviour of
+ *     `assert-ticket-access.ts`, which has always allowed any agent to act
+ *     on any ticket. Keeping this narrower than the database would just
+ *     hide tickets the user is in fact allowed to open.
  *   - Employee: can view a ticket when *any* of these are true:
  *       1. They created the ticket.
  *       2. They are CC'd on the ticket.
@@ -118,28 +118,7 @@ export function canViewTicket(
   allUsers: User[],
 ): boolean {
   if (user.role === ADMIN) return true
-
-  if (user.role === AGENT) {
-    const userTeams = user.team_ids ?? []
-    const teamMatch = ticket.assigned_team
-      ? userTeams.includes(ticket.assigned_team)
-      : false
-    const isAssignee = ticket.assigned_to === user.id
-    const isCreator = ticket.created_by === user.id
-    const isCCd = ticket.cc?.includes(user.id) ?? false
-
-    if (teamMatch || isAssignee || isCreator || isCCd) return true
-
-    // Branch / region access
-    if (user.has_regional_access || user.has_branch_access) {
-      return (
-        ticketMatchesRegion(user, ticket, allUsers) ||
-        ticketMatchesBranch(user, ticket, allUsers)
-      )
-    }
-
-    return false
-  }
+  if (user.role === AGENT) return true
 
   // Employee
   if (ticket.created_by === user.id) return true
@@ -156,6 +135,66 @@ export function canViewTicket(
 }
 
 /**
+ * Is this ticket part of the user's own day-to-day queue?
+ *
+ * ACCESS AND BROWSING ARE DIFFERENT QUESTIONS, and this is the second one.
+ * `canViewTicket` above answers "may they open it" — since 2026-08-19 that is
+ * yes for any agent, so they can search across departments and open what they
+ * find. But an agent's normal lists should NOT suddenly contain every
+ * department: "All Unsolved" is a work queue, not an archive. This predicate
+ * is the pre-widening rule, kept deliberately so browsing stays where it was
+ * while search reaches everywhere.
+ *
+ * Use it for lists someone BROWSES (agent views, dashboard counts, reports).
+ * Never use it to decide access — a ticket outside the queue scope is still
+ * perfectly openable, and gating on this would resurrect the original problem.
+ *
+ * Rules:
+ *   - Admin: everything, as before.
+ *   - Agent: the ticket's team is one of theirs, OR they are the assignee,
+ *     creator or CC, OR their branch/region access matches.
+ *   - Employee: their own, CC'd, or branch/region matches.
+ */
+export function isTicketInQueueScope(
+  user: User,
+  ticket: Ticket,
+  allUsers: User[],
+): boolean {
+  if (user.role === ADMIN) return true
+
+  const isAssignee = ticket.assigned_to === user.id
+  const isCreator = ticket.created_by === user.id
+  const isCCd = ticket.cc?.includes(user.id) ?? false
+  if (isAssignee || isCreator || isCCd) return true
+
+  if (user.role === AGENT) {
+    const userTeams = user.team_ids ?? []
+    if (ticket.assigned_team && userTeams.includes(ticket.assigned_team)) {
+      return true
+    }
+  }
+
+  if (user.has_regional_access || user.has_branch_access) {
+    return (
+      ticketMatchesRegion(user, ticket, allUsers) ||
+      ticketMatchesBranch(user, ticket, allUsers)
+    )
+  }
+
+  return false
+}
+
+/** Narrow a ticket list to the user's own queue. See isTicketInQueueScope. */
+export function filterQueueScope(
+  user: User,
+  tickets: Ticket[],
+  allUsers: User[],
+): Ticket[] {
+  if (user.role === ADMIN) return tickets
+  return tickets.filter((t) => isTicketInQueueScope(user, t, allUsers))
+}
+
+/**
  * Check if a user can edit / update a ticket.
  *
  * Rules:
@@ -166,6 +205,24 @@ export function canViewTicket(
 export function canEditTicket(user: User, ticket: Ticket): boolean {
   if (user.role === ADMIN) return true
   if (user.role === AGENT) return true
+  return ticket.created_by === user.id
+}
+
+/**
+ * Can this user add or remove people on the ticket's CC list?
+ *
+ * Agents and admins, plus the person who raised the ticket. The requester is
+ * included deliberately: they are usually the one who knows which colleague
+ * also needs to see the request, and before 2026-08-19 the CC control simply
+ * wasn't rendered for them, so a CC could only be set at creation time.
+ *
+ * This mirrors the server's 'manage' allow-list in `assert-ticket-access.ts`
+ * (creator OR agent/admin) and the ticket_cc delete policy in the database
+ * (creator, assignee or admin). Keep the three in step — a UI control that
+ * the server then refuses is worse than no control at all.
+ */
+export function canManageCc(user: User, ticket: Ticket): boolean {
+  if (user.role === ADMIN || user.role === AGENT) return true
   return ticket.created_by === user.id
 }
 
