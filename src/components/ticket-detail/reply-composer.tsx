@@ -23,6 +23,7 @@ import {
 import { CannedResponsePicker } from "@/components/shared/canned-response-picker"
 import { FileUpload } from "@/components/shared/file-upload"
 import { RichTextEditor } from "@/components/shared/rich-text-editor"
+import { statusFromCannedResponse } from "@/lib/tickets/canned-actions"
 import { cn } from "@/lib/utils"
 import type { User, CannedResponse, TicketStatus } from "@/types"
 
@@ -377,6 +378,19 @@ export const ReplyComposer = React.forwardRef<
     setReplyText((prev) => (prev ? prev + asHtml : asHtml))
     setShowCannedPicker(false)
     setPendingCannedResponseId(response.id)
+
+    // Adopt the template's status change into the Submit control, so the
+    // button reads "Submit as Solved" the moment the template goes in. Two
+    // reasons: the agent sees what will happen before they send (and can
+    // still override it from the dropdown), and there is only ever ONE
+    // status decision per reply — previously the composer's default status
+    // was applied after the reply landed and silently overwrote the
+    // template's. Templates with no status action leave the selection alone.
+    const templateStatus = statusFromCannedResponse(response.actions)
+    if (templateStatus) {
+      setPendingStatus(templateStatus)
+    }
+
     onCannedResponseSelect?.(response)
   }
 

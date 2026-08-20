@@ -70,8 +70,9 @@ export function Sidebar() {
   // Build nav items based on role. While the profile is still loading, show
   // an empty list so we never flash the agent/admin nav to an employee
   // before their role resolves (or vice versa).
-  // What's New is admin-only — it's a release/changelog feed for the people
-  // shipping changes, not for end users or agents.
+  // What's New is for agents and admins: it explains changes to the people
+  // who work the queues, and its "how to test" steps are written for them.
+  // Employees don't get it — they see the product, not the release notes.
   const navItems: NavItem[] = isLoading || !profile
     ? []
     : isEmployee
@@ -99,7 +100,9 @@ export function Sidebar() {
           { href: '/cc-tickets', label: "CC'd Tickets", icon: AtSign },
           { href: '/reports', label: 'Reports', icon: BarChart3 },
           { href: '/tickets/new', label: 'Create Ticket', icon: PlusCircle },
-          ...(isAdmin
+          // Agents as well as admins — matches the route rule in
+          // middleware.ts. Employees don't see the link or the page.
+          ...(isAgentOrAdmin
             ? [{ href: '/whats-new', label: "What's New", icon: Sparkles }]
             : []),
         ]

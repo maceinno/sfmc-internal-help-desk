@@ -462,7 +462,23 @@ export default function TicketsLayout({
   )
 
   return (
-    <div className="-m-4 lg:-m-8 lg:-mt-8 flex h-[calc(100vh-4rem)] lg:h-screen overflow-hidden">
+    // A ticket being READ needs to grow past the viewport on a phone: the
+    // conversation, the reply box and the details panel stack, and pinning
+    // this wrapper to the screen height with overflow-hidden clipped
+    // everything below the fold with no way to scroll to it — including the
+    // reply box. Below `lg` the detail view therefore uses min-height and
+    // lets the browser scroll the page; every descendant then sizes to its
+    // content instead of being clipped.
+    //
+    // The LIST view keeps the fixed height on every screen size: its table
+    // manages its own scrolling and is unaffected by this report.
+    <div
+      className={`-m-4 lg:-m-8 lg:-mt-8 flex lg:h-screen lg:overflow-hidden ${
+        isDetail
+          ? 'min-h-[calc(100vh-4rem)]'
+          : 'h-[calc(100vh-4rem)] overflow-hidden'
+      }`}
+    >
       {viewsAside}
 
       {/* Right pane: tabs strip on top, then queue + detail OR full list. */}
@@ -508,7 +524,9 @@ export default function TicketsLayout({
                   here so the agent-views table can span full width.
                   Reintroduce padding only for the detail view so the
                   ticket sidebar cards don't slam into the viewport edge. */}
-              <div className="flex-1 min-w-0 overflow-hidden px-4 py-2 lg:px-6 lg:py-4">
+              {/* Detail only, so relaxing the clip below `lg` cannot affect
+                  the list view's own scrolling. */}
+              <div className="flex-1 min-w-0 px-4 py-2 lg:overflow-hidden lg:px-6 lg:py-4">
                 {children}
               </div>
             </>

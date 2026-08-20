@@ -165,7 +165,15 @@ export default function TicketDetailPage({
   }
 
   const handleUpdateField = React.useCallback(
-    (field: string, value: unknown) => {
+    (
+      field: string,
+      value: unknown,
+      // Set by the reply flow when this change was part of sending a reply.
+      // The reply email already names the new status, so the separate
+      // status email is skipped — one email per action, not two. The event
+      // line in the thread is written either way.
+      opts?: { sentWithReply?: boolean },
+    ) => {
       if (!ticket) return
 
       // Status change initiated from the sidebar while a reply is typed:
@@ -236,6 +244,10 @@ export default function TicketDetailPage({
                   queryClient.invalidateQueries({
                     queryKey: ['tickets', 'detail', ticket.id],
                   })
+                  // The list too: a department move re-routes the ticket
+                  // server-side (new queue, assignee cleared), so the row in
+                  // the ticket list is stale until we refetch it.
+                  queryClient.invalidateQueries({ queryKey: ['tickets'] })
                 })
                 .catch(() => {})
             }
@@ -244,6 +256,7 @@ export default function TicketDetailPage({
                 type: 'status_changed',
                 oldStatus: oldValue,
                 newStatus: value,
+                statusEmailSentWithReply: opts?.sentWithReply === true,
               })
             }
             if (field === 'assignedTo' && value && oldValue !== value) {
@@ -411,6 +424,13 @@ export default function TicketDetailPage({
             taggedAgents: message.taggedAgents,
             attachmentIds: attachmentIds.length > 0 ? attachmentIds : undefined,
             cannedResponseId: message.cannedResponseId,
+            // State our status decision explicitly, including `null` for
+            // "no status change". This tells the API not to apply a
+            // template's own status change — we apply it below, through the
+            // normal path that also records it in the conversation. Without
+            // this, both sides wrote a status and ours landed last, which
+            // made a template's status change look like it never applied.
+            nextStatus: message.nextStatus ?? null,
           }),
         })
 
@@ -426,12 +446,17 @@ export default function TicketDetailPage({
 
         // Apply Submit-as-<status> after the reply lands. Routes through
         // handleUpdateField so notify hooks + the solved-redirect fire too.
+        // `sentWithReply` suppresses the status email: the reply email we
+        // just sent already names the new status, so a second email a
+        // couple of seconds later is a duplicate.
         if (
           !message.isInternal &&
           message.nextStatus &&
           message.nextStatus !== ticket.status
         ) {
-          handleUpdateField('status', message.nextStatus)
+          handleUpdateField('status', message.nextStatus, {
+            sentWithReply: true,
+          })
         }
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Failed to submit reply")
@@ -552,7 +577,13 @@ export default function TicketDetailPage({
     : (ticket.messages ?? []).filter((m) => !m.is_internal)
 
   return (
-    <div className="print-expand print-flatten flex h-[calc(100vh-6rem)] flex-col animate-in fade-in slide-in-from-bottom-4 duration-500">
+    // Fixed viewport height only from `lg` up, where the conversation and the
+    // details panel sit side by side and each scrolls internally. On a phone
+    // they stack, and a fixed height meant the tall details panel consumed
+    // the whole screen while the conversation and reply box were squeezed to
+    // nothing — with `overflow-hidden` there was no way to scroll to them.
+    // Below `lg` the page simply grows and the browser scrolls it.
+    <div className="print-expand print-flatten flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-500 lg:h-[calc(100vh-6rem)]">
       {/* Header */}
       <div className="mb-4 flex flex-col gap-3 min-w-0 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
@@ -735,10 +766,10 @@ export default function TicketDetailPage({
 
       {/* Main Layout — `print-stack` drops the two columns to block flow when
           printing so the conversation paginates instead of being clipped. */}
-      <div className="print-stack flex flex-1 flex-col gap-6 overflow-hidden lg:flex-row">
+      <div className="print-stack flex flex-1 flex-col gap-6 lg:flex-row lg:overflow-hidden">
         {/* Left: Conversation + Reply */}
         <div
-          className={`relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border bg-white shadow-sm transition-colors ${
+          className={`relative flex min-h-0 min-w-0 flex-1 flex-col rounded-xl border bg-white shadow-sm transition-colors lg:overflow-hidden ${
             isDropTargetActive
               ? 'border-blue-400 ring-2 ring-blue-200'
               : 'border-gray-100'

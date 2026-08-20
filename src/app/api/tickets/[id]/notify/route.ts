@@ -1,6 +1,15 @@
 import { NextResponse } from 'next/server'
 import { getProfileId } from '@/lib/clerk/resolve-id'
-import { notifyStatusChanged, notifyAssignmentChanged } from '@/lib/email/notify'
+import {
+  notifyStatusChanged,
+  notifyAssignmentChanged,
+  notifyTicketMovedToQueue,
+} from '@/lib/email/notify'
+import { shouldSendStatusEmail } from '@/lib/email/status-email'
+import {
+  eligibleQueueRecipients,
+  teamForDepartment,
+} from '@/lib/tickets/queue-audience'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { assertTicketAccess } from '@/lib/permissions/assert-ticket-access'
 
@@ -67,6 +76,15 @@ interface NotifyBody {
   // status
   oldStatus?: string
   newStatus?: string
+  /**
+   * Set when this status change rode along with a reply, whose email already
+   * named the new status (see `statusWithReplyBlock` in the email templates).
+   * We still write the inline event line — the thread must show the change —
+   * but we skip the status email so the reader gets one message instead of
+   * two a couple of seconds apart. A status change made on its own leaves
+   * this unset and emails exactly as before.
+   */
+  statusEmailSentWithReply?: boolean
   // assignment (user)
   newAssigneeId?: string
   // priority
@@ -100,7 +118,9 @@ export async function POST(
   const supabase = createAdminClient()
   const { data: ticketRow } = await supabase
     .from('tickets')
-    .select('created_by, assigned_to, title')
+    .select(
+      'created_by, assigned_to, assigned_team, title, ticket_type, priority, description',
+    )
     .eq('id', ticketId)
     .maybeSingle()
 
@@ -208,7 +228,16 @@ export async function POST(
   }
 
   // Email side — only status and direct user assignment fire mail.
-  if (body.type === 'status_changed' && body.oldStatus && body.newStatus) {
+  if (
+    body.type === 'status_changed' &&
+    body.oldStatus &&
+    body.newStatus &&
+    shouldSendStatusEmail({
+      oldStatus: body.oldStatus,
+      newStatus: body.newStatus,
+      sentWithReply: body.statusEmailSentWithReply,
+    })
+  ) {
     notifyStatusChanged({
       ticketId,
       ticketTitle: body.ticketTitle,
@@ -228,5 +257,139 @@ export async function POST(
     })
   }
 
+  // ── Department / queue move ───────────────────────────────────────────────
+  // Handing a ticket to another department used to leave nothing but a line
+  // in this ticket's own history: the department taking it over was told
+  // nothing, and — for a Department change — the ticket didn't actually go
+  // anywhere. It kept the old queue and the old assignee, so it never showed
+  // up in the receiving team's work list.
+  //
+  // Now: a Department change moves the ticket into that department's queue
+  // and clears the assignee so it reads as unclaimed work, and either kind of
+  // move emails the receiving queue.
+  if (body.type === 'department_changed' || body.type === 'team_changed') {
+    const moved = await handleQueueMove({
+      supabase,
+      ticketId,
+      ticketRow,
+      body,
+      movedById: userId,
+    })
+    return NextResponse.json({ ok: true, ...moved })
+  }
+
   return NextResponse.json({ ok: true })
+}
+
+/**
+ * Route a moved ticket to its new queue and tell that queue about it.
+ *
+ * Returns a small summary so the caller (and anyone reading logs) can see
+ * what happened — including the cases where nothing did.
+ */
+async function handleQueueMove(p: {
+  supabase: ReturnType<typeof createAdminClient>
+  ticketId: string
+  ticketRow: {
+    title: string
+    assigned_to: string | null
+    assigned_team: string | null
+    ticket_type: string | null
+    priority: string | null
+    description: string | null
+  }
+  body: NotifyBody
+  movedById: string
+}): Promise<{ movedToQueue?: string; notified?: number; skipped?: string }> {
+  const { supabase, ticketId, ticketRow, body, movedById } = p
+
+  const { data: teams } = await supabase.from('teams').select('id, name')
+
+  let targetTeamId: string | null
+  let toLabel: string
+  let fromLabel: string
+  let unassigned = false
+
+  if (body.type === 'department_changed') {
+    // Departments and queues are matched by NAME — there is no column
+    // joining them. No match means we cannot route it anywhere, so leave the
+    // ticket exactly where it is rather than stranding it in a queue nobody
+    // watches.
+    const target = teamForDepartment(body.newValue, teams)
+    if (!target) {
+      console.warn(
+        `[notify] ${ticketId}: no queue named "${body.newValue}" — ticket left in place`,
+      )
+      return { skipped: 'no_matching_queue' }
+    }
+    targetTeamId = target.id
+    toLabel = target.name
+    fromLabel = body.oldValue || ticketRow.ticket_type || '—'
+
+    if (ticketRow.assigned_team !== targetTeamId || ticketRow.assigned_to) {
+      // Clear the assignee: an agent from the department that handed the
+      // ticket over is not the right owner for the department receiving it.
+      const { error: moveErr } = await supabase
+        .from('tickets')
+        .update({ assigned_team: targetTeamId, assigned_to: null })
+        .eq('id', ticketId)
+
+      if (moveErr) {
+        console.error(`[notify] ${ticketId}: queue move failed:`, moveErr.message)
+        return { skipped: 'move_failed' }
+      }
+      unassigned = true
+    }
+  } else {
+    // A queue was picked directly. It has already been saved by the client,
+    // so we only announce it — and we deliberately leave the assignee alone,
+    // since choosing a queue isn't the same as giving up ownership.
+    if (!body.newTeamId) return { skipped: 'no_target_queue' }
+    targetTeamId = body.newTeamId
+    const map = new Map((teams ?? []).map((t) => [t.id, t.name]))
+    toLabel = map.get(targetTeamId) ?? '—'
+    fromLabel = body.oldTeamId ? map.get(body.oldTeamId) ?? '—' : '—'
+    unassigned = !ticketRow.assigned_to
+  }
+
+  const { data: members, error: membersErr } = await supabase
+    .from('profiles')
+    .select('id, email, role, is_out_of_office, is_active')
+    .contains('team_ids', [targetTeamId])
+
+  if (membersErr) {
+    console.error(`[notify] ${ticketId}: queue members lookup failed:`, membersErr.message)
+    return { movedToQueue: toLabel, skipped: 'members_lookup_failed' }
+  }
+
+  // The person doing the moving doesn't need to be told they moved it.
+  const recipientIds = eligibleQueueRecipients(members, { exclude: [movedById] })
+
+  if (recipientIds.length > 0) {
+    await supabase.from('notifications').insert(
+      recipientIds.map((uid) => ({
+        type: 'ticket_moved' as const,
+        ticket_id: ticketId,
+        ticket_title: ticketRow.title,
+        from_user_id: movedById,
+        to_user_id: uid,
+        message: `Ticket moved from ${fromLabel} to ${toLabel}`,
+        read: false,
+      })),
+    )
+
+    await notifyTicketMovedToQueue({
+      ticketId,
+      ticketTitle: ticketRow.title,
+      fromLabel,
+      toLabel,
+      movedById,
+      recipientIds,
+      unassigned,
+      priority: ticketRow.priority ?? undefined,
+      description: ticketRow.description,
+    })
+  }
+
+  return { movedToQueue: toLabel, notified: recipientIds.length }
 }

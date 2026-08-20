@@ -296,7 +296,10 @@ export function MessageThread({
   }
 
   return (
-    <div className="print-stack flex flex-1 flex-col overflow-hidden">
+    // Below `lg` the thread grows to its natural height and the page scrolls;
+    // clipping it there hid the reply box underneath. From `lg` up it keeps
+    // its own scroll area inside the fixed-height two-pane layout.
+    <div className="print-stack flex flex-1 flex-col lg:overflow-hidden">
       {/* Sort Toggle Bar */}
       {messages.length > 0 && (() => {
         // Count only real replies (not system events) for the header.
@@ -326,7 +329,7 @@ export function MessageThread({
       {/* Messages */}
       <div
         ref={scrollContainerRef}
-        className="print-stack flex-1 space-y-8 overflow-y-auto p-6"
+        className="print-stack flex-1 space-y-8 p-6 lg:overflow-y-auto"
       >
         {sortOrder === "oldest" && renderOriginalRequest()}
         {sortedMessages.map(renderMessage)}

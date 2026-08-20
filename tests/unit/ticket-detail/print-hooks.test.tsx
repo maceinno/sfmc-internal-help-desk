@@ -85,10 +85,18 @@ describe('conversation thread — print layout hooks', () => {
     expect(container.textContent).toContain('VPN drops on the Denver wifi.')
   })
 
-  it('keeps the scroll classes for on-screen use', () => {
+  it('keeps the scroll classes for on-screen use, from the two-pane width up', () => {
     const { container } = renderThread()
     // The print rules override these; they must still be present so the
     // on-screen pane scrolls exactly as it did before.
-    expect(container.querySelector('.overflow-y-auto')).not.toBeNull()
+    //
+    // The scroll is now `lg:`-prefixed. Below that width the conversation
+    // and the reply box stack under the ticket details on one narrow column,
+    // and an internal scroll box there left the reply box with no height at
+    // all — nothing to read, nothing to type into. On a phone the thread
+    // grows and the page scrolls instead; from `lg` up, where the panes sit
+    // side by side at a fixed height, the pane scrolls internally as before.
+    expect(container.querySelector('.lg\\:overflow-y-auto')).not.toBeNull()
+    expect(container.querySelector('.overflow-y-auto')).toBeNull()
   })
 })

@@ -12,6 +12,137 @@ verification steps. Those instructions live in the `howToTest` field on
 the entry in `changelog.ts` and are mirrored below as collapsible
 `<details>` blocks, one per role.
 
+## 2026-08-19 — Search, replies and mobile
+
+### Finding tickets
+
+- **Search now finds a loan or lead number, and looks inside replies.** The search box used to check only the subject and the ticket number, so searching a loan number found nothing — the number is almost never in the subject. It now also searches the Lead/Loan Number field, the borrower name, and the text of every reply on a ticket. Searching also covers every ticket you can see, not just the list currently on screen, so you no longer have to guess which view a ticket ended up in.
+
+  <details><summary>How to test — Agent</summary>
+
+  1. Open Tickets and type a loan number into the search box.
+  2. The ticket appears even though that number is not in its subject.
+  3. Type a phrase you remember from a reply — tickets whose conversation contains it are found too.
+  </details>
+
+  <details><summary>How to test — Admin</summary>
+
+  1. Same as an agent: search a loan number or a phrase from a reply and confirm the ticket is found.
+  </details>
+
+- **Agents can see every ticket.** An agent previously saw only their own teams' tickets, which made searching across departments impossible — a Closing agent could reach about 336 of 3,616 tickets. Agents now see all of them. Nothing changed for employees: you still see your own tickets and any you are copied on.
+
+  <details><summary>How to test — Agent</summary>
+
+  1. Search for a ticket you know belongs to another department. It now appears in the results.
+  </details>
+
+  <details><summary>How to test — Employee</summary>
+
+  1. Nothing changes for you — Tickets still shows only your own and ones you are copied on.
+  </details>
+
+- **The category filter on the ticket list works again.** That dropdown was listing department names while filtering on ticket categories, so every option returned an empty list. It now lists the real categories, grouped under the department each belongs to, with an "All &lt;department&gt;" line at the top of each group. Because several departments share category names — nine of them have an "Other" — picking Other under Marketing Support shows only Marketing's, not IT's.
+
+  <details><summary>How to test — Agent</summary>
+
+  1. Open Tickets and open the category dropdown. Categories are grouped under their department.
+  2. Pick any category. The list now filters to those tickets instead of going empty.
+  3. Pick "All &lt;department&gt;" to see everything in one department.
+  </details>
+
+### Replying to tickets
+
+- **You can read and reply to a ticket on a phone.** On a phone the ticket details panel was taking up the whole screen, leaving the conversation and the reply box with no height at all and no way to scroll to them. The ticket page now scrolls normally on a small screen: conversation first, then the reply box, then the ticket details. Nothing changed on a laptop.
+
+  <details><summary>How to test — Agent</summary>
+
+  1. Open a ticket on your phone.
+  2. Scroll down: you can read the whole conversation, and below it there is a box to type your reply.
+  </details>
+
+  <details><summary>How to test — Employee</summary>
+
+  1. Open one of your tickets on your phone and check you can scroll to the reply box and type in it.
+  </details>
+
+- **Templates now apply their status change.** Inserting a template such as "Issue Resolved" put the wording into your reply but left the status alone, because the Send button's own status was applied a moment later and overwrote it. Inserting a template now sets the Send button to match, so you can see what will happen before you send — and you can still change it in the dropdown if you want something different.
+
+  <details><summary>How to test — Agent</summary>
+
+  1. Open a ticket that is Open and start a reply.
+  2. Insert the "Issue Resolved" template. The Send button now reads "Submit as Solved".
+  3. Send it and confirm the ticket is Solved.
+  </details>
+
+- **One email instead of two when you reply and set a status together.** Replying with "Submit as Solved" sent the requester two emails a few seconds apart — the reply, then a separate "status changed" notice. They now get a single email: the reply, with a line saying the ticket was marked Solved. A status change made on its own, without a reply, still sends its own email as before.
+
+  <details><summary>How to test — Agent</summary>
+
+  1. Reply to a ticket using "Submit as Solved".
+  2. The requester receives one email containing your reply and a line reading "This reply also set the ticket status to Solved" — and no second email after it.
+  </details>
+
+### Moving a ticket to another department
+
+- **A moved ticket now reaches the department taking it over.** Changing a ticket's department used to only write a line in its history: the ticket stayed in the original queue with the original assignee, so the receiving department never saw it and was never told. Changing the department now moves the ticket into that department's queue and clears the assignee, so it shows up as unclaimed work. Everyone in the receiving queue gets an email and an alert in the bell menu, saying who moved it and where it came from. Changing the Team on a ticket sends the same notification, and leaves the assignee as they are.
+
+  <details><summary>How to test — Agent</summary>
+
+  1. Open a ticket and change its Department in the right-hand panel.
+  2. The ticket moves into that department's queue and shows no assignee.
+  3. Someone in the receiving department sees a new alert in the bell menu and receives an email.
+  </details>
+
+  <details><summary>How to test — Admin</summary>
+
+  1. Same as an agent. Note nobody is emailed about their own move.
+  </details>
+
+### Ticket subjects and printing
+
+- **A ticket subject can be corrected after it is raised.** Subjects are often typed in a hurry ("help", "question") or against the wrong loan, and used to be fixed for the life of the ticket. Click the pencil next to the subject to edit it in place. The change is recorded in the conversation with who made it and what it was before, and the new name flows straight through to the ticket list, the open tabs and future emails.
+
+  <details><summary>How to test — Agent</summary>
+
+  1. Open a ticket and click the pencil beside the subject.
+  2. Type a new subject and press Enter (Escape cancels).
+  3. The conversation shows a line recording the rename, and the ticket list shows the new name.
+  </details>
+
+  <details><summary>How to test — Employee</summary>
+
+  1. You can rename a ticket you raised yourself, the same way.
+  </details>
+
+- **Printing a ticket prints the whole conversation.** Printing used to stop after the first page, because only the part of the conversation visible on screen was sent to the printer. The full thread now prints across as many pages as it needs, and screen-only furniture like buttons and the reply box is left off the paper.
+
+  <details><summary>How to test — Agent</summary>
+
+  1. Open a ticket with a long conversation and choose Print.
+  2. The preview runs to several pages and includes every message.
+  </details>
+
+### Release notes
+
+- **Agents can now read What's New.** This page was admin-only, so the people working the queues could not see what had changed — even though the "How to test" steps on every entry are written for them. Agents and admins can now open it from the sidebar. Employees do not see it. (Supersedes the 2026-04-29 note that restricted this page to admins.)
+
+  <details><summary>How to test — Agent</summary>
+
+  1. Look for "What's New" in the left sidebar and open it.
+  2. Each entry has a "How to test" panel that opens on the Agent steps.
+  </details>
+
+### Fixes
+
+- **The tickets page no longer crashes with a red error box.** The ticket views sidebar could get stuck updating itself thousands of times a second until the browser gave up, showing a red "Maximum update depth exceeded" box and freezing the page. It was most likely to happen in the moment before the department list finished loading. The sidebar now leaves its state alone when nothing has actually changed.
+
+  <details><summary>How to test — Agent</summary>
+
+  1. Open Tickets and reload the page a few times, including on a slow connection.
+  2. The page loads normally every time — no red error box, no freeze.
+  </details>
+
 ## 2026-06-11 — Email delivery
 
 ### Bounce visibility

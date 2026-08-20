@@ -30,6 +30,8 @@ export type NotificationType =
   | 'collaborator_added'
   | 'reply_on_tagged'
   | 'sla_at_risk'
+  // A ticket was handed to this user's queue by another department.
+  | 'ticket_moved'
 
 export type DayOfWeek =
   | 'monday'

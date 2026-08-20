@@ -266,6 +266,13 @@ export async function notifyNewReply(p: {
   isInternal: boolean
   createdBy: string
   assignedTo: string | null
+  /**
+   * The status the same action moved the ticket to, when the reply carried
+   * a status change ("Submit as Solved"). Rendered inline in this email so
+   * the caller can suppress the separate status-change email instead of
+   * sending two a couple of seconds apart.
+   */
+  statusChangedTo?: string
 }) {
   try {
     console.log(`[email] notifyNewReply called for ticket ${p.ticketId} by ${p.authorId}`)
@@ -367,6 +374,7 @@ export async function notifyNewReply(p: {
         isInternal: p.isInternal,
         description: ticket?.description,
         conversation: visibleConversation,
+        statusChangedTo: p.statusChangedTo,
       }
 
       if (ccUserIds.includes(userId) && userId !== p.createdBy && userId !== p.assignedTo) {
@@ -536,26 +544,87 @@ export async function notifyUserWelcome(p: {
 }
 
 /**
- * SLA alert — notify the assigned agent.
+ * Ticket handed to another department's queue — notify the RECEIVING queue.
+ *
+ * Before this, a move left only a line in the ticket's own history: the
+ * department taking it over was told nothing at all, so a handover was
+ * invisible unless somebody happened to open that ticket.
+ */
+export async function notifyTicketMovedToQueue(p: {
+  ticketId: string
+  ticketTitle: string
+  fromLabel: string
+  toLabel: string
+  movedById: string
+  recipientIds: string[]
+  unassigned: boolean
+  priority?: string
+  description?: string | null
+}) {
+  if (p.recipientIds.length === 0) return
+
+  const users = await resolveUsers([...p.recipientIds, p.movedById])
+  const movedByName = users.get(p.movedById)?.name ?? 'An agent'
+
+  console.log(
+    `[email] notifyTicketMovedToQueue: ${p.ticketId} ${p.fromLabel} -> ${p.toLabel}, ${p.recipientIds.length} recipient(s)`,
+  )
+
+  for (const userId of p.recipientIds) {
+    const user = users.get(userId)
+    if (!user) continue
+    await send(
+      user.email,
+      templates.ticketMovedToQueue({
+        ticketId: p.ticketId,
+        title: p.ticketTitle,
+        fromLabel: p.fromLabel,
+        toLabel: p.toLabel,
+        movedByName,
+        priority: p.priority,
+        unassigned: p.unassigned,
+        description: p.description ?? undefined,
+      }),
+      p.ticketId,
+    )
+  }
+}
+
+/**
+ * SLA alert — notify the assigned agent, or every agent in the ticket's
+ * queue when nobody has picked it up yet.
+ *
+ * Takes a list rather than a single assignee because an unassigned ticket
+ * used to produce no alert at all: the job skipped anything without an
+ * assignee, so the tickets least likely to be noticed were also the only
+ * ones that stayed silent.
  */
 export async function notifySlaAlert(p: {
   ticketId: string
   ticketTitle: string
-  assignedTo: string | null
+  recipientIds: string[]
   status: 'at_risk' | 'breached'
   timeInfo: string
+  /** Queue name, set when this went to a queue instead of one assignee. */
+  queueName?: string
 }) {
-  if (!p.assignedTo) return
+  if (p.recipientIds.length === 0) return
 
-  const users = await resolveUsers([p.assignedTo])
-  const agent = users.get(p.assignedTo)
+  const users = await resolveUsers(p.recipientIds)
 
-  if (agent) {
-    await send(agent.email, templates.slaAlert({
-      ticketId: p.ticketId,
-      title: p.ticketTitle,
-      status: p.status,
-      timeInfo: p.timeInfo,
-    }), p.ticketId)
+  for (const userId of p.recipientIds) {
+    const user = users.get(userId)
+    if (!user) continue
+    await send(
+      user.email,
+      templates.slaAlert({
+        ticketId: p.ticketId,
+        title: p.ticketTitle,
+        status: p.status,
+        timeInfo: p.timeInfo,
+        queueName: p.queueName,
+      }),
+      p.ticketId,
+    )
   }
 }

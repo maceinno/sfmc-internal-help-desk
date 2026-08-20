@@ -3,11 +3,8 @@ import { getProfileId } from '@/lib/clerk/resolve-id'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { assertTicketAccess } from '@/lib/permissions/assert-ticket-access'
 import { notifyNewReply, notifyUserTagged } from '@/lib/email/notify'
-import type {
-  TicketStatus,
-  TicketPriority,
-  CannedResponseAction,
-} from '@/types/ticket'
+import { cannedTicketUpdates } from '@/lib/tickets/canned-actions'
+import type { TicketStatus, CannedResponseAction } from '@/types/ticket'
 
 // ============================================================================
 // POST /api/tickets/[id]/reply — Add a reply or internal note to a ticket
@@ -47,6 +44,17 @@ interface ReplyBody {
   taggedAgents?: string[]
   attachmentIds?: string[]
   cannedResponseId?: string
+  /**
+   * The caller's own status decision for this reply, when it has one:
+   * a status to move to, or `null` for "post without changing status".
+   * Omit the field entirely to leave the status decision to the template's
+   * `setStatus` action (see `cannedTicketUpdates`).
+   *
+   * The composer always states its decision, which is what keeps a
+   * template's status change from being written here and then overwritten
+   * by the composer a moment later.
+   */
+  nextStatus?: TicketStatus | null
 }
 
 export async function POST(
@@ -143,6 +151,11 @@ export async function POST(
   }
 
   // ── Handle canned response actions ─────────────────────────────────────────
+  // `'nextStatus' in body` (not a truthiness check) — an explicit `null`
+  // means "post without changing status" and must also win over the
+  // template's setStatus.
+  const statusDecidedByCaller = 'nextStatus' in body
+
   if (body.cannedResponseId) {
     const { data: canned, error: cannedError } = await supabase
       .from('canned_responses')
@@ -156,17 +169,12 @@ export async function POST(
       const actions = canned.actions as CannedResponseAction | null
 
       if (actions) {
-        // Build ticket updates from canned response actions
-        const ticketUpdates: Record<string, unknown> = {}
-        if (actions.setStatus) {
-          ticketUpdates.status = actions.setStatus as TicketStatus
-        }
-        if (actions.setPriority) {
-          ticketUpdates.priority = actions.setPriority as TicketPriority
-        }
-        if (actions.setTeam) {
-          ticketUpdates.assigned_team = actions.setTeam
-        }
+        // Build ticket updates from canned response actions. Status is only
+        // ours to write when the caller did not state its own decision —
+        // otherwise the caller applies it (and records it in the thread).
+        const ticketUpdates = cannedTicketUpdates(actions, {
+          statusDecidedByCaller,
+        })
 
         if (Object.keys(ticketUpdates).length > 0) {
           const { error: updateError } = await supabase
@@ -280,6 +288,16 @@ export async function POST(
   }
 
   // ── Send email notifications (must await — Vercel kills the function after response) ──
+  // When the reply carried a status change, name it in this email. The
+  // caller then suppresses the separate status-change email, so the reader
+  // gets one message instead of two seconds apart. `statusChangedTo` stays
+  // undefined for a plain reply and for internal notes (which never carry
+  // a status change), leaving those emails exactly as they were.
+  const statusChangedTo =
+    body.nextStatus && body.nextStatus !== ticket.status
+      ? body.nextStatus
+      : undefined
+
   await notifyNewReply({
     ticketId,
     ticketTitle: ticket.title,
@@ -288,6 +306,7 @@ export async function POST(
     isInternal: body.isInternal,
     createdBy: ticket.created_by,
     assignedTo: ticket.assigned_to,
+    statusChangedTo,
   })
 
   if (body.taggedAgents && body.taggedAgents.length > 0) {
