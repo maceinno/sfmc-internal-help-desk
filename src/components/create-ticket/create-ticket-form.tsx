@@ -102,6 +102,7 @@ export function CreateTicketForm() {
     city: '',
     state: '',
     zip: '',
+    phone: '',
   })
 
   // ── React Hook Form ──────────────────────────────────────────
@@ -305,9 +306,14 @@ export function CreateTicketForm() {
       attachments: files.length > 0 ? files : undefined,
       cc: ccRecipientIds.length > 0 ? ccRecipientIds : undefined,
       customFields: submittedCustomFields.length > 0 ? submittedCustomFields : undefined,
-      mailingAddress: showMailingAddress && mailingAddress.street1
-        ? mailingAddress
-        : undefined,
+      // A phone number on its own is still worth keeping (a new hire whose
+      // kit is being collected rather than shipped), so it counts as
+      // content here alongside street1 rather than being dropped with the
+      // rest of an empty address.
+      mailingAddress:
+        showMailingAddress && (mailingAddress.street1 || mailingAddress.phone)
+          ? mailingAddress
+          : undefined,
       parentTicketId: followUpFromTicketId || undefined,
       requesterId:
         canCreateOnBehalf && requesterId && requesterId !== profile?.id
@@ -724,6 +730,33 @@ export function CreateTicketForm() {
                       maxLength={10}
                     />
                   </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="mailingPhone">
+                    Phone Number{' '}
+                    <span className="font-normal text-muted-foreground">
+                      (optional)
+                    </span>
+                  </Label>
+                  <Input
+                    id="mailingPhone"
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    value={mailingAddress.phone}
+                    onChange={(e) =>
+                      setMailingAddress((prev) => ({
+                        ...prev,
+                        phone: e.target.value,
+                      }))
+                    }
+                    placeholder="(555) 123-4567"
+                    maxLength={25}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Contact number for the delivery.
+                  </p>
                 </div>
               </div>
             )}

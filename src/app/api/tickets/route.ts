@@ -32,6 +32,7 @@ interface CreateTicketBody {
     city: string
     state: string
     zip: string
+    phone?: string
   }
   parentTicketId?: string
   requesterId?: string
