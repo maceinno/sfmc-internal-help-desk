@@ -2,6 +2,7 @@ import 'server-only'
 
 import { resend, EMAIL_FROM, ticketReplyTo } from './resend'
 import * as templates from './templates'
+import { resolveReplyRecipients } from './reply-recipients'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 /**
@@ -256,7 +257,7 @@ export async function notifyTicketsRequeued(p: {
 
 /**
  * New reply — notify all parties on the ticket with the full conversation.
- * Skips the author of the reply.
+ * Skips the author of the reply (see resolveReplyRecipients).
  */
 export async function notifyNewReply(p: {
   ticketId: string
@@ -300,28 +301,29 @@ export async function notifyNewReply(p: {
 
     const ccUserIds = (ccRows ?? []).map((r) => r.user_id)
 
-    // Collect all recipients (deduplicated, excluding author)
-    const recipientIds = new Set<string>()
-
-    if (!p.isInternal) {
-      recipientIds.add(p.createdBy)
-      if (p.assignedTo) recipientIds.add(p.assignedTo)
-      ccUserIds.forEach((id) => recipientIds.add(id))
-    } else {
-      if (p.assignedTo) recipientIds.add(p.assignedTo)
-
+    // Collaborators only matter for internal notes — skip the query for
+    // public replies rather than fetching rows we would discard.
+    let collaboratorIds: string[] = []
+    if (p.isInternal) {
       const { data: collabRows } = await supabase
         .from('ticket_collaborators')
         .select('user_id')
         .eq('ticket_id', p.ticketId)
 
-      for (const r of collabRows ?? []) {
-        recipientIds.add(r.user_id)
-      }
+      collaboratorIds = (collabRows ?? []).map((r) => r.user_id as string)
     }
 
-    // All parties get every reply — including the author (for their records)
-    recipientIds.add(p.authorId)
+    // Collect all recipients (deduplicated, excluding the author)
+    const recipientIds = new Set<string>(
+      resolveReplyRecipients({
+        authorId: p.authorId,
+        createdBy: p.createdBy,
+        assignedTo: p.assignedTo,
+        isInternal: p.isInternal,
+        ccUserIds,
+        collaboratorIds,
+      }),
+    )
 
     if (recipientIds.size === 0) {
       console.log(`[email] notifyNewReply: no recipients after filtering`)

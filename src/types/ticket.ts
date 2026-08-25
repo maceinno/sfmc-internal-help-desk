@@ -178,6 +178,9 @@ export interface Ticket {
     city: string
     state: string
     zip: string
+    /** Contact number for the delivery — optional, and absent on every
+     *  address stored before it was collected. */
+    phone?: string
   }
 }
 

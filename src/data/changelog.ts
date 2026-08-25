@@ -147,6 +147,25 @@ export const CHANGELOG: ChangelogEntry[] = [
         ],
       },
       {
+        heading: 'Deadline warnings',
+        items: [
+          {
+            title: 'Tickets approaching their deadline now warn the people who can act on them',
+            body: 'Tickets could pass their response deadline with nothing said, so a slipping ticket was only noticed if somebody happened to be looking at the dashboard. Every few minutes the queue is now checked, and a ticket nearing its deadline sends one warning, with a second notice if the deadline passes. Each goes out as an email and an alert in the bell menu. If the ticket has an owner, only they are told; if it is sitting unclaimed, everyone who could pick it up is told, so it does not wait on one person noticing. Each warning is sent once and never repeats, and a ticket that has been overdue for more than two days is left alone rather than raising an alarm about something already long known.',
+            howToTest: {
+              agent: [
+                'Look at the dashboard for a ticket close to its deadline.',
+                'Shortly after it crosses into the warning window, an email arrives and the bell menu shows an alert.',
+                'You are not told a second time about the same deadline.',
+              ],
+              admin: [
+                'Same as an agent, plus: on an unclaimed ticket the whole department is told, not one person.',
+              ],
+            },
+          },
+        ],
+      },
+      {
         heading: 'Ticket subjects and printing',
         items: [
           {

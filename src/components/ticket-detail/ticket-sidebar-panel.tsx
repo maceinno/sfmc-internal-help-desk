@@ -9,6 +9,7 @@ import {
   Tag,
   X,
   Hand,
+  Phone,
 } from "lucide-react"
 import {
   Select,
@@ -222,6 +223,56 @@ export function TicketSidebarPanel({
               </div>
             )
           })}
+        </div>
+      </>
+    )
+  }
+
+  // Mailing address is collected on the New Hire form (for hardware
+  // shipping) and stored on the ticket, but had no reader — so the agent
+  // fulfilling the request never saw where to send the kit. Shown here
+  // beside the other ticket properties. street1 is the field the create
+  // form requires before it sends anything, so it gates the block.
+  const renderMailingAddress = () => {
+    const addr = ticket.mailing_address
+    // Either half can stand alone: a phone with no address (kit collected
+    // in person) is still worth showing, and every address saved before
+    // the phone field existed has no phone.
+    if (!addr?.street1 && !addr?.phone) return null
+
+    const cityStateZip = [addr.city, addr.state].filter(Boolean).join(", ")
+    const lastLine = [cityStateZip, addr.zip].filter(Boolean).join(" ")
+
+    return (
+      <>
+        <Separator />
+        <div className="space-y-3">
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Mailing Address
+            <span className="ml-2 normal-case tracking-normal font-normal">
+              (for hardware shipping)
+            </span>
+          </h4>
+          <address className="space-y-2 rounded-lg border border-gray-200 bg-gray-50 p-2.5 text-sm not-italic text-gray-900">
+            {addr.street1 && (
+              <div>
+                <div>{addr.street1}</div>
+                {addr.street2 && <div>{addr.street2}</div>}
+                {lastLine && <div>{lastLine}</div>}
+              </div>
+            )}
+            {addr.phone && (
+              <div className="flex items-center gap-1.5">
+                <Phone className="size-3.5 shrink-0 text-muted-foreground" />
+                <a
+                  href={`tel:${addr.phone.replace(/[^\d+]/g, "")}`}
+                  className="hover:underline"
+                >
+                  {addr.phone}
+                </a>
+              </div>
+            )}
+          </address>
         </div>
       </>
     )
@@ -496,6 +547,8 @@ export function TicketSidebarPanel({
         </div>
 
         {renderCustomFields()}
+
+        {renderMailingAddress()}
       </div>
 
       {/* People Card: CC & Collaborators */}

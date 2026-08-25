@@ -99,6 +99,19 @@ the entry in `changelog.ts` and are mirrored below as collapsible
   1. Same as an agent. Note nobody is emailed about their own move.
   </details>
 
+### Deadline warnings
+
+- **Tickets approaching their deadline now warn the people who can act on them.**
+  Tickets could pass their response deadline with nothing said, so a slipping
+  ticket was only noticed if somebody happened to be looking at the dashboard.
+  Every few minutes the queue is now checked, and a ticket nearing its deadline
+  sends one warning, with a second notice if the deadline passes. Each goes out
+  as an email and an alert in the bell menu. If the ticket has an owner, only
+  they are told; if it is sitting unclaimed, everyone who could pick it up is
+  told. Each warning is sent once and never repeats, and a ticket that has been
+  overdue for more than two days is left alone rather than raising an alarm
+  about something already long known.
+
 ### Ticket subjects and printing
 
 - **A ticket subject can be corrected after it is raised.** Subjects are often typed in a hurry ("help", "question") or against the wrong loan, and used to be fixed for the life of the ticket. Click the pencil next to the subject to edit it in place. The change is recorded in the conversation with who made it and what it was before, and the new name flows straight through to the ticket list, the open tabs and future emails.

@@ -77,6 +77,45 @@ const STATUS_OPTIONS: TicketStatus[] = [
 // new ticket moves it into the open queue; replying to an open ticket marks
 // it pending on the user; solved tickets stay solved (a reply doesn't reopen
 // unless the agent explicitly picks a different status from the dropdown).
+/**
+ * What a pick from the composer's status dropdown does.
+ *
+ * Picking a status ACTS — it does not merely arm the Submit button.
+ * Agents reported having to click "Solved" twice to close a ticket: once
+ * in the menu to select it, then again on the button to apply it. This
+ * mirrors the sidebar's Status dropdown, which has always applied on pick.
+ *
+ * Exported so the decision can be tested without mounting the rich-text
+ * editor.
+ */
+export type StatusMenuAction =
+  | 'send-with-status'
+  | 'apply-status-only'
+  | 'select-only'
+
+export function resolveStatusMenuAction(opts: {
+  /** The menu item picked. null = "Send (no status change)". */
+  status: TicketStatus | null
+  currentStatus: TicketStatus
+  hasContent: boolean
+  /** False when the parent gave us no status-only handler. */
+  canApplyStatusOnly: boolean
+}): StatusMenuAction {
+  const { status, currentStatus, hasContent, canApplyStatusOnly } = opts
+
+  // A typed draft goes out with the pick — the same atomic
+  // "reply + status" the sidebar performs when a draft is open.
+  if (hasContent) return 'send-with-status'
+
+  // Nothing typed: "Send (no status change)" has nothing to do but arm
+  // the button, and re-picking the status the ticket already holds is a
+  // no-op rather than a misleading "Status saved".
+  if (status === null || status === currentStatus) return 'select-only'
+  if (!canApplyStatusOnly) return 'select-only'
+
+  return 'apply-status-only'
+}
+
 function defaultNextStatus(current: TicketStatus): TicketStatus {
   switch (current) {
     case "new":
@@ -333,32 +372,62 @@ export const ReplyComposer = React.forwardRef<
   // note mode (notes never carry status changes) or when the dropdown
   // is on "Send (no status change)" (pendingStatus === null).
   //
-  // We intentionally don't gate on pendingStatus !== currentStatus.
-  // That gate stranded users on tickets whose default pendingStatus
-  // already matched the current status (e.g. on_hold, solved): the
-  // button was simply disabled with no obvious explanation. Now the
-  // button stays enabled; if the user clicks it with the current
-  // status selected we treat it as a no-op (handlePrimaryClick below).
+  // We intentionally don't gate on pendingStatus !== currentStatus for
+  // the *dropdown* — that gate stranded users on tickets whose default
+  // pendingStatus already matched the current status (e.g. on_hold,
+  // solved). The button label handles that case instead: see
+  // alreadyAtStatus below, which says "Already Solved" rather than
+  // offering a click that silently does nothing.
   const canStatusOnly =
     !hasContent &&
     !isInternalNote &&
     pendingStatus !== null &&
     Boolean(onStatusOnlyChange)
 
+  // Empty composer, and the picked status is what the ticket already is.
+  // Previously the button still read "Mark as Solved" here and clicking
+  // it was a silent no-op — indistinguishable from a broken button.
+  const alreadyAtStatus = canStatusOnly && pendingStatus === currentStatus
+
+  // Apply a status with no message attached, flashing a confirmation on
+  // the button itself (the toast is easy to miss right where the click
+  // happened). No-op when the ticket is already at that status, to avoid
+  // a misleading "Status saved" for a non-change.
+  const applyStatusOnly = (status: TicketStatus) => {
+    if (status === currentStatus) return
+    onStatusOnlyChange?.(status)
+    setJustSavedStatus(status)
+    window.setTimeout(() => setJustSavedStatus(null), 1800)
+  }
+
   const handlePrimaryClick = () => {
     if (canStatusOnly && pendingStatus) {
-      // No-op when the picked status is what the ticket already has —
-      // avoids a misleading "Status saved" toast for a non-change.
-      if (pendingStatus === currentStatus) return
-      const savedStatus = pendingStatus
-      onStatusOnlyChange?.(savedStatus)
-      // Flash a confirmation on the button itself; the toast is easy to
-      // miss right where the click happened.
-      setJustSavedStatus(savedStatus)
-      window.setTimeout(() => setJustSavedStatus(null), 1800)
+      applyStatusOnly(pendingStatus)
       return
     }
     handleSend()
+  }
+
+  // See resolveStatusMenuAction above for why picking acts immediately.
+  const handleStatusMenuSelect = (status: TicketStatus | null) => {
+    setPendingStatus(status)
+
+    const action = resolveStatusMenuAction({
+      status,
+      currentStatus,
+      hasContent,
+      canApplyStatusOnly: Boolean(onStatusOnlyChange) && !isInternalNote,
+    })
+
+    if (action === 'send-with-status') {
+      // 'sidebar' honours the status passed in rather than reading
+      // pendingStatus, which has not re-rendered yet at this point.
+      void sendInternal('sidebar', status)
+      return
+    }
+    if (action === 'apply-status-only' && status) {
+      applyStatusOnly(status)
+    }
   }
 
   const handleCannedResponseSelect = (response: CannedResponse) => {
@@ -649,7 +718,12 @@ export const ReplyComposer = React.forwardRef<
             <div className="inline-flex rounded-md shadow-sm">
               <Button
                 onClick={handlePrimaryClick}
-                disabled={(!hasContent && !canStatusOnly) || isSending || Boolean(justSavedStatus)}
+                disabled={
+                  (!hasContent && !canStatusOnly) ||
+                  isSending ||
+                  Boolean(justSavedStatus) ||
+                  alreadyAtStatus
+                }
                 size="default"
                 className={cn(
                   "rounded-r-none border-r border-blue-700/40",
@@ -665,6 +739,11 @@ export const ReplyComposer = React.forwardRef<
                   <>
                     <Check className="mr-2 h-4 w-4" />
                     Marked as <span className="ml-1 font-semibold">{STATUS_LABEL[justSavedStatus]}</span>
+                  </>
+                ) : alreadyAtStatus && pendingStatus ? (
+                  <>
+                    <Check className="mr-2 h-4 w-4" />
+                    Already <span className="ml-1 font-semibold">{STATUS_LABEL[pendingStatus]}</span>
                   </>
                 ) : canStatusOnly && pendingStatus ? (
                   <>
@@ -690,7 +769,7 @@ export const ReplyComposer = React.forwardRef<
               <DropdownMenu>
                 <DropdownMenuTrigger
                   disabled={isSending}
-                  aria-label="Choose status to submit as"
+                  aria-label="Submit with a different status"
                   render={
                     <Button
                       size="default"
@@ -704,7 +783,7 @@ export const ReplyComposer = React.forwardRef<
                   {STATUS_OPTIONS.map((status) => (
                     <DropdownMenuItem
                       key={status}
-                      onClick={() => setPendingStatus(status)}
+                      onClick={() => handleStatusMenuSelect(status)}
                       className="flex items-center gap-2"
                     >
                       <span
@@ -718,7 +797,7 @@ export const ReplyComposer = React.forwardRef<
                   ))}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    onClick={() => setPendingStatus(null)}
+                    onClick={() => handleStatusMenuSelect(null)}
                     className="flex items-center gap-2"
                   >
                     <Send className="h-3.5 w-3.5 text-muted-foreground" />
