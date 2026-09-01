@@ -224,7 +224,7 @@ export function AttachmentList({
                         </div>
                         <div className="flex items-center gap-1">
                           <a
-                            href={displayFile.url ?? '#'}
+                            href={displayFile.download_url ?? displayFile.url ?? '#'}
                             download={displayFile.file_name}
                             target="_blank"
                             rel="noopener noreferrer"
@@ -303,7 +303,7 @@ export function AttachmentList({
                               </div>
                             </div>
                             <a
-                              href={att.url ?? '#'}
+                              href={att.download_url ?? att.url ?? '#'}
                               download={att.file_name}
                               target="_blank"
                               rel="noopener noreferrer"
@@ -387,7 +387,7 @@ export function AttachmentList({
                     </div>
                   </div>
                   <a
-                    href={att.url ?? '#'}
+                    href={att.download_url ?? att.url ?? '#'}
                     download={att.file_name}
                     target="_blank"
                     rel="noopener noreferrer"

@@ -194,7 +194,7 @@ export function MessageThread({
                   </p>
                 </div>
                 <a
-                  href={att.url ?? '#'}
+                  href={att.download_url ?? att.url ?? '#'}
                   download={att.file_name}
                   target="_blank"
                   rel="noopener noreferrer"
