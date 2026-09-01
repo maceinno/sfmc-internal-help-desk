@@ -155,10 +155,15 @@ export function useTicket(id: string | null | undefined) {
             }),
           })
           if (res.ok) {
-            const { urls } = await res.json()
+            const { urls, downloadUrls } = await res.json()
             for (const att of attachments) {
               if (att.storage_path && urls[att.storage_path]) {
                 att.url = urls[att.storage_path]
+                // Separate link for the download button: same file, but the
+                // browser saves it under the name the user uploaded rather
+                // than the UUID-prefixed storage key.
+                att.download_url =
+                  downloadUrls?.[att.storage_path] ?? urls[att.storage_path]
               }
             }
           }

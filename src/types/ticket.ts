@@ -63,6 +63,9 @@ export interface Attachment {
   created_at: string
   storage_path: string
   url?: string
+  /** Signed URL that saves as `file_name` instead of the storage key. Use
+   *  this for download links; use `url` for inline previews. */
+  download_url?: string
   version?: number
   version_group?: string
   is_final?: boolean
