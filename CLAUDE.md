@@ -182,3 +182,55 @@ refactor what already ships here.
 
 The point is to stop the next 1808-line page from forming, not to churn the
 ones that already exist.
+
+## This is no longer a small dataset — size every list for it
+
+**MEASURED 2026-09-08** from a Jerry sandbox, by querying the preview Supabase
+project directly with the service-role client (`node --env-file=.env.local`,
+`@supabase/supabase-js`) and by timing/sizing the exact projection
+`useTickets()` sends:
+
+| Measure | Value |
+| --- | --- |
+| `tickets` rows | 4,189 |
+| `messages` rows | 20,904 |
+| `attachments` rows | 3,081 |
+| `profiles` rows | 180 |
+| `view_configs` rows (all enabled) | 66 |
+| One `useTickets()` payload | **8.1 MB of JSON, ~1.4 s server time** |
+| Of which: embedded `messages` | 4.09 MB |
+| Of which: `description` | 1.07 MB |
+
+These are preview-database numbers. Production volume is **not** measurable
+from a Jerry sandbox — Mace can measure it — but preview is loaded from the
+same Zendesk import, so treat production as the same order of magnitude.
+
+### What follows from that
+
+1. **`useTickets()` is the heaviest thing the app does, and every portal
+   screen calls it** — dashboard, reports, my-tickets, cc-tickets, branch,
+   region, the tickets layout and ticket detail. It is one shared cache entry
+   (all callers pass no filters), so treat it as an app-wide cost, not a
+   per-page one. It is deliberately given a 5-minute `staleTime` and
+   `refetchOnWindowFocus: false`; Realtime supplies liveness.
+2. **Never render a whole ticket collection.** Page it (`lib/pagination/
+   paginate.ts` + `components/shared/pager.tsx`, 50/page) or cap it with a
+   "show more" (see `ticket-queue-list.tsx`). Before this change the agent
+   list drew all 4,189 rows × 9 columns — ~37,700 cells with an SLA countdown
+   recomputed per row — which froze the browser tab on every screen.
+3. **Realtime `tickets` events are throttled** (`lib/realtime/throttle.ts`,
+   10 s, leading edge immediate) because each one used to make every open
+   browser re-download those 8.1 MB. Invalidate `ticketKeys.lists()`, never
+   the whole `['tickets']` prefix — that also discards open ticket details and
+   in-flight reply searches. The user's own mutations still invalidate
+   directly and immediately; do not route those through the throttle.
+4. **Filter and search on the server where you can.** Reply bodies already
+   are (`/api/tickets/search-replies`). Ticket `description` is still shipped
+   to the browser purely so a 1–2 character search can match it locally;
+   moving that server-side is the next 1 MB, and is *unmeasured* as to
+   whether it changes search behaviour anyone relies on — ask before doing it.
+5. **Resetting page state belongs in derived state, not a `useEffect`.** The
+   tickets layout has already produced one "Maximum update depth exceeded"
+   crash from setState-inside-effect (see `lib/views/department-views.ts`).
+   Both new list components key their paging off a filter signature computed
+   during render, which cannot loop.

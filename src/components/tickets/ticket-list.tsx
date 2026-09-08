@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { TicketFilters } from './ticket-filters'
 import { TicketTable } from './ticket-table'
 import { getSlaStatus } from '@/lib/sla'
@@ -11,6 +11,8 @@ import {
 } from '@/lib/tickets/category-filter'
 import { useReplySearch } from '@/hooks/use-reply-search'
 import { useSlaPolicies, useDepartmentSchedules } from '@/hooks/use-admin-config'
+import { Pager } from '@/components/shared/pager'
+import { getPageWindow } from '@/lib/pagination/paginate'
 import type { Ticket, User } from '@/types/ticket'
 import type { PresenceUser } from '@/hooks/use-ticket-presence'
 import type {
@@ -206,6 +208,48 @@ export function TicketList({ tickets, allTickets, title, users, presenceMap }: T
     ).length
   }, [displayTickets, replyMatchIds, isSearching, searchTerm, usersById])
 
+  // ── Paging ───────────────────────────────────────────────────
+  //
+  // Filtering, searching and sorting all happen above, across the WHOLE
+  // result set — paging only limits how many rows are handed to the table.
+  // So a sort still sorts every match, not just the visible page.
+  //
+  // The page number is stored alongside a signature of the current filters
+  // instead of being reset from a useEffect. Changing a filter has to send
+  // the user back to page 1 (page 40 of a 3-row result is an empty table),
+  // and doing that with an effect means setState-in-effect on a component
+  // that already re-renders on every store change — the exact shape that
+  // produced "Maximum update depth exceeded" in the tickets layout. Derived
+  // state cannot loop.
+  const filterSignature = [
+    title,
+    searchTerm.trim(),
+    statusFilter,
+    priorityFilter,
+    categoryFilter,
+    sortField ?? '',
+    sortDirection,
+  ].join(' ')
+  const [pageState, setPageState] = useState({ sig: filterSignature, page: 1 })
+  const requestedPage = pageState.sig === filterSignature ? pageState.page : 1
+  const setPage = (page: number) =>
+    setPageState({ sig: filterSignature, page })
+
+  const pageWindow = getPageWindow(displayTickets.length, requestedPage)
+  const pageTickets = useMemo(
+    () => displayTickets.slice(pageWindow.start, pageWindow.end),
+    [displayTickets, pageWindow.start, pageWindow.end],
+  )
+
+  // Paging forward while scrolled halfway down lands the user in the middle
+  // of the new page, which reads as "nothing happened". Jump back to the
+  // first row.
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const handlePageChange = (page: number) => {
+    setPage(page)
+    scrollRef.current?.scrollTo({ top: 0 })
+  }
+
   return (
     <div className="flex flex-col h-full overflow-hidden bg-white">
       {/* Header */}
@@ -240,10 +284,10 @@ export function TicketList({ tickets, allTickets, title, users, presenceMap }: T
         onCategoryFilterChange={setCategoryFilter}
       />
 
-      {/* Table */}
-      <div className="flex-1 overflow-auto">
+      {/* Table — one page of rows at a time. */}
+      <div ref={scrollRef} className="flex-1 overflow-auto">
         <TicketTable
-          tickets={displayTickets}
+          tickets={pageTickets}
           users={users}
           sortField={sortField}
           sortDirection={sortDirection}
@@ -254,6 +298,12 @@ export function TicketList({ tickets, allTickets, title, users, presenceMap }: T
           presenceMap={presenceMap}
         />
       </div>
+
+      <Pager
+        window={pageWindow}
+        total={displayTickets.length}
+        onPageChange={handlePageChange}
+      />
     </div>
   )
 }

@@ -15,7 +15,7 @@ import type {
 
 // ── Query keys ──────────────────────────────────────────────────
 
-const ticketKeys = {
+export const ticketKeys = {
   all: ['tickets'] as const,
   lists: () => [...ticketKeys.all, 'list'] as const,
   list: (filters: TicketFilters) => [...ticketKeys.lists(), filters] as const,
@@ -35,6 +35,26 @@ export interface TicketFilters {
 // ── Hooks ───────────────────────────────────────────────────────
 
 /**
+ * How long the shared ticket list is considered fresh.
+ *
+ * This query is the single heaviest thing the app does, and EVERY portal
+ * screen calls it: dashboard, reports, my-tickets, cc-tickets, branch,
+ * region, the tickets layout and the ticket detail page. Measured against
+ * live preview data on 2026-09-08: 4,189 tickets, 20,904 embedded messages,
+ * 8.1 MB of JSON, 1.4 s server time — before the browser parses it and
+ * rebuilds ~25k objects in the flatten step below.
+ *
+ * With the previous 30 s default (plus refetchOnWindowFocus) that whole cost
+ * was paid again on nearly every navigation and every alt-tab back into the
+ * app, which is what made the portal feel frozen on every screen rather than
+ * just on the ticket list. Liveness does NOT depend on this number: Realtime
+ * invalidates the query the moment a ticket actually changes
+ * (use-realtime-tickets), so a longer window only removes refetches that had
+ * nothing new to fetch.
+ */
+const TICKET_LIST_STALE_MS = 5 * 60 * 1000
+
+/**
  * Fetch a list of tickets with optional filters.
  */
 export function useTickets(filters: TicketFilters = {}) {
@@ -42,6 +62,11 @@ export function useTickets(filters: TicketFilters = {}) {
 
   return useQuery<Ticket[]>({
     queryKey: ticketKeys.list(filters),
+    staleTime: TICKET_LIST_STALE_MS,
+    // Refetching 8.1 MB every time the window regains focus is pure cost:
+    // Realtime already pushes real changes. Overrides the app-wide default
+    // in components/providers.tsx for this one query only.
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const token = await getToken({ template: 'supabase' })
       if (!token) throw new Error('No auth token')

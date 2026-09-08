@@ -34,6 +34,14 @@ interface TicketQueueListProps {
   title: string
 }
 
+/**
+ * How many queue rows to draw before asking. A view can hold thousands
+ * (4,189 tickets across 66 views measured on 2026-09-08), and this list sits
+ * beside an OPEN ticket — so every row drawn here is time added to opening
+ * a ticket, for a row nobody scrolled to.
+ */
+const QUEUE_CHUNK = 50
+
 export function TicketQueueList({
   tickets,
   users,
@@ -45,6 +53,23 @@ export function TicketQueueList({
     for (const u of users) map.set(u.id, u)
     return map
   }, [users])
+
+  // "Show more" state, keyed off the view name so switching views starts
+  // over. Derived rather than reset from an effect — see the note in
+  // ticket-list.tsx about setState-in-effect loops.
+  const [expanded, setExpanded] = React.useState({ sig: title, chunks: 1 })
+  const chunks = expanded.sig === title ? expanded.chunks : 1
+
+  // The ticket being read must always be in the list, even when it sits
+  // below the cut — otherwise the queue looks like it lost the ticket the
+  // user is looking at.
+  const activeIndex = tickets.findIndex((t) => pathname === `/tickets/${t.id}`)
+  const limit = Math.max(QUEUE_CHUNK * chunks, activeIndex + 1)
+  const visible = React.useMemo(
+    () => tickets.slice(0, limit),
+    [tickets, limit],
+  )
+  const remaining = tickets.length - visible.length
 
   return (
     <div className="flex flex-col h-full bg-white border-r border-gray-200">
@@ -62,7 +87,7 @@ export function TicketQueueList({
             No tickets in this view.
           </li>
         ) : (
-          tickets.map((t) => {
+          visible.map((t) => {
             const isActive = pathname === `/tickets/${t.id}`
             const requester = userById.get(t.created_by)
             return (
@@ -114,6 +139,23 @@ export function TicketQueueList({
               </li>
             )
           })
+        )}
+        {remaining > 0 && (
+          <li className="px-3 py-2">
+            <button
+              type="button"
+              onClick={() =>
+                setExpanded({ sig: title, chunks: chunks + 1 })
+              }
+              className="w-full rounded-md border border-gray-300 bg-white px-2 py-2 text-xs text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              Show {Math.min(remaining, QUEUE_CHUNK)} more
+              <span className="text-gray-400">
+                {" "}
+                ({remaining.toLocaleString()} left)
+              </span>
+            </button>
+          </li>
         )}
       </ul>
     </div>
