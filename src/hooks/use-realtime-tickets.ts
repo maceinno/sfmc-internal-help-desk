@@ -17,6 +17,9 @@ import type { SupabaseClient, RealtimeChannel } from '@supabase/supabase-js'
  */
 const TICKET_LIST_REFRESH_MS = 10_000
 
+/** How often to hand the Realtime socket a freshly minted Clerk token. */
+const TOKEN_REFRESH_MS = 45_000
+
 /**
  * Subscribe to Supabase Realtime for live ticket, message, and notification
  * updates. On every postgres_changes event the relevant TanStack Query cache
@@ -33,6 +36,10 @@ export function useRealtimeTickets() {
   // Keep mutable refs so the cleanup function always has the latest handles
   const clientRef = useRef<SupabaseClient | null>(null)
   const channelRef = useRef<RealtimeChannel | null>(null)
+  // Clerk session tokens are short-lived (a minute or so). The socket holds
+  // one for as long as the tab is open, so it has to be handed a fresh one
+  // or it silently ages out of its own subscription part-way through a shift.
+  const tokenRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Ticket-LIST refreshes are throttled; ticket-DETAIL refreshes below are
   // not, because the ticket you are reading has to update instantly and that
@@ -56,6 +63,24 @@ export function useRealtimeTickets() {
 
     const supabase = createClerkSupabaseClient(token)
     clientRef.current = supabase
+
+    // `createClerkSupabaseClient` puts the Clerk JWT in `global.headers`,
+    // which only reaches PostgREST. The Realtime socket authenticates
+    // separately and, without the line below, connects carrying nothing but
+    // the public anon key — no `profile_id`, no `sub` — so RLS
+    // (`can_see_ticket`) filters every row out and the channel reports
+    // SUBSCRIBED while delivering nothing.
+    //
+    // HONEST LIMIT: this is the right shape and the socket plainly needs an
+    // identity, but it is NOT verified to restore delivery. Measured
+    // 2026-09-22 from a Jerry sandbox, an anon-key socket received zero
+    // `tickets` events with `setAuth`, with the `accessToken` option, and
+    // with nothing — while a service-role socket received them. A real Clerk
+    // user JWT cannot be minted in that sandbox, so the browser case is
+    // unverified from here. `useTicketFreshness` is what actually guarantees
+    // the list refreshes; treat this as removing a known defect, not as the
+    // fix for it.
+    await supabase.realtime.setAuth(token)
 
     const channel = supabase
       .channel('portal-realtime')
@@ -113,6 +138,18 @@ export function useRealtimeTickets() {
       })
 
     channelRef.current = channel
+
+    // Keep the socket's token fresh for the life of the tab.
+    if (tokenRefreshRef.current) clearInterval(tokenRefreshRef.current)
+    tokenRefreshRef.current = setInterval(async () => {
+      try {
+        const fresh = await getToken({ template: 'supabase' })
+        if (fresh) await supabase.realtime.setAuth(fresh)
+      } catch {
+        // A failed refresh is not worth surfacing: the freshness probe in
+        // useTicketFreshness still keeps the lists up to date.
+      }
+    }, TOKEN_REFRESH_MS)
   }, [getToken, queryClient, refreshTicketLists])
 
   useEffect(() => {
@@ -123,6 +160,10 @@ export function useRealtimeTickets() {
       if (channelRef.current) {
         clientRef.current?.removeChannel(channelRef.current)
         channelRef.current = null
+      }
+      if (tokenRefreshRef.current) {
+        clearInterval(tokenRefreshRef.current)
+        tokenRefreshRef.current = null
       }
       // Drop any queued list refresh so it can't fire into an unmounted tree.
       refreshTicketLists.cancel()

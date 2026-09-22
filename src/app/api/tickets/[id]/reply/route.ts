@@ -4,6 +4,10 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { assertTicketAccess } from '@/lib/permissions/assert-ticket-access'
 import { notifyNewReply, notifyUserTagged } from '@/lib/email/notify'
 import { cannedTicketUpdates } from '@/lib/tickets/canned-actions'
+import {
+  AGENT_WAITING_STATUSES,
+  shouldAutoReopen,
+} from '@/lib/tickets/reply-status'
 import type { TicketStatus, CannedResponseAction } from '@/types/ticket'
 
 // ============================================================================
@@ -31,13 +35,6 @@ import type { TicketStatus, CannedResponseAction } from '@/types/ticket'
 // for the smarter-detection follow-up.
 const AUTO_REOPEN_ON_PORTAL_COMMENT = true
 
-// Statuses where a non-agent comment should flip the ticket to `open`.
-const AGENT_WAITING_STATUSES: ReadonlyArray<TicketStatus> = [
-  'solved',
-  'pending',
-  'on_hold',
-]
-
 interface ReplyBody {
   content: string
   isInternal: boolean
@@ -55,6 +52,13 @@ interface ReplyBody {
    * by the composer a moment later.
    */
   nextStatus?: TicketStatus | null
+  /**
+   * "Post this reply and leave the ticket where it is." Set by the employee
+   * composer's "Send and keep it solved" option — the one way a requester
+   * can decline the automatic reopen below. Ignored for agent/admin callers,
+   * who have the full status control instead.
+   */
+  keepStatus?: boolean
 }
 
 export async function POST(
@@ -265,9 +269,12 @@ export async function POST(
   // ── Auto-reopen solved tickets on requester/CC public reply ───────────────
   if (
     AUTO_REOPEN_ON_PORTAL_COMMENT &&
-    AGENT_WAITING_STATUSES.includes(ticket.status as TicketStatus) &&
-    !body.isInternal &&
-    !isAgentOrAdmin
+    shouldAutoReopen({
+      currentStatus: ticket.status as TicketStatus,
+      isInternalNote: body.isInternal,
+      isAgentOrAdmin,
+      keepStatus: body.keepStatus === true,
+    })
   ) {
     // .in('status', AGENT_WAITING_STATUSES) makes the update a no-op if
     // the status moved between our read and write — covers the canned-

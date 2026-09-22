@@ -234,3 +234,57 @@ same Zendesk import, so treat production as the same order of magnitude.
    crash from setState-inside-effect (see `lib/views/department-views.ts`).
    Both new list components key their paging off a filter signature computed
    during render, which cannot loop.
+
+## Realtime does not reach the browser — do not rely on it for liveness
+
+**MEASURED 2026-09-22** from a Jerry sandbox against the **preview** Supabase
+project, using this repo's own `@supabase/supabase-js` (`node
+--env-file=.env.local`). Each probe subscribed to `postgres_changes` on
+`tickets`, then a service-role write touched one ticket's `updated_at`:
+
+| Socket opened as | `subscribe()` reported | Events in 8 s |
+| --- | --- | --- |
+| service-role key | `SUBSCRIBED` | **1** (`UPDATE`) |
+| anon key + Clerk JWT in `global.headers` (what the app does) | `SUBSCRIBED` | **0** |
+| anon key + `realtime.setAuth(<service JWT>)` | `SUBSCRIBED` | **0** |
+| anon key + `accessToken` option | `SUBSCRIBED` | **0** |
+
+So replication for `tickets` **is** enabled and the database end works; a
+browser-shaped connection reports a healthy channel and receives nothing.
+
+**NOT measured, and it matters:** a real Clerk *user* JWT cannot be minted in
+a Jerry sandbox, so the exact browser case is inferred from the anon probes
+rather than observed. Mace can measure it properly. Treat the row above as
+"an anon-key socket gets nothing", not as a proven statement about every
+signed-in user.
+
+Two things follow:
+
+1. **`use-realtime-tickets` is best-effort, not the refresh mechanism.** It
+   now calls `realtime.setAuth()` with the Clerk token and re-mints it every
+   45 s (Clerk tokens are ~60 s), because the socket previously carried no
+   identity at all. That is a defect removed, **not** a verified fix.
+2. **`use-ticket-freshness` is what actually keeps screens current.** It
+   polls one row — the newest `updated_at` the signed-in user may see — every
+   30 s and on window focus, and invalidates `ticketKeys.lists()` +
+   `ticketKeys.details()` only when that value moves. Measured cost of the
+   probe: **65 bytes, ~270–470 ms warm**, versus 8.1 MB / ~1.4 s for the list
+   it guards. Do not replace it with a plain `refetchInterval` on
+   `useTickets()`.
+
+### Status on reply — the rule lives in one file
+
+`src/lib/tickets/reply-status.ts` holds both halves (`replyStatusForRole` for
+what a reply carries, `shouldAutoReopen` for what the API does with it). The
+composer and `POST /api/tickets/[id]/reply` both import it; they used to
+state the rule separately and drifted.
+
+- **Employees have no status control.** Their reply carries no status. Before
+  2026-09-22 they were shown the full agent dropdown, which defaults to
+  "Submit as Open" on a new ticket — so a requester's own follow-up moved
+  their ticket out of New. That was the reported "tickets come over as open
+  instead of new".
+- **`new` is not an agent-waiting status.** A reply never moves a ticket out
+  of New; `solved` / `pending` / `on_hold` reopen.
+- **"Send and keep it solved"** (`keepStatus: true`) is the only way a
+  requester can decline the reopen.
