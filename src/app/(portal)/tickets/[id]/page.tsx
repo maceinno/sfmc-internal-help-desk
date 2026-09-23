@@ -380,6 +380,7 @@ export default function TicketDetailPage({
       attachments?: File[]
       cannedResponseId?: string
       nextStatus?: TicketStatus | null
+      keepStatus?: boolean
     }) => {
       if (!ticket || !currentUser) return
       setIsSubmitting(true)
@@ -431,6 +432,9 @@ export default function TicketDetailPage({
             // this, both sides wrote a status and ours landed last, which
             // made a template's status change look like it never applied.
             nextStatus: message.nextStatus ?? null,
+            // "Reply and keep solved" — the requester declining the
+            // automatic reopen. Only ever set by the employee composer.
+            keepStatus: message.keepStatus === true ? true : undefined,
           }),
         })
 
@@ -841,7 +845,15 @@ export default function TicketDetailPage({
               currentUser={currentUser}
               cannedResponses={cannedResponses ?? []}
               onSubmit={handleReplySubmit}
-              onStatusOnlyChange={(status) => handleUpdateField('status', status)}
+              // Agents and admins only: this is the "apply a status without
+              // posting a message" path behind the composer's status menu.
+              // Employees have no status menu, so handing them the callback
+              // would only re-open the hole it was removed to close.
+              onStatusOnlyChange={
+                isAgentOrAdmin
+                  ? (status) => handleUpdateField('status', status)
+                  : undefined
+              }
               onTypingChange={isAgentOrAdmin ? setPresenceTyping : undefined}
             />
           </div>

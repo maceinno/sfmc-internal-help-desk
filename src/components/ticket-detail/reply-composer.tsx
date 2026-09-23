@@ -24,6 +24,7 @@ import { CannedResponsePicker } from "@/components/shared/canned-response-picker
 import { FileUpload } from "@/components/shared/file-upload"
 import { RichTextEditor } from "@/components/shared/rich-text-editor"
 import { statusFromCannedResponse } from "@/lib/tickets/canned-actions"
+import { replyStatusForRole } from "@/lib/tickets/reply-status"
 import { cn } from "@/lib/utils"
 import type { User, CannedResponse, TicketStatus } from "@/types"
 
@@ -143,6 +144,13 @@ interface ReplyComposerProps {
     attachments?: File[]
     cannedResponseId?: string
     nextStatus?: TicketStatus | null
+    /**
+     * Employee-only: "post this reply but leave the ticket solved".
+     * A requester's public reply normally reopens a solved / pending /
+     * on-hold ticket (the API does that, not this component); this is the
+     * one way they can decline that.
+     */
+    keepStatus?: boolean
   }) => void | Promise<void>
   /**
    * Apply a status-only change without posting a message. Called when the
@@ -244,16 +252,27 @@ export const ReplyComposer = React.forwardRef<
   const [submitError, setSubmitError] = React.useState<string | null>(null)
   const submitErrorDraftRef = React.useRef<string>("")
   // null = "Send (no status change)"; otherwise the status the reply will commit.
+  const isAgentOrAdmin =
+    currentUser.role === "agent" || currentUser.role === "admin"
+
+  // Employees have no status control at all, so their reply must not carry
+  // one. Until 2026-09-22 they got the full agent dropdown, which defaulted
+  // to "Submit as Open" on a new ticket — so an employee adding a follow-up
+  // to their own ticket silently moved it out of New before anyone had
+  // picked it up. That is the "tickets come over as open instead of new"
+  // report; nothing had been reassigned, the requester's own reply did it.
   const [pendingStatus, setPendingStatus] = React.useState<TicketStatus | null>(
-    () => defaultNextStatus(currentStatus),
+    () => (isAgentOrAdmin ? defaultNextStatus(currentStatus) : null),
   )
+
+  // Employee-only, and only meaningful on a solved ticket: leave it solved
+  // instead of reopening it. Defaults to false — replying reopens, which is
+  // what almost everyone means by replying to a closed ticket.
+  const [keepSolved, setKeepSolved] = React.useState(false)
   // Set briefly after a status-only submit so the button can flash a
   // confirmation ("✓ Marked as Solved") instead of immediately greying
   // out when pendingStatus mirrors the new currentStatus.
   const [justSavedStatus, setJustSavedStatus] = React.useState<TicketStatus | null>(null)
-
-  const isAgentOrAdmin =
-    currentUser.role === "agent" || currentUser.role === "admin"
 
   // True when the editor has any non-whitespace content. Strip tags, then
   // check for printable characters.
@@ -278,11 +297,19 @@ export const ReplyComposer = React.forwardRef<
   // "Send (no status change)" (null) on the composer dropdown.
   const lastCurrentStatusRef = React.useRef(currentStatus)
   React.useEffect(() => {
+    // Employees hold no pending status — leave theirs at null.
+    if (!isAgentOrAdmin) return
     if (lastCurrentStatusRef.current !== currentStatus) {
       lastCurrentStatusRef.current = currentStatus
       setPendingStatus((prev) => (prev === null ? null : currentStatus))
     }
-  }, [currentStatus])
+  }, [currentStatus, isAgentOrAdmin])
+
+  // A ticket that stops being solved (an agent reopened it while the
+  // employee was typing) has nothing to keep.
+  React.useEffect(() => {
+    if (currentStatus !== "solved" && keepSolved) setKeepSolved(false)
+  }, [currentStatus, keepSolved])
 
   // @-mention autocomplete is temporarily not wired into the rich-text
   // editor — agents can still type @Name as plain text but the popup is
@@ -301,17 +328,28 @@ export const ReplyComposer = React.forwardRef<
   const sendInternal = async (
     source: 'button' | 'sidebar',
     overrideStatus?: TicketStatus | null,
+    keepSolvedOverride?: boolean,
   ) => {
     if (!hasContent || isSending) return
     setIsSending(true)
     setSubmitError(null)
     try {
-      const finalNextStatus =
+      const agentPick =
         source === 'sidebar'
           ? overrideStatus ?? null
           : isInternalNote
           ? null
           : pendingStatus
+
+      // Employees carry no status; the reopen is the API's call. Read the
+      // keep-solved override rather than state — a pick from the menu sends
+      // in the same tick, before setKeepSolved has re-rendered.
+      const { nextStatus: finalNextStatus, keepStatus } = replyStatusForRole({
+        isAgentOrAdmin,
+        currentStatus,
+        agentPick,
+        keepSolved: keepSolvedOverride ?? keepSolved,
+      })
       // Extract mentioned user ids from the HTML. Tiptap renders mentions
       // as <span data-type="mention" data-id="<id>">@Name</span>; we
       // dedupe and pass them as taggedAgents so notify-flow + UI chips
@@ -336,6 +374,7 @@ export const ReplyComposer = React.forwardRef<
         attachments: selectedFiles.length > 0 ? selectedFiles : undefined,
         cannedResponseId: pendingCannedResponseId,
         nextStatus: finalNextStatus,
+        keepStatus,
       })
       setReplyText("")
       setSelectedFiles([])
@@ -398,6 +437,14 @@ export const ReplyComposer = React.forwardRef<
     onStatusOnlyChange?.(status)
     setJustSavedStatus(status)
     window.setTimeout(() => setJustSavedStatus(null), 1800)
+  }
+
+  // Employee menu on a solved ticket. Mirrors the agent status menu: a pick
+  // made with a draft already typed sends straight away rather than only
+  // arming the button (agents reported having to click twice).
+  const handleKeepSolvedSelect = (keep: boolean) => {
+    setKeepSolved(keep)
+    if (hasContent) void sendInternal('button', null, keep)
   }
 
   const handlePrimaryClick = () => {
@@ -714,6 +761,85 @@ export const ReplyComposer = React.forwardRef<
                 </>
               )}
             </Button>
+          ) : !isAgentOrAdmin ? (
+            // ── Employee: send only ──────────────────────────────────────
+            // No status picker. Replying reopens a solved / pending /
+            // on-hold ticket (done by the API) and leaves a New ticket New,
+            // so nobody's own follow-up pushes their ticket out of the
+            // unpicked queue. The one choice they get is on a solved
+            // ticket: reopen it, or reply and leave it closed.
+            currentStatus === "solved" ? (
+              <div className="inline-flex rounded-md shadow-sm">
+                <Button
+                  onClick={handleSend}
+                  disabled={!hasContent || isSending}
+                  size="default"
+                  className="rounded-r-none border-r border-blue-700/40"
+                >
+                  {isSending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Sending...
+                    </>
+                  ) : keepSolved ? (
+                    <>
+                      <Check className="mr-2 h-4 w-4" />
+                      Send, Keep Solved
+                    </>
+                  ) : (
+                    <>
+                      <Send className="mr-2 h-4 w-4" />
+                      Send &amp; Reopen
+                    </>
+                  )}
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    disabled={isSending}
+                    aria-label="Choose what sending does to this ticket"
+                    render={<Button size="default" className="rounded-l-none px-2" />}
+                  >
+                    <ChevronUp className="h-4 w-4" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" side="top" className="w-64">
+                    <DropdownMenuItem
+                      onClick={() => handleKeepSolvedSelect(false)}
+                      className="flex items-center gap-2"
+                    >
+                      <Send className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="flex-1">Send and reopen the ticket</span>
+                      {!keepSolved && <Check className="h-4 w-4 text-muted-foreground" />}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleKeepSolvedSelect(true)}
+                      className="flex items-center gap-2"
+                    >
+                      <span className={`h-2 w-2 rounded-full ${STATUS_DOT.solved}`} />
+                      <span className="flex-1">Send and keep it solved</span>
+                      {keepSolved && <Check className="h-4 w-4 text-muted-foreground" />}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            ) : (
+              <Button
+                onClick={handleSend}
+                disabled={!hasContent || isSending}
+                size="default"
+              >
+                {isSending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="mr-2 h-4 w-4" />
+                    Send Reply
+                  </>
+                )}
+              </Button>
+            )
           ) : (
             <div className="inline-flex rounded-md shadow-sm">
               <Button
