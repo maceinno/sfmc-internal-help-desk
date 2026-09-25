@@ -60,7 +60,7 @@ export default function MyTicketsPage() {
     return (
       <div className="-m-4 lg:-m-8 flex h-[calc(100vh-4rem)] lg:h-screen overflow-hidden">
         <div className="flex-1 overflow-hidden">
-          <TicketList tickets={createdByMe} title="My Tickets" users={users} />
+          <TicketList tickets={createdByMe} allTickets={tickets} title="My Tickets" users={users} />
         </div>
       </div>
     )
@@ -105,6 +105,7 @@ export default function MyTicketsPage() {
           ) : (
             <TicketList
               tickets={createdByMe}
+              allTickets={tickets}
               title="My Tickets (Created)"
               users={users}
             />
@@ -123,6 +124,7 @@ export default function MyTicketsPage() {
           ) : (
             <TicketList
               tickets={assignedToMe}
+              allTickets={tickets}
               title="Assigned to Me"
               users={users}
             />

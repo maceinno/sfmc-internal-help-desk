@@ -22,6 +22,7 @@
 // ============================================================================
 
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { getManagedBranchIds } from '@/lib/permissions/policies'
 
 /**
  * What the caller is trying to do with this ticket. Determines which allow-
@@ -32,10 +33,12 @@ import type { SupabaseClient } from '@supabase/supabase-js'
  *                 the ticket's creator or assignee. Used by reply,
  *                 upload/sign, and attachments/signed-urls (view of
  *                 attached files counts as "respond" because attaching
- *                 and downloading are paired actions).
+ *                 and downloading are paired actions). Also adding a CC
+ *                 (since 2026-09-25 — anyone who can see the ticket).
  *   - 'manage'  : creator OR agent OR admin. Used for surface-level
- *                 ticket controls that aren't full agent ops — currently
- *                 CC list management.
+ *                 ticket controls that aren't full agent ops. (Was the
+ *                 CC-add rule until 2026-09-25; CC removal still follows
+ *                 this rule, enforced by the ticket_cc delete policy.)
  *   - 'admin'   : agent or admin only. Used for ticket merging and
  *                 the system-event notify endpoint.
  */
@@ -86,7 +89,7 @@ export async function assertTicketAccess(
   const { data: profile } = await supabase
     .from('profiles')
     .select(
-      'role, has_regional_access, managed_region_id, has_branch_access, managed_branch_id',
+      'role, has_regional_access, managed_region_id, has_branch_access, managed_branch_id, managed_branch_ids',
     )
     .eq('id', userId)
     .single()
@@ -149,11 +152,15 @@ export async function assertTicketAccess(
         (parties ?? []).some(
           (p) => p.region_id === profile.managed_region_id,
         )
+      // Every managed branch, not just the legacy single one — same rule as
+      // the app (getManagedBranchIds) and the database (migration 021).
+      const managedBranches = profile.has_branch_access
+        ? getManagedBranchIds(profile)
+        : []
       const branchMatch =
-        !!profile.has_branch_access &&
-        !!profile.managed_branch_id &&
+        managedBranches.length > 0 &&
         (parties ?? []).some(
-          (p) => p.branch_id === profile.managed_branch_id,
+          (p) => !!p.branch_id && managedBranches.includes(p.branch_id),
         )
 
       if (regionMatch || branchMatch) {

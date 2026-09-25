@@ -46,6 +46,7 @@ export default function CcTicketsPage() {
       <div className="flex-1 overflow-hidden">
         <TicketList
           tickets={ccTickets}
+          allTickets={tickets}
           title="CC'd Tickets"
           users={users}
         />

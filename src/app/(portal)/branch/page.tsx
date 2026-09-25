@@ -66,6 +66,7 @@ export default function BranchPage() {
       <div className="flex-1 overflow-hidden">
         <TicketList
           tickets={branchTickets}
+          allTickets={tickets}
           title={
             branchNames.length > 1
               ? `My Branches: ${branchNames.join(', ')}`

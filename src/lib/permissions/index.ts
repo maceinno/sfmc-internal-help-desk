@@ -2,6 +2,7 @@ export {
   canViewTicket,
   canEditTicket,
   canManageCc,
+  canAddCc,
   canViewInternalNotes,
   canAccessAdmin,
   canViewBranchTickets,
