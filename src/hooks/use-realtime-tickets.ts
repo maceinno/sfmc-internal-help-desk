@@ -5,7 +5,7 @@ import { useAuth } from '@clerk/nextjs'
 import { useQueryClient } from '@tanstack/react-query'
 import { createClerkSupabaseClient } from '@/lib/supabase/client'
 import { createThrottledRunner } from '@/lib/realtime/throttle'
-import { ticketKeys } from '@/hooks/use-tickets'
+import { ticketKeys, syncTicketListChanges } from '@/hooks/use-tickets'
 import type { SupabaseClient, RealtimeChannel } from '@supabase/supabase-js'
 
 /**
@@ -48,12 +48,15 @@ export function useRealtimeTickets() {
   // Note the narrower key than before: invalidating the whole ['tickets']
   // prefix also threw away every open ticket's detail cache and any
   // in-flight reply-search results on each unrelated change elsewhere.
+  //
+  // Fetches only the changed tickets rather than the whole ~9.6 MB list —
+  // same path as the freshness probe (see syncTicketListChanges).
   const refreshTicketLists = useMemo(
     () =>
       createThrottledRunner(() => {
-        queryClient.invalidateQueries({ queryKey: ticketKeys.lists() })
+        void syncTicketListChanges(queryClient, getToken)
       }, TICKET_LIST_REFRESH_MS),
-    [queryClient],
+    [queryClient, getToken],
   )
 
   const setup = useCallback(async () => {
@@ -107,7 +110,9 @@ export function useRealtimeTickets() {
         'postgres_changes',
         { event: 'DELETE', schema: 'public', table: 'tickets' },
         (payload) => {
-          refreshTicketLists.run()
+          // A deleted ticket cannot show up in a "what changed" fetch, so
+          // this one rare event still reloads the whole list.
+          queryClient.invalidateQueries({ queryKey: ticketKeys.lists() })
           const ticketId = (payload.old as { id?: string })?.id
           if (ticketId) {
             queryClient.invalidateQueries({ queryKey: ticketKeys.detail(ticketId) })

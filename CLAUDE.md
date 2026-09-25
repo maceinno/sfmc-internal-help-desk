@@ -222,8 +222,10 @@ same Zendesk import, so treat production as the same order of magnitude.
    10 s, leading edge immediate) because each one used to make every open
    browser re-download those 8.1 MB. Invalidate `ticketKeys.lists()`, never
    the whole `['tickets']` prefix — that also discards open ticket details and
-   in-flight reply searches. The user's own mutations still invalidate
+   in-flight reply searches. The user's own mutations still refresh
    directly and immediately; do not route those through the throttle.
+   **Superseded in part on 2026-09-25** — liveness no longer re-downloads the
+   list at all; see "Keep the list current by merging changes" below.
 4. **Filter and search on the server where you can.** Reply bodies already
    are (`/api/tickets/search-replies`). Ticket `description` is still shipped
    to the browser purely so a 1–2 character search can match it locally;
@@ -266,11 +268,58 @@ Two things follow:
    identity at all. That is a defect removed, **not** a verified fix.
 2. **`use-ticket-freshness` is what actually keeps screens current.** It
    polls one row — the newest `updated_at` the signed-in user may see — every
-   30 s and on window focus, and invalidates `ticketKeys.lists()` +
-   `ticketKeys.details()` only when that value moves. Measured cost of the
-   probe: **65 bytes, ~270–470 ms warm**, versus 8.1 MB / ~1.4 s for the list
-   it guards. Do not replace it with a plain `refetchInterval` on
-   `useTickets()`.
+   30 s and on window focus, and — only when that value moves — merges the
+   changed tickets into the list (`syncTicketListChanges`) and invalidates
+   `ticketKeys.details()`. Measured cost of the probe: **65 bytes,
+   ~270–470 ms warm**, versus 8.1 MB / ~1.4 s for the list it guards. Do not
+   replace it with a plain `refetchInterval` on `useTickets()`.
+
+## Keep the list current by merging changes, not by re-downloading it
+
+Client report, 2026-09-25, after the freshness probe shipped: "the reload is
+non-existent and when I solve a ticket, it doesn't remove them from my view."
+The probe was firing; what it triggered — a full list reload — is the problem.
+
+**MEASURED 2026-09-25** from a Jerry sandbox, **preview** Supabase project,
+service-role client (`node --env-file=.env.local`), exact `useTickets()`
+projection:
+
+| Query | Rows | JSON | Time |
+| --- | --- | --- | --- |
+| Full list (two consecutive runs) | 4,716 | 9.6 MB | 1.7 s, then **5.5 s** |
+| Changed in the last hour (`gte updated_at`) | 12 | 28 KB | 0.24 s |
+
+**NOT measured:** the same full list as a signed-in *user* (RLS runs
+`can_see_ticket` on every ticket and every embedded message) — a Clerk user
+JWT cannot be minted here. It is inferred to be slower than the service-role
+numbers, possibly past PostgREST's statement timeout; Mace can measure it.
+Production volume is likewise unmeasured from here.
+
+What the code does now (`hooks/use-tickets.ts`, `lib/tickets/list-cache.ts`):
+
+1. **`useUpdateTicket` patches the cached list from the row the database
+   returned** (`patchTicketInList`), so a solved ticket leaves status-filtered
+   views the instant the save succeeds. It first cancels any full reload
+   already in flight — that reload carries pre-change data and would land
+   afterwards and undo the patch.
+2. **`syncTicketListChanges`** fetches only tickets with `updated_at` ≥ the
+   newest one already cached and merges them (`mergeChangedTickets`). The
+   freshness probe, the Realtime throttle and `useUpdateTicket` all use it.
+   It falls back to a full reload when nothing is cached, the query errors,
+   or more than 200 tickets changed.
+3. **Relies on every ticket-visible change touching `tickets.updated_at`.**
+   The `trg_tickets_updated_at` trigger covers direct updates, and the reply
+   route explicitly touches the ticket (`api/tickets/[id]/reply`). A new write
+   path that changes what the list shows WITHOUT touching the ticket row
+   (e.g. a `ticket_cc` insert alone) will not be picked up until the next full
+   load — touch `updated_at` in it.
+4. **Known limit:** a ticket that stops being visible to an employee is not
+   returned by the change fetch, so it lingers until the next full load.
+   Agents/admins see every ticket (017), so it cannot happen for them.
+   Deletes still full-reload (Realtime `DELETE` handler).
+5. Page-level `invalidateQueries(['tickets'])` calls in the ticket detail page
+   (reply, notify, merge) still trigger full reloads and were left as-is;
+   they are reconciliation, not what the user waits on.
 
 ### Status on reply — the rule lives in one file
 
@@ -288,3 +337,64 @@ state the rule separately and drifted.
   of New; `solved` / `pending` / `on_hold` reopen.
 - **"Send and keep it solved"** (`keepStatus: true`) is the only way a
   requester can decline the reopen.
+
+### CC: who may add, who may remove
+
+Client decision, 2026-09-25, after a user viewing someone else's ticket could
+not find the CC field: **anyone who can see a ticket may ADD a CC**;
+**removing** a CC stays with agents, admins and the requester.
+
+- Screen: `canAddCc` / `canManageCc` in `lib/permissions/policies.ts`, used by
+  the ticket sidebar.
+- Server: `POST /api/tickets/[id]/cc` checks `assertTicketAccess(...,
+  'respond')` (was `'manage'`). Removal is a direct client delete governed by
+  the `ticket_cc_delete` database policy — unchanged.
+- The route now touches `tickets.updated_at` after the insert so the change
+  reaches open lists (see "Keep the list current by merging changes").
+
+### Branch managers: every listed branch counts
+
+**Fixed 2026-09-25 (client decision "Yes, honour all branches"):**
+`supabase/migrations/021_branch_managers_all_branches.sql` adds
+`get_user_branch_ids()` and redefines `can_see_ticket` so the branch arm
+matches ANY entry of `managed_branch_ids` (legacy `managed_branch_id` as
+fallback), compared as text so a malformed entry cannot throw. The server gate
+(`assert-ticket-access.ts`, `'respond'`) now uses the exported
+`getManagedBranchIds` from `policies.ts`. App, server and database must keep
+agreeing — change all three together. The migration SQL was reviewed but not
+executed in a sandbox (no Postgres there); it runs when published. Background
+as first observed:
+
+The database's own visibility rule for branch managers read
+only the legacy single `managed_branch_id` (002/007 migrations), while the
+app's `canViewTicket` reads the newer `managed_branch_ids` array. Measured on
+the **preview** database 2026-09-25 (service-role query of `profiles` where
+branch or regional access is on): 16 managers, **3** of whom have more than
+one branch in the array. **Corrected same day:** the effect is that those
+managers simply do not see tickets from their extra branches anywhere — RLS
+filters them out of `useTickets()` before the app's rule runs — not that they
+see a link they cannot open. `can_see_ticket` (017) matches only
+`branch_id = get_user_branch_id()`, which returns the single legacy column.
+Counted on preview (creator/assignee in one of their listed branches, not
+visible via honoured branch, managed region, or being creator/assignee
+themselves; CC/collaborator arms not subtracted): about 10, 331 and 326
+tickets hidden for the three. The admin Users screen ("Managed Branches (N
+selected)") promises all N.
+
+**Which database is that?** Measured 2026-09-25 by GET of
+`https://support.sfmc.com/sign-in` and its 14 script files: the live site
+ships a `pk_live_` Clerk key, while this sandbox's env has a `pk_test_` key
+that appears nowhere on the live site. So the sandbox environment is not the
+live one for sign-in; whether the Supabase project is also separate is NOT
+measurable from here (the live Supabase URL is only in authenticated portal
+chunks). Do not describe preview numbers as live data.
+
+### Search reaches every ticket the user may open, from any list
+
+Client decision, 2026-09-25 (reported for Stephanie Johnston, a Johnston 3100
+branch manager whose "Johnston Team" inbox account raises tickets — 113 on the
+preview database, May–Sep 2026): My Tickets, CC'd Tickets, Branch and Region
+all pass `allTickets={tickets}` (the `useTickets()` result, already limited by
+RLS) to `TicketList`, so a search there looks through everything the user can
+open — as agent search already did. No access is widened; the list shown
+before searching is unchanged. Test: `tests/unit/tickets/ticket-list-search-scope.test.tsx`.

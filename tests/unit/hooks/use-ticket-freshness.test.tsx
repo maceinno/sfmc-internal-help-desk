@@ -6,6 +6,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 // The probe row the fake Supabase client returns. Tests reassign this.
 let probeRow: { id: string; updated_at: string } | null = null
+// Rows the "only what changed" fetch returns, and the `since` it was asked for.
+let changedRows: Record<string, unknown>[] = []
+let changedSince: string | null = null
 
 vi.mock('@clerk/nextjs', () => ({
   useAuth: () => ({ getToken: async () => 'fake-token' }),
@@ -14,11 +17,25 @@ vi.mock('@clerk/nextjs', () => ({
 vi.mock('@/lib/supabase/client', () => ({
   createClerkSupabaseClient: () => ({
     from: () => ({
-      select: () => ({
-        order: () => ({
-          limit: async () => ({ data: probeRow ? [probeRow] : [], error: null }),
-        }),
-      }),
+      select: (cols: string) =>
+        cols === 'id, updated_at'
+          ? {
+              // The freshness probe.
+              order: () => ({
+                limit: async () => ({ data: probeRow ? [probeRow] : [], error: null }),
+              }),
+            }
+          : {
+              // syncTicketListChanges: full list projection, changed rows only.
+              gte: (_col: string, since: string) => {
+                changedSince = since
+                return {
+                  order: () => ({
+                    limit: async () => ({ data: changedRows, error: null }),
+                  }),
+                }
+              },
+            },
     }),
   }),
 }))
@@ -43,6 +60,8 @@ const invalidatedKeys = (invalidate: ReturnType<typeof vi.spyOn>) =>
 describe('useTicketFreshness', () => {
   beforeEach(() => {
     probeRow = { id: 'T-1', updated_at: '2026-09-22T10:00:00Z' }
+    changedRows = []
+    changedSince = null
   })
 
   it('does not refresh the ticket lists on the first reading', async () => {
@@ -75,6 +94,44 @@ describe('useTicketFreshness', () => {
     const keys = invalidatedKeys(invalidate)
     expect(keys).toContain(JSON.stringify(ticketKeys.lists()))
     expect(keys).toContain(JSON.stringify(ticketKeys.details()))
+  })
+
+  it('with a list already loaded, fetches only the changed tickets and merges them in', async () => {
+    const { queryClient, invalidate, wrapper } = makeHarness()
+    const listKey = ticketKeys.list({})
+    queryClient.setQueryData(listKey, [
+      { id: 'T-2', created_at: '2026-09-22T09:00:00Z', updated_at: '2026-09-22T09:30:00Z', status: 'open', messages: [], cc: [] },
+      { id: 'T-1', created_at: '2026-09-22T08:00:00Z', updated_at: '2026-09-22T10:00:00Z', status: 'open', messages: [], cc: [] },
+    ])
+
+    const { rerender } = renderHook(() => useTicketFreshness(), { wrapper })
+    await waitFor(() =>
+      expect(queryClient.getQueryData(['tickets', 'freshness'])).toBe(
+        'T-1:2026-09-22T10:00:00Z',
+      ),
+    )
+
+    // Someone else solves T-2.
+    changedRows = [
+      { id: 'T-2', created_at: '2026-09-22T09:00:00Z', updated_at: '2026-09-22T10:05:00Z', status: 'solved', ticket_cc: [], ticket_collaborators: [], custom_field_values: [], messages: [] },
+    ]
+    probeRow = { id: 'T-2', updated_at: '2026-09-22T10:05:00Z' }
+    await queryClient.refetchQueries({ queryKey: ['tickets', 'freshness'] })
+    rerender()
+
+    await waitFor(() => {
+      const list = queryClient.getQueryData<{ id: string; status: string }[]>(listKey)!
+      expect(list.find((x) => x.id === 'T-2')!.status).toBe('solved')
+    })
+
+    // Asked for changes since the newest ticket it already had...
+    expect(changedSince).toBe('2026-09-22T10:00:00Z')
+    // ...and never threw the shared list away to re-download all of it.
+    const reloadedWholeList = invalidate.mock.calls.some((c) => {
+      const arg = c[0] as { queryKey?: unknown; predicate?: unknown }
+      return !arg.predicate && JSON.stringify(arg.queryKey) === JSON.stringify(listKey)
+    })
+    expect(reloadedWholeList).toBe(false)
   })
 
   it('leaves the lists alone when the probe comes back unchanged', async () => {

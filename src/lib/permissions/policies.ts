@@ -34,8 +34,15 @@ const ADMIN_PAGES = [...AGENT_PAGES, 'admin-settings']
  * Return the effective set of managed branch IDs for a user.
  * Prefers the new `managed_branch_ids` array, falling back to the legacy
  * single `managed_branch_id` field for backward compatibility.
+ *
+ * Exported for the server-side gate (`assert-ticket-access.ts`), and
+ * mirrored in the database by `get_user_branch_ids()` (migration 021) — the
+ * three must agree, or a manager is shown a ticket they then cannot open or
+ * reply to.
  */
-function getManagedBranchIds(user: User): string[] {
+export function getManagedBranchIds(
+  user: Pick<User, 'managed_branch_ids' | 'managed_branch_id'>,
+): string[] {
   if (user.managed_branch_ids && user.managed_branch_ids.length > 0) {
     return user.managed_branch_ids
   }
@@ -209,7 +216,8 @@ export function canEditTicket(user: User, ticket: Ticket): boolean {
 }
 
 /**
- * Can this user add or remove people on the ticket's CC list?
+ * Can this user REMOVE people from the ticket's CC list? (Adding is the
+ * wider `canAddCc` below since 2026-09-25; this doc predates that split.)
  *
  * Agents and admins, plus the person who raised the ticket. The requester is
  * included deliberately: they are usually the one who knows which colleague
@@ -224,6 +232,26 @@ export function canEditTicket(user: User, ticket: Ticket): boolean {
 export function canManageCc(user: User, ticket: Ticket): boolean {
   if (user.role === ADMIN || user.role === AGENT) return true
   return ticket.created_by === user.id
+}
+
+/**
+ * Can this user ADD someone to the ticket's CC list?
+ *
+ * Anyone who can see the ticket — the client's decision, 2026-09-25, after a
+ * user who was looking at someone else's ticket reported the CC field
+ * missing. Removing a CC is still `canManageCc` above (agents, admins, the
+ * requester): adding someone only widens who hears about a ticket, removing
+ * someone silently cuts a person off it.
+ *
+ * Deliberately takes no allow-list of its own. This is only ever asked on
+ * the ticket page, which the database has already let this user open, so
+ * "can see it" is already established; re-deriving it here (region, branch,
+ * collaborator...) would just be a second copy to drift. The server route
+ * enforces the same rule with `assertTicketAccess(..., 'respond')`.
+ */
+export function canAddCc(user: User, ticket: Ticket): boolean {
+  // A signed-in user looking at a real ticket — nothing narrower.
+  return Boolean(user.id) && Boolean(ticket.id)
 }
 
 /**

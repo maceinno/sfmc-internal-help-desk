@@ -66,6 +66,7 @@ export default function RegionPage() {
       <div className="flex-1 overflow-hidden">
         <TicketList
           tickets={regionTickets}
+          allTickets={tickets}
           title={`My Region: ${regionName ?? 'Unknown'}`}
           users={users}
         />

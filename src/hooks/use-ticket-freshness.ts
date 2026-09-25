@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@clerk/nextjs'
 import { createClerkSupabaseClient } from '@/lib/supabase/client'
-import { ticketKeys } from '@/hooks/use-tickets'
+import { ticketKeys, syncTicketListChanges } from '@/hooks/use-tickets'
 
 /**
  * How often to ask the server "has anything changed?".
@@ -106,10 +106,16 @@ export function useTicketFreshness() {
     if (lastSignature.current === signature) return
     lastSignature.current = signature
 
-    // Something moved. Refresh the lists, and the open ticket too: a reply
+    // Something moved. Bring the list forward with ONLY the changed tickets
+    // (see syncTicketListChanges), and refresh the open ticket too: a reply
     // touches its parent ticket's `updated_at`, so this is also how a
     // conversation someone is reading picks up the other side's message.
-    queryClient.invalidateQueries({ queryKey: ticketKeys.lists() })
+    //
+    // This used to invalidate the whole list, i.e. re-download all ~9.6 MB
+    // (measured 2026-09-25) on every change anyone made. The client reported
+    // that as "the reload is non-existent": the probe fired, and the list it
+    // triggered was too heavy to arrive promptly — if at all.
+    void syncTicketListChanges(queryClient, getToken)
     queryClient.invalidateQueries({ queryKey: ticketKeys.details() })
-  }, [signature, queryClient])
+  }, [signature, queryClient, getToken])
 }

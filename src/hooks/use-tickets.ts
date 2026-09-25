@@ -1,11 +1,21 @@
 'use client'
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  type QueryClient,
+} from '@tanstack/react-query'
 import { useAuth } from '@clerk/nextjs'
 import { toast } from 'sonner'
 import { createClerkSupabaseClient } from '@/lib/supabase/client'
 import { uploadFileDirect } from '@/lib/upload/direct-upload'
 import { hydrateMessages } from '@/lib/messages/hydrate'
+import {
+  latestUpdatedAt,
+  mergeChangedTickets,
+  patchTicketInList,
+} from '@/lib/tickets/list-cache'
 import type {
   Ticket,
   TicketStatus,
@@ -54,6 +64,127 @@ export interface TicketFilters {
  */
 const TICKET_LIST_STALE_MS = 5 * 60 * 1000
 
+// Include a slim message projection so SLA calculations can detect the
+// first agent reply and switch from "first reply" to "next reply" —
+// otherwise the SLA clock keeps ticking against the original post.
+// The `author:profiles(role)` join lets the SLA calculator distinguish
+// agent replies from end-user replies authoritatively.
+// `custom_field_values` is included so the list can be searched by
+// Lead/Loan Number and Borrower Name — those never appear in the
+// subject, so without them a loan-number search finds nothing.
+// It is a narrow projection (field id + value) over ~6k rows.
+//
+// Shared by the full list and by `syncTicketListChanges`, so a ticket
+// fetched on its own is shaped exactly like one from the full list.
+const TICKET_LIST_SELECT =
+  '*, ticket_cc(user_id), ticket_collaborators(user_id), custom_field_values(field_id, value), messages(id, author_id, created_at, is_internal, is_system, author:profiles(role))'
+
+/** Flatten join table arrays into simple user ID arrays. */
+function flattenListRow(row: Record<string, unknown>): Ticket {
+  const ticket = { ...row }
+  ticket.cc = (row.ticket_cc as { user_id: string }[] | null)?.map((r) => r.user_id) ?? []
+  ticket.collaborators = (row.ticket_collaborators as { user_id: string }[] | null)?.map((r) => r.user_id) ?? []
+  ticket.messages = hydrateMessages(row.messages as Array<Record<string, unknown>> | null)
+  // Same shape the detail hook produces, so search code can read
+  // `custom_fields` without caring which query loaded the ticket.
+  ticket.custom_fields = row.custom_field_values ?? []
+  delete ticket.ticket_cc
+  delete ticket.ticket_collaborators
+  delete ticket.custom_field_values
+  return ticket as unknown as Ticket
+}
+
+/**
+ * More changed tickets than this in one go and it is cheaper to reload the
+ * whole list than to merge. Measured 2026-09-25 on preview: 11 tickets
+ * changed in the busiest recent hour, so this is only hit after a bulk
+ * import or a long-idle tab.
+ */
+const CHANGES_MAX = 200
+
+/**
+ * A full list reload that was already downloading when something changed
+ * carries data from BEFORE that change. Left alone, it lands a few seconds
+ * later and overwrites the fresher list — a ticket just solved reappears as
+ * unsolved. So cancel it (React Query restores the list it had) and let the
+ * caller bring that list forward with only the changes.
+ *
+ * Returns false when there is no list yet and the initial load is still
+ * running: that load will be current, and cancelling it would leave nothing.
+ */
+async function cancelStaleListReload(queryClient: QueryClient): Promise<boolean> {
+  const key = ticketKeys.list({})
+  if (queryClient.getQueryState(key)?.fetchStatus !== 'fetching') return true
+  if (!queryClient.getQueryData(key)) return false
+  await queryClient.cancelQueries({ queryKey: key, exact: true })
+  return true
+}
+
+/**
+ * Bring the cached shared ticket list up to date by fetching ONLY the
+ * tickets changed since the newest one it already holds, and merging them in.
+ *
+ * This is what the freshness probe and Realtime call instead of throwing the
+ * list away: the full list is ~9.6 MB (see lib/tickets/list-cache.ts), a
+ * typical change set is a handful of rows. Falls back to a full reload when
+ * there is nothing to measure "since" from, or when too much has changed.
+ *
+ * Known limit: a ticket that stops being visible to this user (RLS) is not
+ * returned here, so it stays in the list until the next full load. Agents
+ * and admins see every ticket (migration 017), so for them that cannot
+ * happen; the list's 5-minute staleness still reloads it on navigation.
+ */
+export async function syncTicketListChanges(
+  queryClient: QueryClient,
+  getToken: (opts: { template: string }) => Promise<string | null>,
+): Promise<void> {
+  const key = ticketKeys.list({})
+  if (!(await cancelStaleListReload(queryClient))) return
+  const cached = queryClient.getQueryData<Ticket[]>(key)
+  const since = cached ? latestUpdatedAt(cached) : null
+
+  // Filtered list variants (none are used today) are cheap to reload
+  // relative to guessing whether a changed ticket still matches them.
+  queryClient.invalidateQueries({
+    queryKey: ticketKeys.lists(),
+    predicate: (q) => JSON.stringify(q.queryKey) !== JSON.stringify(key),
+  })
+
+  if (!cached || !since) {
+    queryClient.invalidateQueries({ queryKey: key })
+    return
+  }
+
+  const token = await getToken({ template: 'supabase' })
+  if (!token) return
+
+  const supabase = createClerkSupabaseClient(token)
+  // `gte`, not `gt`: two writes can share a timestamp, and re-merging the
+  // newest ticket we already have is harmless.
+  const { data, error } = await supabase
+    .from('tickets')
+    .select(TICKET_LIST_SELECT)
+    .gte('updated_at', since)
+    .order('updated_at', { ascending: false })
+    .limit(CHANGES_MAX + 1)
+
+  if (error || !data) {
+    // Could not ask for just the changes — fall back to the full reload
+    // rather than silently staying stale.
+    queryClient.invalidateQueries({ queryKey: key })
+    return
+  }
+  if (data.length > CHANGES_MAX) {
+    queryClient.invalidateQueries({ queryKey: key })
+    return
+  }
+
+  const changed = (data as Record<string, unknown>[]).map(flattenListRow)
+  queryClient.setQueryData<Ticket[]>(key, (current) =>
+    current ? mergeChangedTickets(current, changed) : current,
+  )
+}
+
 /**
  * Fetch a list of tickets with optional filters.
  */
@@ -72,20 +203,7 @@ export function useTickets(filters: TicketFilters = {}) {
       if (!token) throw new Error('No auth token')
 
       const supabase = createClerkSupabaseClient(token)
-      // Include a slim message projection so SLA calculations can detect the
-      // first agent reply and switch from "first reply" to "next reply" —
-      // otherwise the SLA clock keeps ticking against the original post.
-      // The `author:profiles(role)` join lets the SLA calculator distinguish
-      // agent replies from end-user replies authoritatively.
-      let query = supabase
-        .from('tickets')
-        .select(
-          // `custom_field_values` is included so the list can be searched by
-          // Lead/Loan Number and Borrower Name — those never appear in the
-          // subject, so without them a loan-number search finds nothing.
-          // It is a narrow projection (field id + value) over ~6k rows.
-          '*, ticket_cc(user_id), ticket_collaborators(user_id), custom_field_values(field_id, value), messages(id, author_id, created_at, is_internal, is_system, author:profiles(role))',
-        )
+      let query = supabase.from('tickets').select(TICKET_LIST_SELECT)
 
       if (filters.status) {
         query = query.eq('status', filters.status)
@@ -105,20 +223,7 @@ export function useTickets(filters: TicketFilters = {}) {
       const { data, error } = await query
       if (error) throw error
 
-      // Flatten join table arrays into simple user ID arrays
-      return (data ?? []).map((row: Record<string, unknown>) => {
-        const ticket = { ...row }
-        ticket.cc = (row.ticket_cc as { user_id: string }[] | null)?.map((r) => r.user_id) ?? []
-        ticket.collaborators = (row.ticket_collaborators as { user_id: string }[] | null)?.map((r) => r.user_id) ?? []
-        ticket.messages = hydrateMessages(row.messages as Array<Record<string, unknown>> | null)
-        // Same shape the detail hook produces, so search code can read
-        // `custom_fields` without caring which query loaded the ticket.
-        ticket.custom_fields = row.custom_field_values ?? []
-        delete ticket.ticket_cc
-        delete ticket.ticket_collaborators
-        delete ticket.custom_field_values
-        return ticket as unknown as Ticket
-      })
+      return ((data ?? []) as Record<string, unknown>[]).map(flattenListRow)
     },
   })
 }
@@ -343,8 +448,24 @@ export function useUpdateTicket() {
       if (error) throw error
       return data as Ticket
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ticketKeys.lists() })
+    onSuccess: async (data) => {
+      // Patch AFTER cancelling any reload already in flight — cancelling
+      // restores the list as it was before that reload, which would undo a
+      // patch made first.
+      await cancelStaleListReload(queryClient)
+      // Apply the change to the cached list straight away, from the row the
+      // database just returned. This is what takes a solved ticket out of
+      // the agent's view the instant they solve it: the full list reload
+      // behind it is ~9.6 MB and was measured at up to 5.5 s even without
+      // RLS (lib/tickets/list-cache.ts), and until it landed the solved
+      // ticket sat in the view looking unsolved.
+      queryClient.setQueriesData<Ticket[]>(
+        { queryKey: ticketKeys.lists() },
+        (list) => (list ? patchTicketInList(list, data.id, data) : list),
+      )
+      // Then fetch just the changed tickets to reconcile — immediately, not
+      // throttled, because this is the user's own action.
+      void syncTicketListChanges(queryClient, getToken)
       queryClient.invalidateQueries({ queryKey: ticketKeys.detail(data.id) })
     },
   })

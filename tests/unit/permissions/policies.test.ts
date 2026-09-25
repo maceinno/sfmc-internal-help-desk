@@ -5,6 +5,7 @@ import {
   canViewTicket,
   canEditTicket,
   canManageCc,
+  canAddCc,
   canViewInternalNotes,
   canAccessAdmin,
   canViewBranchTickets,
@@ -592,5 +593,30 @@ describe('canManageCc', () => {
     // employee1 is CC'd on ccTicket but did not raise it.
     expect(ccTicket.cc).toContain('emp-1')
     expect(canManageCc(employee1, ccTicket)).toBe(false)
+  })
+})
+
+// ============================================================================
+// canAddCc
+//
+// Widened 2026-09-25 (client decision): anyone who can see a ticket may ADD
+// a colleague to its CC list. REMOVING stays with canManageCc above. The
+// server route enforces the add with assertTicketAccess(..., 'respond').
+// ============================================================================
+
+describe('canAddCc', () => {
+  it("someone CC'd on a ticket they did not raise can add a colleague", () => {
+    expect(ccTicket.cc).toContain('emp-1')
+    expect(canAddCc(employee1, ccTicket)).toBe(true)
+  })
+
+  it('but still cannot remove anyone from that CC list', () => {
+    expect(canManageCc(employee1, ccTicket)).toBe(false)
+  })
+
+  it('agents, admins and the requester can still add, as before', () => {
+    expect(canAddCc(adminUser, ticketByEmp2)).toBe(true)
+    expect(canAddCc(agent1, ticketByEmp2)).toBe(true)
+    expect(canAddCc(employee1, ticketByEmp1)).toBe(true)
   })
 })

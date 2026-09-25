@@ -26,7 +26,7 @@ import { UserAutocomplete } from "@/components/shared/user-autocomplete"
 import { SlaIndicator } from "@/components/tickets/sla-indicator"
 import { useTimezone } from "@/hooks/use-timezone"
 import { useDepartmentCategories } from "@/hooks/use-admin-config"
-import { canEditTicket, canManageCc, canViewInternalNotes } from "@/lib/permissions/policies"
+import { canAddCc, canEditTicket, canManageCc, canViewInternalNotes } from "@/lib/permissions/policies"
 import type {
   Ticket,
   TicketStatus,
@@ -94,10 +94,12 @@ export function TicketSidebarPanel({
   const isAgentOrAdmin =
     currentUser.role === "agent" || currentUser.role === "admin"
 
-  // Agents, admins, and the person who raised the ticket. See canManageCc —
-  // the rule lives in policies.ts so it stays in step with the server route
-  // that actually performs the change.
+  // Removing a CC: agents, admins, and the person who raised the ticket.
+  // Adding one: anyone who can see the ticket. Both rules live in
+  // policies.ts so they stay in step with the server route that actually
+  // performs the change.
   const ccEditable = canManageCc(currentUser, ticket)
+  const ccAddable = canAddCc(currentUser, ticket)
 
   // DB-backed department/category taxonomy — same source as the create form.
   const { data: departmentGroups = [] } = useDepartmentCategories()
@@ -661,8 +663,8 @@ export function TicketSidebarPanel({
           </p>
         )}
 
-        {/* Add CC — agents, admins, and whoever raised the ticket */}
-        {ccEditable && (
+        {/* Add CC — anyone who can see the ticket (removal stays narrower) */}
+        {ccAddable && (
           <div>
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               Add CC

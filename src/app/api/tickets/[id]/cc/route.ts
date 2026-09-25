@@ -50,12 +50,15 @@ export async function POST(
     return NextResponse.json({ error: 'Ticket not found' }, { status: 404 })
   }
 
+  // 'respond' = anyone who can see the ticket. Adding a CC was widened to
+  // that on 2026-09-25 (client decision; see canAddCc in policies.ts).
+  // Removing a CC is not done here and stays creator / agent / admin.
   const access = await assertTicketAccess(
     supabase,
     callerId,
     ticketId,
     ticket,
-    'manage',
+    'respond',
   )
   if (!access.ok) {
     return NextResponse.json({ error: access.error }, { status: access.status })
@@ -82,6 +85,18 @@ export async function POST(
     console.error('[cc-add] insert failed:', insertErr)
     return NextResponse.json({ error: 'Failed to add CC' }, { status: 500 })
   }
+
+  // Touch the ticket so open browsers notice. The ticket lists only pick up
+  // tickets whose `updated_at` moved (see "Keep the list current by merging
+  // changes" in CLAUDE.md), and a ticket_cc insert alone does not move it —
+  // without this the newly CC'd person would not see the ticket appear in
+  // their CC'd Tickets list until a full reload. Best-effort: the CC itself
+  // has already been saved.
+  const { error: touchErr } = await supabase
+    .from('tickets')
+    .update({ updated_at: new Date().toISOString() })
+    .eq('id', ticketId)
+  if (touchErr) console.error('[cc-add] touch updated_at failed:', touchErr)
 
   // Email the newly-CC'd user. Awaited so Vercel doesn't kill the
   // function before it sends.

@@ -44,6 +44,13 @@ const STATUS_ORDER: Record<string, number> = {
 
 interface TicketListProps {
   tickets: Ticket[]
+  /**
+   * What a search looks through: every ticket this user may open (pass the
+   * `useTickets()` result — the database has already limited it to that).
+   * Every list passes it since 2026-09-25, so an employee searching from My
+   * Tickets, CC'd, Branch or Region finds e.g. their team inbox's tickets,
+   * just as agents always could. Omit it and search stays inside `tickets`.
+   */
   allTickets?: Ticket[]
   title: string
   users: User[]
