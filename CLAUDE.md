@@ -186,7 +186,9 @@ ones that already exist.
 ## This is no longer a small dataset — size every list for it
 
 **MEASURED 2026-09-08** from a Jerry sandbox, by querying the preview Supabase
-project directly with the service-role client (`node --env-file=.env.local`,
+project (this is the same Supabase project production uses — only Clerk is
+split per environment; per Mace 2026-09-28, see "Which database is that?")
+directly with the service-role client (`node --env-file=.env.local`,
 `@supabase/supabase-js`) and by timing/sizing the exact projection
 `useTickets()` sends:
 
@@ -201,9 +203,8 @@ project directly with the service-role client (`node --env-file=.env.local`,
 | Of which: embedded `messages` | 4.09 MB |
 | Of which: `description` | 1.07 MB |
 
-These are preview-database numbers. Production volume is **not** measurable
-from a Jerry sandbox — Mace can measure it — but preview is loaded from the
-same Zendesk import, so treat production as the same order of magnitude.
+Per Mace (2026-09-28) the preview and production apps share this one
+Supabase project, so these are production volumes as of the date measured.
 
 ### What follows from that
 
@@ -361,9 +362,16 @@ matches ANY entry of `managed_branch_ids` (legacy `managed_branch_id` as
 fallback), compared as text so a malformed entry cannot throw. The server gate
 (`assert-ticket-access.ts`, `'respond'`) now uses the exported
 `getManagedBranchIds` from `policies.ts`. App, server and database must keep
-agreeing — change all three together. The migration SQL was reviewed but not
-executed in a sandbox (no Postgres there); it runs when published. Background
-as first observed:
+agreeing — change all three together. Applied to the live database by Mace on
+2026-09-28 (ledger `public._migrations`, `applied_by='neo-triage'`); 001–019
+were adopted into the ledger as hand-applied history. Measured by Jerry
+2026-09-28 (service-role `select * from _migrations`): 20 rows, 001–019 with
+`applied_by='backfill:neo-triage'`, 020 and 021 with `applied_by='neo-triage'`,
+and their `git_blob_sha` equal to the committed files' blobs;
+`rpc('get_user_branch_ids')` answers (null with no user claim) rather than
+erroring. Mace's behavioural checks (anon reads nothing from profiles/config,
+employees get no internal notes, a 5-branch manager sees all 5) are
+attributed to Mace, not re-measured here. Background as first observed:
 
 The database's own visibility rule for branch managers read
 only the legacy single `managed_branch_id` (002/007 migrations), while the
@@ -387,7 +395,15 @@ ships a `pk_live_` Clerk key, while this sandbox's env has a `pk_test_` key
 that appears nowhere on the live site. So the sandbox environment is not the
 live one for sign-in; whether the Supabase project is also separate is NOT
 measurable from here (the live Supabase URL is only in authenticated portal
-chunks). Do not describe preview numbers as live data.
+chunks).
+
+**Superseded 2026-09-28, per Mace (attributed, not measured from a Jerry
+sandbox):** preview and production use the SAME Supabase project
+(`oygmgegnqenkecfsvhwt`, which is the URL in this sandbox's `.env.local` —
+that half checked by Jerry); only Clerk is split per environment. So every
+"preview database" figure in this file is live data, any write from a
+sandbox's `.env.local` is a write to production, and new files in
+`supabase/migrations/` will run against production when applied on deploy.
 
 ### Search reaches every ticket the user may open, from any list
 
