@@ -118,8 +118,14 @@ export default clerkMiddleware(async (auth, request) => {
   }
 
   // --- Branch routes --------------------------------------------------------
+  // Admins pass the branch/region gates. They can already see every ticket,
+  // and "View as this user" swaps only the profile in the browser — this
+  // check still reads the ADMIN's own flags, so without the exemption an
+  // admin viewing as a branch manager was bounced from My Branch to the
+  // agent Dashboard (reported 2026-09-28). The page itself still checks the
+  // viewed-as profile's access and shows "Unauthorized" when it has none.
   if (isBranchRoute(request)) {
-    if (!metadata?.hasBranchAccess) {
+    if (!metadata?.hasBranchAccess && role !== "admin") {
       const url = new URL(defaultRedirect(role), request.url);
       return NextResponse.redirect(url);
     }
@@ -128,7 +134,7 @@ export default clerkMiddleware(async (auth, request) => {
 
   // --- Region routes --------------------------------------------------------
   if (isRegionRoute(request)) {
-    if (!metadata?.hasRegionalAccess) {
+    if (!metadata?.hasRegionalAccess && role !== "admin") {
       const url = new URL(defaultRedirect(role), request.url);
       return NextResponse.redirect(url);
     }

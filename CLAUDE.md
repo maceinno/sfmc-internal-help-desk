@@ -371,7 +371,20 @@ and their `git_blob_sha` equal to the committed files' blobs;
 `rpc('get_user_branch_ids')` answers (null with no user claim) rather than
 erroring. Mace's behavioural checks (anon reads nothing from profiles/config,
 employees get no internal notes, a 5-branch manager sees all 5) are
-attributed to Mace, not re-measured here. Background as first observed:
+attributed to Mace, not re-measured here. Per Mace (2026-09-29, attributed —
+the control plane is not readable from a Jerry sandbox): the portal project
+record now carries `supabase_project_ref=oygmgegnqenkecfsvhwt`, so new files
+in `supabase/migrations/` are applied on deploy — against the live database.
+
+**Multi-branch managers now: 2, not 3.** Measured by Jerry 2026-09-29
+(service-role read of `profiles` where `has_branch_access`): 16 users with
+branch access; 2 with more than one entry in `managed_branch_ids` — Regan
+Hussong (5: Aldridge Processing, Aledo 3310, Builder Direct 3302, FW Chapel
+Creek 3300, Little Team 3330) and Rachel Newsom (3: Johnston 3100, Legacy
+8516, Mansfield 6400/6401), both also with regional access. Joseph Micheletto
+now has 1 branch; his profile's `updated_at` is 2026-09-25 22:25:54Z, after
+the count below was taken (most likely an edit on the admin Users screen —
+inferred, not measured). Background as first observed:
 
 The database's own visibility rule for branch managers read
 only the legacy single `managed_branch_id` (002/007 migrations), while the
@@ -414,3 +427,13 @@ all pass `allTickets={tickets}` (the `useTickets()` result, already limited by
 RLS) to `TicketList`, so a search there looks through everything the user can
 open — as agent search already did. No access is widened; the list shown
 before searching is unchanged. Test: `tests/unit/tickets/ticket-list-search-scope.test.tsx`.
+
+### "View as this user" and the route gates
+
+View-as (`/api/users/assume`, `assumed-user-id` cookie) swaps only the
+browser-side profile; `middleware.ts` still reads the signed-in ADMIN's Clerk
+flags. Since 2026-09-28 admins pass the `/branch` and `/region` gates so
+view-as reaches the viewed user's My Branch / My Region (it used to bounce to
+`/dashboard`); the pages still gate on the viewed-as profile. Known remaining
+gap, unchanged: an admin viewing as an employee can still open agent-only
+pages (e.g. `/dashboard`) that the employee cannot.
