@@ -4,6 +4,8 @@ import { resend, EMAIL_FROM, ticketReplyTo } from './resend'
 import * as templates from './templates'
 import { resolveReplyRecipients } from './reply-recipients'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getServerBranding } from '@/lib/branding/server'
+import { applyEmailBranding, withSenderName } from '@/lib/branding/brand-name'
 
 /**
  * Resolve user IDs to emails + roles. Returns a map of userId -> { email, name, role }.
@@ -29,11 +31,15 @@ async function resolveUsers(userIds: string[]) {
   return map
 }
 
-async function send(to: string, template: { subject: string; html: string }, ticketId?: string) {
+async function send(to: string, unbranded: { subject: string; html: string }, ticketId?: string) {
   try {
-    console.log(`[email] Sending to ${to} from ${EMAIL_FROM} — subject: ${template.subject}`)
+    // Name and logo come from Admin → Branding (templates hold placeholders).
+    const brand = await getServerBranding()
+    const template = applyEmailBranding(unbranded, brand)
+    const from = withSenderName(EMAIL_FROM, brand.name)
+    console.log(`[email] Sending to ${to} from ${from} — subject: ${template.subject}`)
     const { data, error } = await resend.emails.send({
-      from: EMAIL_FROM,
+      from,
       to,
       replyTo: ticketId ? ticketReplyTo(ticketId) : undefined,
       subject: template.subject,

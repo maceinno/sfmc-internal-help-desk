@@ -437,3 +437,37 @@ view-as reaches the viewed user's My Branch / My Region (it used to bounce to
 `/dashboard`); the pages still gate on the viewed-as profile. Known remaining
 gap, unchanged: an admin viewing as an employee can still open agent-only
 pages (e.g. `/dashboard`) that the employee cannot.
+
+### Name and logo come from Admin → Branding — never hard-code them
+
+Client decision, 2026-10-05: every place that shows the portal's name or logo
+follows the `branding_config` row (Admin → Branding). Fallback name
+`DEFAULT_BRAND_NAME` lives in `src/lib/branding/brand-name.ts` — use it, do
+not write "SFMC Help Desk" into new code.
+
+- Browser tab: root `generateMetadata` (`src/app/layout.tsx`).
+- Sign-in / sign-up: `src/app/(auth)/layout.tsx`. The saved logo is cream on
+  transparent (checked 2026-10-05 by downloading it through the app's storage
+  client), so it sits on the sidebar's dark panel there — on white it vanishes.
+- Sidebar: `useBranding()` (client).
+- Emails: templates write `BRAND_NAME_TOKEN` / `BRAND_HEADER_TOKEN`;
+  `send()` in `lib/email/notify.ts` fills them and sets the sender's display
+  name (mailbox from `EMAIL_FROM` is kept). Any new email must go through
+  `send()` or call `applyEmailBranding` itself.
+- Server reads use `getServerBranding()` (service role, 60 s per-instance
+  cache, falls back to defaults on any error).
+- Colours (client decision 2026-10-05: primary #242E38, accent #C98726 — the
+  logo's gold, measured by decoding the PNG). `src/lib/branding/colors.ts`;
+  `BrandTheme` in the portal layout writes `--primary` (every default
+  Button / `bg-primary`) and `--brand-accent` (the highlighted sidebar item),
+  server value first, then live from `useBranding()` after a save. Text on
+  each is chosen for contrast (`readableTextOn`): white on the gold is ~3:1,
+  so the sidebar highlight uses dark text. Do NOT map the brand accent to
+  shadcn `--accent` — that is the light hover grey for menus.
+- NOT following the colours (deliberately, unasked): the ~60 hard-coded
+  `text-blue-*` / `bg-blue-*` classes (links, info boxes, badges) and the
+  email button blue. Converting them is a separate change.
+- Migration 022 swaps the saved colours from the never-chosen old defaults
+  (#2563eb / #7c3aed, measured in the row 2026-10-05) to the client's; it
+  matches no row once anyone saves colours, so it cannot overwrite a choice.
+  Unapplied until published — not measured as applied.

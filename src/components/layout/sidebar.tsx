@@ -26,6 +26,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { useBranding } from '@/hooks/use-admin-config'
+import { logoBackgroundColor, resolveBrandName } from '@/lib/branding/brand-name'
 import { useNotifications } from '@/hooks/use-notifications'
 import { useUIStore } from '@/stores/ui-store'
 import { useNotificationStore } from '@/stores/notification-store'
@@ -124,7 +125,7 @@ export function Sidebar() {
           <Menu className="w-5 h-5" />
         </button>
         <span className="text-sm font-semibold text-white">
-          {(branding?.company_name as string) ?? 'SFMC Help Desk'}
+          {resolveBrandName(branding?.company_name)}
         </span>
         <div className="flex items-center gap-2">
           <button
@@ -158,12 +159,10 @@ export function Sidebar() {
               <div
                 className="rounded-lg p-2 mx-auto w-fit"
                 style={{
-                  backgroundColor:
-                    (branding.logo_background as string) === 'white'
-                      ? '#ffffff'
-                      : (branding.logo_background as string) === 'custom'
-                        ? (branding.logo_background_color as string) ?? 'transparent'
-                        : 'transparent',
+                  backgroundColor: logoBackgroundColor(
+                    branding.logo_background,
+                    branding.logo_background_color,
+                  ),
                 }}
               >
                 <img
@@ -174,7 +173,7 @@ export function Sidebar() {
               </div>
             ) : (
               <div className="text-lg font-bold text-white text-center">
-                {(branding?.company_name as string) ?? 'SFMC Help Desk'}
+                {resolveBrandName(branding?.company_name)}
               </div>
             )}
             <div className="text-[11px] text-slate-400 font-medium tracking-wide uppercase mt-1 text-center">
@@ -200,11 +199,11 @@ export function Sidebar() {
                 onClick={() => setMobileMenuOpen(false)}
                 className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 group ${
                   active
-                    ? 'bg-amber-700/90 text-white shadow-md'
+                    ? 'bg-[var(--brand-accent)] text-[var(--brand-accent-foreground)] shadow-md'
                     : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                 }`}
               >
-                <item.icon className={`w-5 h-5 ${active ? 'text-white' : 'text-slate-400 group-hover:text-white'}`} />
+                <item.icon className={`w-5 h-5 ${active ? 'text-[var(--brand-accent-foreground)]' : 'text-slate-400 group-hover:text-white'}`} />
                 <span className="font-medium">{item.label}</span>
               </Link>
             )
@@ -351,7 +350,7 @@ export function Sidebar() {
                     onClick={() => setMobileMenuOpen(false)}
                     className={`p-1.5 rounded-md transition-colors ${
                       pathname.startsWith('/admin')
-                        ? 'bg-amber-700/90 text-white'
+                        ? 'bg-[var(--brand-accent)] text-[var(--brand-accent-foreground)]'
                         : 'text-slate-500 hover:text-white hover:bg-slate-700'
                     }`}
                     title="Admin Settings"

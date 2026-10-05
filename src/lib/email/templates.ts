@@ -1,9 +1,12 @@
 /**
  * HTML email templates for help desk notifications.
  * All templates follow a consistent branded layout.
+ * The name and logo are placeholders, filled from Admin → Branding by the
+ * send path (lib/email/notify.ts → applyEmailBranding).
  */
 
 import { htmlToPlainText } from '@/lib/html/to-plain-text'
+import { BRAND_HEADER_TOKEN, BRAND_NAME_TOKEN } from '@/lib/branding/brand-name'
 
 const PORTAL_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://help.sfmc.com'
 
@@ -25,7 +28,7 @@ function layout(body: string) {
         <!-- Header -->
         <tr>
           <td style="background:#0f172a;padding:24px 32px;">
-            <span style="color:#ffffff;font-size:18px;font-weight:700;">SFMC Help Desk</span>
+            ${BRAND_HEADER_TOKEN}
           </td>
         </tr>
         <!-- Body -->
@@ -41,7 +44,7 @@ function layout(body: string) {
               Reply directly to this email to respond to the ticket.
             </p>
             <p style="margin:0;font-size:11px;color:#9ca3af;">
-              SFMC Help Desk Portal &middot;
+              ${BRAND_NAME_TOKEN} &middot;
               <a href="${PORTAL_URL}" style="color:#2563eb;text-decoration:none;">Open Portal</a>
             </p>
           </td>
@@ -568,11 +571,11 @@ export function welcomeUser(p: {
 }) {
   const firstName = p.name.split(/\s+/)[0] || p.name
   return {
-    subject: 'Welcome to the SFMC Help Desk — set up your account',
+    subject: `Welcome to ${BRAND_NAME_TOKEN} — set up your account`,
     html: layout(`
       <h2 style="margin:0 0 8px;font-size:20px;color:#111827;">Welcome, ${firstName}</h2>
       <p style="margin:0 0 16px;color:#374151;font-size:14px;">
-        An admin has created an account for you on the SFMC Help Desk portal.
+        An admin has created an account for you on ${BRAND_NAME_TOKEN}.
         Click the button below to sign in and set your password.
       </p>
       <table cellpadding="0" cellspacing="0" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
