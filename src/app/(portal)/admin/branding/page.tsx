@@ -7,6 +7,12 @@ import { createClerkSupabaseClient } from '@/lib/supabase/client'
 import { useBranding, type BrandingConfig } from '@/hooks/use-admin-config'
 import { toast } from 'sonner'
 import {
+  DEFAULT_ACCENT_COLOR,
+  DEFAULT_PRIMARY_COLOR,
+  readableTextOn,
+  resolveBrandColors,
+} from '@/lib/branding/colors'
+import {
   Save,
   RefreshCw,
   Eye,
@@ -48,8 +54,8 @@ const DEFAULT_BRANDING: BrandingForm = {
   logoAlt: 'SFMC Home Lending',
   logoBackground: 'white',
   logoBackgroundColor: '#1e293b',
-  primaryColor: '#2563eb',
-  accentColor: '#7c3aed',
+  primaryColor: DEFAULT_PRIMARY_COLOR,
+  accentColor: DEFAULT_ACCENT_COLOR,
 }
 
 function configToForm(config: BrandingConfig | null): BrandingForm {
@@ -199,6 +205,12 @@ export default function BrandingPage() {
 
   // ── Render ────────────────────────────────────────────────
 
+  // What the portal will actually apply (an unparseable value falls back).
+  const { primary: previewPrimary, accent: previewAccent } = resolveBrandColors(
+    form.primaryColor,
+    form.accentColor,
+  )
+
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-6">
       <div>
@@ -253,10 +265,13 @@ export default function BrandingPage() {
               </div>
               <div className="space-y-1 px-3 py-4">
                 <div
-                  className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-white"
-                  style={{ backgroundColor: form.primaryColor }}
+                  className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm"
+                  style={{
+                    backgroundColor: previewAccent,
+                    color: readableTextOn(previewAccent),
+                  }}
                 >
-                  <div className="size-4 rounded bg-white/20" />
+                  <div className="size-4 rounded bg-current opacity-20" />
                   Dashboard
                 </div>
                 <div className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-400 hover:bg-slate-800/50">
@@ -277,8 +292,11 @@ export default function BrandingPage() {
               </h3>
               <div className="flex flex-wrap gap-3">
                 <button
-                  className="rounded-lg px-4 py-2 text-sm font-medium text-white shadow-sm"
-                  style={{ backgroundColor: form.primaryColor }}
+                  className="rounded-lg px-4 py-2 text-sm font-medium shadow-sm"
+                  style={{
+                    backgroundColor: previewPrimary,
+                    color: readableTextOn(previewPrimary),
+                  }}
                 >
                   Primary Button
                 </button>
@@ -331,6 +349,10 @@ export default function BrandingPage() {
           {/* Logo upload / URL */}
           <div>
             <Label>Logo</Label>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Shown in the sidebar, on the sign-in page and at the top of
+              notification emails.
+            </p>
 
             {/* Current logo preview + remove */}
             {form.logoUrl && (
@@ -521,6 +543,11 @@ export default function BrandingPage() {
               placeholder="Your Company Name"
               className="mt-1.5"
             />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Shown in the browser tab, on the sign-in page, in notification
+              emails (title and sender name), and in the sidebar when no logo
+              is set. Changes appear within a minute of saving.
+            </p>
           </div>
           <div>
             <Label>Portal Subtitle</Label>
@@ -550,7 +577,8 @@ export default function BrandingPage() {
             <div>
               <Label>Primary Color</Label>
               <p className="text-xs text-muted-foreground mb-2">
-                Used for buttons, active states, and links.
+                Used for buttons across the portal. Button text turns white
+                or dark automatically so it stays readable.
               </p>
               <div className="flex items-center gap-3">
                 <input
@@ -570,7 +598,8 @@ export default function BrandingPage() {
             <div>
               <Label>Accent Color</Label>
               <p className="text-xs text-muted-foreground mb-2">
-                Used for highlights, badges, and secondary actions.
+                Used for the highlighted item in the sidebar menu. Its text
+                turns white or dark automatically so it stays readable.
               </p>
               <div className="flex items-center gap-3">
                 <input

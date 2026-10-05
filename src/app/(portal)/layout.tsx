@@ -5,6 +5,8 @@ import { Sidebar } from '@/components/layout/sidebar'
 import { RealtimeProvider } from '@/components/layout/realtime-provider'
 import { AssumeUserBanner } from '@/components/layout/assume-user-banner'
 import { VersionBanner } from '@/components/layout/version-banner'
+import { BrandTheme } from '@/components/layout/brand-theme'
+import { getServerBranding } from '@/lib/branding/server'
 
 export default async function PortalLayout({
   children,
@@ -17,8 +19,11 @@ export default async function PortalLayout({
     redirect('/sign-in')
   }
 
+  const { colors } = await getServerBranding()
+
   return (
     <Providers>
+      <BrandTheme initial={colors} />
       <RealtimeProvider>
         <div data-print="hide">
           <VersionBanner />

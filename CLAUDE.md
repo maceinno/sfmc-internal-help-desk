@@ -186,7 +186,9 @@ ones that already exist.
 ## This is no longer a small dataset — size every list for it
 
 **MEASURED 2026-09-08** from a Jerry sandbox, by querying the preview Supabase
-project directly with the service-role client (`node --env-file=.env.local`,
+project (this is the same Supabase project production uses — only Clerk is
+split per environment; per Mace 2026-09-28, see "Which database is that?")
+directly with the service-role client (`node --env-file=.env.local`,
 `@supabase/supabase-js`) and by timing/sizing the exact projection
 `useTickets()` sends:
 
@@ -201,9 +203,8 @@ project directly with the service-role client (`node --env-file=.env.local`,
 | Of which: embedded `messages` | 4.09 MB |
 | Of which: `description` | 1.07 MB |
 
-These are preview-database numbers. Production volume is **not** measurable
-from a Jerry sandbox — Mace can measure it — but preview is loaded from the
-same Zendesk import, so treat production as the same order of magnitude.
+Per Mace (2026-09-28) the preview and production apps share this one
+Supabase project, so these are production volumes as of the date measured.
 
 ### What follows from that
 
@@ -361,9 +362,29 @@ matches ANY entry of `managed_branch_ids` (legacy `managed_branch_id` as
 fallback), compared as text so a malformed entry cannot throw. The server gate
 (`assert-ticket-access.ts`, `'respond'`) now uses the exported
 `getManagedBranchIds` from `policies.ts`. App, server and database must keep
-agreeing — change all three together. The migration SQL was reviewed but not
-executed in a sandbox (no Postgres there); it runs when published. Background
-as first observed:
+agreeing — change all three together. Applied to the live database by Mace on
+2026-09-28 (ledger `public._migrations`, `applied_by='neo-triage'`); 001–019
+were adopted into the ledger as hand-applied history. Measured by Jerry
+2026-09-28 (service-role `select * from _migrations`): 20 rows, 001–019 with
+`applied_by='backfill:neo-triage'`, 020 and 021 with `applied_by='neo-triage'`,
+and their `git_blob_sha` equal to the committed files' blobs;
+`rpc('get_user_branch_ids')` answers (null with no user claim) rather than
+erroring. Mace's behavioural checks (anon reads nothing from profiles/config,
+employees get no internal notes, a 5-branch manager sees all 5) are
+attributed to Mace, not re-measured here. Per Mace (2026-09-29, attributed —
+the control plane is not readable from a Jerry sandbox): the portal project
+record now carries `supabase_project_ref=oygmgegnqenkecfsvhwt`, so new files
+in `supabase/migrations/` are applied on deploy — against the live database.
+
+**Multi-branch managers now: 2, not 3.** Measured by Jerry 2026-09-29
+(service-role read of `profiles` where `has_branch_access`): 16 users with
+branch access; 2 with more than one entry in `managed_branch_ids` — Regan
+Hussong (5: Aldridge Processing, Aledo 3310, Builder Direct 3302, FW Chapel
+Creek 3300, Little Team 3330) and Rachel Newsom (3: Johnston 3100, Legacy
+8516, Mansfield 6400/6401), both also with regional access. Joseph Micheletto
+now has 1 branch; his profile's `updated_at` is 2026-09-25 22:25:54Z, after
+the count below was taken (most likely an edit on the admin Users screen —
+inferred, not measured). Background as first observed:
 
 The database's own visibility rule for branch managers read
 only the legacy single `managed_branch_id` (002/007 migrations), while the
@@ -387,7 +408,15 @@ ships a `pk_live_` Clerk key, while this sandbox's env has a `pk_test_` key
 that appears nowhere on the live site. So the sandbox environment is not the
 live one for sign-in; whether the Supabase project is also separate is NOT
 measurable from here (the live Supabase URL is only in authenticated portal
-chunks). Do not describe preview numbers as live data.
+chunks).
+
+**Superseded 2026-09-28, per Mace (attributed, not measured from a Jerry
+sandbox):** preview and production use the SAME Supabase project
+(`oygmgegnqenkecfsvhwt`, which is the URL in this sandbox's `.env.local` —
+that half checked by Jerry); only Clerk is split per environment. So every
+"preview database" figure in this file is live data, any write from a
+sandbox's `.env.local` is a write to production, and new files in
+`supabase/migrations/` will run against production when applied on deploy.
 
 ### Search reaches every ticket the user may open, from any list
 
@@ -398,3 +427,47 @@ all pass `allTickets={tickets}` (the `useTickets()` result, already limited by
 RLS) to `TicketList`, so a search there looks through everything the user can
 open — as agent search already did. No access is widened; the list shown
 before searching is unchanged. Test: `tests/unit/tickets/ticket-list-search-scope.test.tsx`.
+
+### "View as this user" and the route gates
+
+View-as (`/api/users/assume`, `assumed-user-id` cookie) swaps only the
+browser-side profile; `middleware.ts` still reads the signed-in ADMIN's Clerk
+flags. Since 2026-09-28 admins pass the `/branch` and `/region` gates so
+view-as reaches the viewed user's My Branch / My Region (it used to bounce to
+`/dashboard`); the pages still gate on the viewed-as profile. Known remaining
+gap, unchanged: an admin viewing as an employee can still open agent-only
+pages (e.g. `/dashboard`) that the employee cannot.
+
+### Name and logo come from Admin → Branding — never hard-code them
+
+Client decision, 2026-10-05: every place that shows the portal's name or logo
+follows the `branding_config` row (Admin → Branding). Fallback name
+`DEFAULT_BRAND_NAME` lives in `src/lib/branding/brand-name.ts` — use it, do
+not write "SFMC Help Desk" into new code.
+
+- Browser tab: root `generateMetadata` (`src/app/layout.tsx`).
+- Sign-in / sign-up: `src/app/(auth)/layout.tsx`. The saved logo is cream on
+  transparent (checked 2026-10-05 by downloading it through the app's storage
+  client), so it sits on the sidebar's dark panel there — on white it vanishes.
+- Sidebar: `useBranding()` (client).
+- Emails: templates write `BRAND_NAME_TOKEN` / `BRAND_HEADER_TOKEN`;
+  `send()` in `lib/email/notify.ts` fills them and sets the sender's display
+  name (mailbox from `EMAIL_FROM` is kept). Any new email must go through
+  `send()` or call `applyEmailBranding` itself.
+- Server reads use `getServerBranding()` (service role, 60 s per-instance
+  cache, falls back to defaults on any error).
+- Colours (client decision 2026-10-05: primary #242E38, accent #C98726 — the
+  logo's gold, measured by decoding the PNG). `src/lib/branding/colors.ts`;
+  `BrandTheme` in the portal layout writes `--primary` (every default
+  Button / `bg-primary`) and `--brand-accent` (the highlighted sidebar item),
+  server value first, then live from `useBranding()` after a save. Text on
+  each is chosen for contrast (`readableTextOn`): white on the gold is ~3:1,
+  so the sidebar highlight uses dark text. Do NOT map the brand accent to
+  shadcn `--accent` — that is the light hover grey for menus.
+- NOT following the colours (deliberately, unasked): the ~60 hard-coded
+  `text-blue-*` / `bg-blue-*` classes (links, info boxes, badges) and the
+  email button blue. Converting them is a separate change.
+- Migration 022 swaps the saved colours from the never-chosen old defaults
+  (#2563eb / #7c3aed, measured in the row 2026-10-05) to the client's; it
+  matches no row once anyone saves colours, so it cannot overwrite a choice.
+  Unapplied until published — not measured as applied.

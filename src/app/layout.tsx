@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
+import { connection } from "next/server";
+import { getServerBranding } from "@/lib/branding/server";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,10 +15,16 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "SFMC Help Desk",
-  description: "Internal help desk portal for SFMC",
-};
+// The tab title follows Admin → Branding. connection() renders it per
+// request, so a saved name is not frozen at build time.
+export async function generateMetadata(): Promise<Metadata> {
+  await connection();
+  const { name } = await getServerBranding();
+  return {
+    title: name,
+    description: `Internal help desk portal — ${name}`,
+  };
+}
 
 export default function RootLayout({
   children,
