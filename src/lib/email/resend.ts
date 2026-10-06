@@ -1,6 +1,13 @@
 import { Resend } from 'resend'
 
-export const resend = new Resend(process.env.RESEND_API_KEY)
+let client: Resend | null = null
+function getResend(): Resend {
+  return (client ??= new Resend(process.env.RESEND_API_KEY))
+}
+// Lazy: constructed on first use, so `next build` with no env vars does not throw (MF-1366).
+export const resend = new Proxy({} as Resend, {
+  get: (_t, prop) => Reflect.get(getResend(), prop),
+})
 
 // Default "from" address — must be a verified domain in Resend
 export const EMAIL_FROM = process.env.EMAIL_FROM ?? 'SFMC Help Desk <notifications@support.sfmc.com>'
