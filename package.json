@@ -43,7 +43,7 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
+    "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/dompurify": "^3.0.5",
@@ -54,8 +54,11 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.3",
     "jsdom": "^27.0.1",
-    "tailwindcss": "^4",
+    "tailwindcss": "^4.3.3",
     "typescript": "^5",
     "vitest": "^4.1.4"
+  },
+  "engines": {
+    "node": "24.x"
   }
 }
