@@ -49,6 +49,39 @@ interface TimelineEvent {
   event_at: string
 }
 
+/** One row of email_send_log — an email the help desk tried to send. */
+interface Attempt {
+  id: string
+  attempted_at: string
+  subject: string | null
+  ticket_id: string | null
+  outcome: 'accepted' | 'refused' | 'error'
+  resend_email_id: string | null
+  error_name: string | null
+  error_message: string | null
+}
+
+interface AttemptProblem {
+  recipient: string
+  attempted_at: string
+  subject: string | null
+  ticket_id: string | null
+  outcome: 'refused' | 'error'
+  error_name: string | null
+  error_message: string | null
+}
+
+interface AttemptSummary {
+  sendLogReady: boolean
+  days: number
+  counts: { accepted: number; refused: number; error: number } | null
+  problems: AttemptProblem[]
+}
+
+type TimelineItem =
+  | { kind: 'event'; at: string; event: TimelineEvent }
+  | { kind: 'attempt'; at: string; attempt: Attempt }
+
 // ── Helpers ────────────────────────────────────────────────────
 
 function eventBadge(type: string) {
@@ -84,6 +117,26 @@ function eventBadge(type: string) {
   )
 }
 
+function attemptBadge(outcome: Attempt['outcome']) {
+  const map: Record<Attempt['outcome'], { label: string; cls: string }> = {
+    accepted: {
+      label: 'Handed to Resend',
+      cls: 'bg-slate-100 text-slate-600 border-slate-200',
+    },
+    refused: {
+      label: 'Refused by Resend',
+      cls: 'bg-red-100 text-red-700 border-red-200',
+    },
+    error: { label: 'Send error', cls: 'bg-red-100 text-red-700 border-red-200' },
+  }
+  const m = map[outcome]
+  return (
+    <Badge variant="outline" className={`text-[11px] ${m.cls}`}>
+      {m.label}
+    </Badge>
+  )
+}
+
 function fmt(ts: string) {
   try {
     return new Date(ts).toLocaleString()
@@ -111,7 +164,21 @@ export default function EmailDeliveryPage() {
     },
   })
 
-  const timelineQuery = useQuery<{ recipient: string; events: TimelineEvent[] }>({
+  const attemptsQuery = useQuery<AttemptSummary>({
+    queryKey: ['admin', 'email-events', 'attempts'],
+    queryFn: async () => {
+      const res = await fetch('/api/admin/email-events?view=attempts')
+      if (!res.ok) throw new Error('Failed to load send attempts')
+      return res.json()
+    },
+  })
+
+  const timelineQuery = useQuery<{
+    recipient: string
+    events: TimelineEvent[]
+    attempts?: Attempt[]
+    sendLogReady?: boolean
+  }>({
     queryKey: ['admin', 'email-events', 'timeline', lookup],
     enabled: !!lookup,
     queryFn: async () => {
@@ -144,15 +211,28 @@ export default function EmailDeliveryPage() {
   })
 
   const issues = issuesQuery.data?.issues ?? []
+  const attemptSummary = attemptsQuery.data
+  const attemptProblems = attemptSummary?.problems ?? []
+
+  // Send attempts and Resend's own reports, newest first, in one list —
+  // "we tried" next to "it was delivered" is what answers "did it go out?".
+  const timeline: TimelineItem[] = [
+    ...(timelineQuery.data?.events ?? []).map(
+      (event): TimelineItem => ({ kind: 'event', at: event.event_at, event }),
+    ),
+    ...(timelineQuery.data?.attempts ?? []).map(
+      (attempt): TimelineItem => ({ kind: 'attempt', at: attempt.attempted_at, attempt }),
+    ),
+  ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-semibold text-gray-900">Email Delivery</h2>
         <p className="text-sm text-gray-500 mt-0.5">
-          Addresses Resend has bounced or suppressed. A suppressed address
-          receives nothing — not even its account invite — until the
-          suppression is cleared.
+          Every email the help desk tries to send, and what happened to it.
+          A suppressed address receives nothing — not even its account
+          invite — until the suppression is cleared.
         </p>
       </div>
 
@@ -240,26 +320,45 @@ export default function EmailDeliveryPage() {
                 <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
                   <Loader2 className="w-4 h-4 animate-spin" /> Loading…
                 </div>
-              ) : (timelineQuery.data?.events.length ?? 0) === 0 ? (
+              ) : timeline.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-4">
-                  No delivery events recorded for this address. (Events accrue
-                  once the Resend events webhook is configured — see the note
-                  above.)
+                  Nothing recorded for this address — the help desk has not
+                  tried to email it since send recording began, and Resend has
+                  reported no deliveries. Check the address is spelled the way
+                  it is on the person&apos;s profile.
                 </p>
               ) : (
                 <ul className="divide-y">
-                  {timelineQuery.data!.events.map((e) => (
-                    <li key={e.id} className="flex items-center gap-3 py-2 text-sm">
-                      {eventBadge(e.event_type)}
+                  {timeline.map((item) =>
+                    item.kind === 'attempt' ? (
+                      <li
+                        key={`a-${item.attempt.id}`}
+                        className="flex items-center gap-3 py-2 text-sm"
+                      >
+                        {attemptBadge(item.attempt.outcome)}
+                        <span className="text-muted-foreground tabular-nums">
+                          {fmt(item.attempt.attempted_at)}
+                        </span>
+                        <span className="flex-1 truncate text-gray-700">
+                          {item.attempt.outcome === 'accepted'
+                            ? item.attempt.subject || '—'
+                            : `${item.attempt.error_message || item.attempt.error_name || 'No reason given'}${
+                                item.attempt.subject ? ` — ${item.attempt.subject}` : ''
+                              }`}
+                        </span>
+                      </li>
+                    ) : (
+                    <li key={item.event.id} className="flex items-center gap-3 py-2 text-sm">
+                      {eventBadge(item.event.event_type)}
                       <span className="text-muted-foreground tabular-nums">
-                        {fmt(e.event_at)}
+                        {fmt(item.event.event_at)}
                       </span>
                       <span className="flex-1 truncate text-gray-700">
-                        {e.reason || e.subject || '—'}
+                        {item.event.reason || item.event.subject || '—'}
                       </span>
-                      {e.resend_email_id && (
+                      {item.event.resend_email_id && (
                         <a
-                          href={resendUrl(e.resend_email_id)}
+                          href={resendUrl(item.event.resend_email_id)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-muted-foreground hover:text-gray-700"
@@ -269,10 +368,109 @@ export default function EmailDeliveryPage() {
                         </a>
                       )}
                     </li>
-                  ))}
+                    ),
+                  )}
                 </ul>
               )}
+              {timelineQuery.data && timelineQuery.data.sendLogReady === false && (
+                <p className="text-xs text-muted-foreground pt-2">
+                  Send attempts are not being recorded yet — they start
+                  appearing here once this update is published.
+                </p>
+              )}
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* What the help desk tried to send (email_send_log) */}
+      <Card>
+        <CardContent className="p-0">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 border-b">
+            <div className="flex items-center gap-2">
+              <Send className="w-4 h-4 text-gray-500" />
+              <h3 className="text-sm font-semibold">
+                Send attempts
+                {attemptSummary?.sendLogReady ? `, last ${attemptSummary.days} days` : ''}
+              </h3>
+            </div>
+            {attemptSummary?.counts && (
+              <p className="text-sm text-muted-foreground tabular-nums">
+                {attemptSummary.counts.accepted.toLocaleString()} handed to Resend
+                {' · '}
+                <span
+                  className={
+                    attemptSummary.counts.refused + attemptSummary.counts.error > 0
+                      ? 'font-medium text-red-700'
+                      : undefined
+                  }
+                >
+                  {(attemptSummary.counts.refused + attemptSummary.counts.error).toLocaleString()}{' '}
+                  refused or failed
+                </span>
+              </p>
+            )}
+          </div>
+
+          {attemptsQuery.isLoading ? (
+            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-10">
+              <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+            </div>
+          ) : attemptsQuery.isError ? (
+            <div className="py-10 text-center text-sm text-red-600">
+              Failed to load. Try refreshing.
+            </div>
+          ) : !attemptSummary?.sendLogReady ? (
+            <div className="py-10 px-4 text-center text-sm text-gray-500">
+              Send attempts are not being recorded yet — they start appearing
+              here once this update is published.
+            </div>
+          ) : attemptProblems.length === 0 ? (
+            <div className="py-10 px-4 text-center text-sm text-gray-500">
+              Every email the help desk tried to send in the last{' '}
+              {attemptSummary.days} days was accepted by Resend.
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Recipient</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Reason</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Last tried</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {attemptProblems.map((p) => (
+                  <TableRow key={p.recipient}>
+                    <TableCell className="font-medium">
+                      <button
+                        type="button"
+                        className="hover:underline text-left"
+                        onClick={() => {
+                          setSearchInput(p.recipient)
+                          setLookup(p.recipient)
+                        }}
+                        title="Show this address's history"
+                      >
+                        {p.recipient}
+                      </button>
+                    </TableCell>
+                    <TableCell>{attemptBadge(p.outcome)}</TableCell>
+                    <TableCell className="text-muted-foreground max-w-[22rem] truncate">
+                      {p.error_message || p.error_name || '—'}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground max-w-[18rem] truncate">
+                      {p.subject || '—'}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground tabular-nums whitespace-nowrap">
+                      {fmt(p.attempted_at)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>

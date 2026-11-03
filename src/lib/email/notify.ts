@@ -3,6 +3,7 @@ import 'server-only'
 import { resend, EMAIL_FROM, ticketReplyTo } from './resend'
 import * as templates from './templates'
 import { resolveReplyRecipients } from './reply-recipients'
+import { buildSendLogRow, type SendLogRow } from './send-log'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getServerBranding } from '@/lib/branding/server'
 import { applyEmailBranding, withSenderName } from '@/lib/branding/brand-name'
@@ -31,28 +32,50 @@ async function resolveUsers(userIds: string[]) {
   return map
 }
 
+/**
+ * Save one send attempt to `email_send_log` (migration 023) — the record of
+ * what we TRIED, which Resend's webhook (email_events) cannot give us: a
+ * refused address or a send that threw otherwise leaves no row anywhere.
+ * Never throws and never blocks the email; before 023 is applied the insert
+ * simply fails with a warning.
+ */
+async function recordSendAttempt(row: SendLogRow) {
+  try {
+    const { error } = await createAdminClient().from('email_send_log').insert(row)
+    if (error) console.warn('[email] Could not record send attempt:', error.message)
+  } catch (err) {
+    console.warn('[email] Could not record send attempt:', err)
+  }
+}
+
 async function send(to: string, unbranded: { subject: string; html: string }, ticketId?: string) {
+  let subject = unbranded.subject
+  let row: SendLogRow
   try {
     // Name and logo come from Admin → Branding (templates hold placeholders).
     const brand = await getServerBranding()
     const template = applyEmailBranding(unbranded, brand)
+    subject = template.subject
     const from = withSenderName(EMAIL_FROM, brand.name)
     console.log(`[email] Sending to ${to} from ${from} — subject: ${template.subject}`)
-    const { data, error } = await resend.emails.send({
+    const result = await resend.emails.send({
       from,
       to,
       replyTo: ticketId ? ticketReplyTo(ticketId) : undefined,
       subject: template.subject,
       html: template.html,
     })
-    if (error) {
-      console.error(`[email] Resend error for ${to}:`, JSON.stringify(error))
+    row = buildSendLogRow({ to, subject, ticketId, result })
+    if (result.error) {
+      console.error(`[email] Resend error for ${to}:`, JSON.stringify(result.error))
     } else {
-      console.log(`[email] Sent successfully to ${to} — id: ${data?.id}`)
+      console.log(`[email] Sent successfully to ${to} — id: ${result.data?.id}`)
     }
   } catch (err) {
+    row = buildSendLogRow({ to, subject, ticketId, thrown: err })
     console.error(`[email] Failed to send to ${to}:`, err)
   }
+  await recordSendAttempt(row)
 }
 
 // ── Public notification functions ────────────────────────────────
