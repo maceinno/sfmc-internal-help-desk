@@ -471,3 +471,43 @@ not write "SFMC Help Desk" into new code.
   (#2563eb / #7c3aed, measured in the row 2026-10-05) to the client's; it
   matches no row once anyone saves colours, so it cannot overwrite a choice.
   Unapplied until published — not measured as applied.
+
+### Favicon — "The SOS" mark (client-supplied 2026-11-03)
+
+Client-supplied 512×512 JPEG, kept as the source at
+`docs/brand/the-sos-favicon.jpg` (background measured as exactly #242E38 by
+reading a corner pixel with sharp). Generated from it with sharp, and served
+via the App Router file convention — no `metadata.icons` entry needed:
+- `src/app/favicon.ico` — 16/32/48 px, PNG-in-ICO. **The embedded PNGs must be
+  RGBA** (`.ensureAlpha()`): an RGB one makes Turbopack fail "The PNG is not in
+  RGBA format!" and every page returns 500 (hit and fixed 2026-11-03).
+- `src/app/icon.png` (512) and `src/app/apple-icon.png` (180).
+Measured 2026-11-03 on the in-sandbox dev server: `/sign-in` returns 200 and
+emits all three `<link rel="icon"/"apple-touch-icon">` tags. Unlike the name
+and logo it is a fixed file, not an Admin → Branding setting (offered as the
+default; the client sent the file without asking for the upload option); to change it, replace the source and regenerate all three.
+
+### Email: what we TRIED is logged, not only what Resend reports
+
+Client decision 2026-11-03 ("Yes"), after "end users are not getting emails
+on ticket responses". `email_events` (016) holds only Resend webhook reports.
+Measured 2026-11-03 (service-role read, shared project): types ever recorded
+are delivered 63,903 · bounced 673 (last 2026-08-24) · delivery_delayed 1 —
+never sent/suppressed/complained/failed. So a refused address left no row:
+fpena@sfmc.com had nothing after 2026-07-23 despite 38 tickets created. Same
+day, last 14 days: 1,818 reply emails expected (current creator/assignee/CC
+minus author), 1,728 with a delivered "Re: [T-…]" event within 30 min.
+
+- `email_send_log` (migration 023, service-role only): one row per attempt,
+  written by `send()` in `lib/email/notify.ts` via `buildSendLogRow`
+  (`lib/email/send-log.ts`, tested). outcome accepted / refused / error. Every
+  email must go through `send()` — it is the only Resend call in `src/`.
+- The insert is awaited (Vercel kills the function after the response) but
+  can never block or fail the email.
+- Admin → Email Delivery: the address lookup merges attempts with Resend's
+  events; a "Send attempts" card shows 7-day counts and addresses whose latest
+  attempt was refused/errored (`/api/admin/email-events?view=attempts`).
+  Both degrade to "not recorded yet" until 023 is applied.
+- Unapplied until published — not measured as applied. No retention: about
+  10k rows/month at current volume (inferred from the 10,189 delivered in the
+  30 days to 2026-11-02).
